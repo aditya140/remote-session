@@ -1,0 +1,52 @@
+name: remote-session-dev
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    user: vscode
+    command: ["sleep", "infinity"]
+    working_dir: /workspaces/remote-session
+    volumes:
+      - ..:/workspaces/remote-session:cached
+    environment:
+      CARGO_TARGET_DIR: /home/vscode/.cache/remote-session/target
+      RUST_BACKTRACE: "1"
+      QGR_DATABASE_URL: postgres://qgenie_dev:local_dev_only@postgres:5432/qgenie_remote
+      QGR_REDIS_URL: redis://redis:6379/0
+      QGR_LISTEN: 0.0.0.0:8080
+      QGR_ADMIN_LISTEN: 0.0.0.0:9090
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18.6-bookworm
+    environment:
+      POSTGRES_USER: qgenie_dev
+      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_DB: qgenie_remote
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:8.2.10-bookworm
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  postgres-data:
