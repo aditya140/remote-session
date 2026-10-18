@@ -1,0 +1,19 @@
+{
+  "name": "approval-lost-application-ack",
+  "approval": "a_550e8400-e29b-41d4-a716-446655440004",
+  "decision": "d_550e8400-e29b-41d4-a716-446655440005",
+  "steps": [
+    "host_policy_preflight",
+    "commit_winner_and_outbox",
+    "journal_native_application",
+    "native_submission",
+    "drop_native_reply",
+    "deliver_same_decision"
+  ],
+  "expected": {
+    "gateway_winners": 1,
+    "application": "outcome_unknown",
+    "blind_native_resubmit": false,
+    "requires_controller": false
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "body": {
+    "events": [
+      {
+        "at": "2026-10-17T00:00:00.000Z",
+        "event": {
+          "data": {
+            "message": "native-message-1",
+            "text": "hello"
+          },
+          "kind": "message_delta"
+        },
+        "seq": "9007199254740993"
+      },
+      {
+        "at": "2026-10-17T00:00:00.000Z",
+        "event": {
+          "kind": "idle"
+        },
+        "seq": "9007199254740994"
+      }
+    ],
+    "floor": "9007199254740993",
+    "head": "9007199254740994",
+    "history_truncated": false,
+    "more": false
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440103",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+  "session": "s_550e8400-e29b-41d4-a716-446655440002",
+  "type": "session.replay",
+  "v": 1
+}

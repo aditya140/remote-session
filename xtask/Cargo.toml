@@ -1,0 +1,14 @@
+[package]
+name = "xtask"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+qgenie-remote-proto = { path = "../crates/qgenie-remote-proto", features = ["schema"] }
+
+[lints]
+workspace = true

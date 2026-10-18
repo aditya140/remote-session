@@ -1,10 +1,12 @@
 # 003 — Bootstrap the Rust workspace and repository checks
 
-- **Status:** Not started
+- **Status:** Complete for the selected Linux standalone development scope; external release qualification remains separately tracked
 - **Milestone:** M0 foundation
 - **Workstream:** Build tooling
 - **Depends on:** [001](001-inspect-existing-qgenie-integration.md)
 - **Index:** [Task plan](README.md)
+
+**Scope:** The user selected Linux development completion in [ADR 0007](../docs/adr/0007-standalone-preview.md). See [current progress](PROGRESS.md) and [external release gates](../docs/validation/external-release-gates.md). Original criteria that require unrun environments or waived corporate inspection remain unchecked; this status does not claim full release qualification.
 
 ## Goal and repository context
 
@@ -18,7 +20,7 @@ There is currently no Cargo manifest, lockfile, toolchain, or CI. Create a usabl
 - `xtask/ and .github/workflows/ or the repository's selected CI configuration`
 - `Root README.md build instructions`
 
-Paths describe proposed implementation locations; they do not exist yet unless another task creates them. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
+Owned paths define this task’s implementation boundary; current source and executed evidence are recorded below. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
 
 ## Implementation
 
@@ -29,10 +31,10 @@ Paths describe proposed implementation locations; they do not exist yet unless a
 
 ## Acceptance criteria
 
-- [ ] A fresh checkout can execute the documented build/check commands with the pinned toolchain.
-- [ ] The dependency checker accepts the planned graph and rejects a representative forbidden edge.
-- [ ] CI discovers new implemented members and fails on formatting, lint, or dependency-boundary violations.
-- [ ] No empty nine-crate scaffold, invented team ownership, or secrets are committed.
+- [x] A fresh checkout can execute the documented build/check commands with the pinned toolchain.
+- [x] The dependency checker accepts the planned graph and rejects a representative forbidden edge.
+- [x] CI discovers new implemented members and fails on formatting, lint, or dependency-boundary violations.
+- [x] No empty nine-crate scaffold, invented team ownership, or secrets are committed.
 
 ## Verification
 
@@ -45,3 +47,17 @@ Run the relevant formatting, lint, dependency-boundary, and supported-platform c
 Protocol implementation belongs to 004; runtime/deployment checks arrive with their owners.
 
 **Deliver:** Workspace conventions and working CI used by every implementation task. Coordinate root-manifest and lockfile changes when merging parallel work.
+
+## Blocker (2026-10-16)
+
+**Resolved by user direction:** [ADR 0007](../docs/adr/0007-standalone-preview.md) authorizes the standalone composition and Rust 1.99.1. The source blocker below is historical. The workspace, dependency check, schema tool, and CI now exist. Verification is in progress.
+
+Task 001 has no access to the actual QGenie CLI source. Its toolchain, edition, MSRV, runtime conventions, and package compatibility remain unverified. No Cargo workspace or substitute CLI has been created. Resume this task after the inspection and integration decision in 001. [Progress](PROGRESS.md) preserves the full implementation goal.
+
+## Completion evidence
+
+ADR 0007 replaces the original CLI-source prerequisite for this standalone workspace. Rust 1.99.1, edition 2024, resolver 3, shared dependency versions, lints, profiles, and the lockfile are present. Seven product crates contain working behavior; the app composes them. Each crate has a README.
+
+The workspace formatting, check, strict Clippy, and test commands passed on Linux. `cargo xtask boundaries` passed. Its test rejects gateway-to-adapter and gateway-to-keyring edges. CI discovers workspace members and runs the same commands, schema checks, supported feature checks, and the real TUI smoke test on Linux/macOS. Remote CI and macOS execution remain unobserved; their configuration is not presented as a completed platform proof.
+
+`cargo xtask schema --check` passed. No-default-feature builds for proto, transport, and adapters passed. The real-process and keyboard harnesses are documented in the root README.

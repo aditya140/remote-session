@@ -1,10 +1,12 @@
 # 012 — Implement gateway routing, inventory, and push presence
 
-- **Status:** Not started
+- **Status:** Complete for the selected Linux standalone development scope; external release qualification remains separately tracked
 - **Milestone:** M0 terminal slice
 - **Workstream:** Gateway routing
 - **Depends on:** [005](005-implement-websocket-transport.md), [010](010-implement-gateway-foundation-and-audit.md), [011](011-implement-gateway-identity-and-enrollment.md)
 - **Index:** [Task plan](README.md)
+
+**Scope:** The user selected Linux development completion in [ADR 0007](../docs/adr/0007-standalone-preview.md). See [current progress](PROGRESS.md) and [external release gates](../docs/validation/external-release-gates.md). Original criteria that require unrun environments or waived corporate inspection remain unchecked; this status does not claim full release qualification.
 
 ## Goal and repository context
 
@@ -17,7 +19,7 @@ Connect clients to hosts through any gateway replica while treating Redis as dis
 - `Gateway edge connection/limit modules and routing/{local,redis,presence}.rs`
 - `Gateway session metadata projections and machine/user subscription handlers`
 
-Paths describe proposed implementation locations; they do not exist yet unless another task creates them. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
+Owned paths define this task’s implementation boundary; current source and executed evidence are recorded below. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
 
 ## Implementation
 
@@ -28,10 +30,10 @@ Paths describe proposed implementation locations; they do not exist yet unless a
 
 ## Acceptance criteria
 
-- [ ] Two gateway processes route an authenticated client to its host regardless of affinity; another user's IDs never provide access.
-- [ ] Online presence arrives within 5 seconds and unclean disconnect is reflected within 30 seconds; inventory and session counts update by push.
-- [ ] Slow observers cannot block controllers, and lost routed frames trigger recovery rather than implied delivery.
-- [ ] Redis loss preserves durable metadata and local processes; same-node access is still bounded by authoritative access freshness from 019.
+- [x] Two gateway processes route an authenticated client to its host regardless of affinity; another user's IDs never provide access.
+- [x] Online presence arrives within 5 seconds and unclean disconnect is reflected within 30 seconds; inventory and session counts update by push.
+- [x] Slow observers cannot block controllers, and lost routed frames trigger recovery rather than implied delivery.
+- [x] Redis loss preserves durable metadata and local processes; same-node access is still bounded by authoritative access freshness from 019.
 
 ## Verification
 
@@ -44,3 +46,7 @@ Run the relevant formatting, lint, dependency-boundary, and supported-platform c
 No session process ownership, durable output in Redis, approval authority, or Redis-only controller leases.
 
 **Deliver:** Authenticated routing/subscription APIs and presence events. Host-generation enforcement is completed by 017 before the integrated MVP is accepted.
+
+## Verified implementation
+
+Two actual Linux gateway processes, verified HTTPS JWKS/WSS, PostgreSQL 17, and Redis 8 pass the routing fixture. Proofs cover cross-node read/reply/output, foreign IDs and token families, maximum JSON frames, bounded slow observers, inventory/counts/presence, host replacement, refresh, pub/sub interruption, a full finite Redis pause, same-node reads during outage, rebuild/recovery, access disable, and full-u64 exhaustion. Host messages in this test are protocol fixtures. Separate synchronous and development-stack proofs now exercise the real sessiond/connector, native control, directory freshness and process survival. Unsupported/unactivated mutations remain explicit not-sent. See [routing limits, recovery, and configuration](../docs/integration/gateway-routing.md).

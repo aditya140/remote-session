@@ -1,0 +1,19 @@
+{
+  "body": {
+    "optional": [
+      "codex"
+    ],
+    "required": [
+      "pty"
+    ],
+    "versions": [
+      {
+        "major": 1,
+        "minor": 0
+      }
+    ]
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440112",
+  "type": "hello",
+  "v": 1
+}

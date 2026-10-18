@@ -1,10 +1,12 @@
 # 025 — Integrate CLI commands and independent host services
 
-- **Status:** Not started
+- **Status:** Complete for the selected Linux standalone development scope; external release qualification remains separately tracked
 - **Milestone:** M0 terminal demo / M1 CLI integration
 - **Workstream:** CLI and service composition
 - **Depends on:** [009](009-implement-verified-codex-adapter.md), [014](014-implement-host-dispatch-and-filesystem-policy.md), [016](016-implement-session-replay-and-snapshots.md), [017](017-implement-fenced-control-leases.md), [018](018-implement-durable-approvals.md), [020](020-implement-recording-spool.md), [021](021-implement-transcript-storage-and-access.md), [024](024-implement-tui-workflows.md)
 - **Index:** [Task plan](README.md)
+
+**Scope:** The user selected Linux development completion in [ADR 0007](../docs/adr/0007-standalone-preview.md). See [current progress](PROGRESS.md) and [external release gates](../docs/validation/external-release-gates.md). Original criteria that require unrun environments or waived corporate inspection remain unchecked; this status does not claim full release qualification.
 
 ## Goal and repository context
 
@@ -18,7 +20,7 @@ Compose the reusable crates inside the real QGenie executable and prove connecto
 - `Existing CLI command/composition paths verified in 001 (outside this checkout)`
 - `docs/integration/remote-commands.md and Linux/macOS service fixtures`
 
-Paths describe proposed implementation locations; they do not exist yet unless another task creates them. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
+Owned paths define this task’s implementation boundary; current source and executed evidence are recorded below. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
 
 ## Implementation
 
@@ -30,10 +32,10 @@ Paths describe proposed implementation locations; they do not exist yet unless a
 
 ## Acceptance criteria
 
-- [ ] The actual CLI launches the TUI and scriptable flows using shared crates from one compatible revision.
+- [x] The actual CLI launches the TUI and scriptable flows using shared crates from one compatible revision.
 - [ ] Restarting/upgrading/stopping the connector with active PTY and Codex sessions preserves processes and local recording on Linux and macOS.
-- [ ] Pause blocks remote access, resume reconnects/uploads retained spool content, and revoke/unenroll do not terminate sessions.
-- [ ] Repeated up does not duplicate services or machine enrollment; status/doctor and machine-readable failures match actual state.
+- [x] Pause blocks remote access, resume reconnects/uploads retained spool content, and revoke/unenroll do not terminate sessions.
+- [x] Repeated up does not duplicate services or machine enrollment; status/doctor and machine-readable failures match actual state.
 
 ## Verification
 
@@ -43,6 +45,12 @@ Run the relevant formatting, lint, dependency-boundary, and supported-platform c
 
 ## Boundaries and handoff
 
-The existing CLI repository is a real external dependency. A local harness helps development but cannot substitute for completing that integration. Windows/Electron service supervision is deferred.
+The user authorized a new standalone CLI/TUI (ADR 0007). Complete this task in `apps/qgenie-remote`; the missing corporate CLI source is not a prerequisite. Real service-lifetime and platform proofs remain required. Windows/Electron service supervision is deferred.
 
 **Deliver:** Working qgenie commands, service-lifetime proof, diagnosis output, and documented package linkage for 027/028.
+
+The 2026-10-18 owned synchronous fixture additionally executes `host up --no-service` twice
+against an existing owner and PTY, verifies reactivation and exactly the original session,
+then pauses its exact scoped connector and resumes foreground capture/upload. The complete
+native/CLI/TUI recording proof passes in 35.33s. Process mode remains explicitly independent
+of a service manager; it does not qualify actual systemd/launchd lifetime or logout/upgrade.

@@ -1,0 +1,14 @@
+{
+  "body": {
+    "generation": "18446744073709551615",
+    "kind": "activate",
+    "remaining_ms": 14999,
+    "renewal": false,
+    "takeover": true
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440140",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440000",
+  "session": "s_550e8400-e29b-41d4-a716-446655440000",
+  "type": "host.control.request",
+  "v": 1
+}

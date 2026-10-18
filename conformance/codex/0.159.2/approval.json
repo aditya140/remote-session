@@ -1,0 +1,36 @@
+{
+  "method": "item/commandExecution/requestApproval",
+  "id": 0,
+  "params": {
+    "kind": "command",
+    "threadId": "00000000-0000-4000-8000-000000000001",
+    "turnId": "00000000-0000-4000-8000-000000000001",
+    "itemId": "call_fixture",
+    "startedAtMs": 1,
+    "environmentId": "local",
+    "command": "/bin/bash -lc 'touch /tmp/qgenie-native-fixture/approval-applied'",
+    "cwd": "/tmp/qgenie-native-fixture",
+    "commandActions": [
+      {
+        "type": "unknown",
+        "command": "touch /tmp/qgenie-native-fixture/approval-applied"
+      }
+    ],
+    "proposedExecpolicyAmendment": [
+      "touch",
+      "/tmp/qgenie-native-fixture/approval-applied"
+    ],
+    "availableDecisions": [
+      "accept",
+      {
+        "acceptWithExecpolicyAmendment": {
+          "execpolicy_amendment": [
+            "touch",
+            "/tmp/qgenie-native-fixture/approval-applied"
+          ]
+        }
+      },
+      "cancel"
+    ]
+  }
+}

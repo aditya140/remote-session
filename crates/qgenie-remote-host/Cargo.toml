@@ -1,0 +1,43 @@
+[package]
+name = "qgenie-remote-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["os-keyring"]
+os-keyring = ["dep:keyring"]
+
+[dependencies]
+qgenie-remote-proto = { path = "../qgenie-remote-proto" }
+qgenie-remote-transport = { path = "../qgenie-remote-transport", default-features = false, features = ["client-ws", "local-ipc", "elapsed-clock"] }
+qgenie-remote-policy = { path = "../qgenie-remote-policy" }
+base64.workspace = true
+ed25519-dalek.workspace = true
+fs2.workspace = true
+libc.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+url.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { workspace = true, optional = true, features = ["async-secret-service", "tokio", "crypto-rust"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { workspace = true, optional = true, features = ["apple-native"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+rcgen.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+
+[lints]
+workspace = true

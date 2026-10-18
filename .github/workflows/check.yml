@@ -1,0 +1,141 @@
+name: Rust checks
+on: [push, pull_request]
+jobs:
+  development-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked --package qgenie-remote
+      - run: cargo build --locked --package qgenie-remote-client --example remote_load
+      - run: python3 deploy/compose/stack.py init
+      - run: python3 deploy/compose/stack.py build
+      - run: python3 deploy/compose/stack.py up
+      - run: python3 deploy/compose/stack.py monitor-smoke
+      - run: python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote smoke
+      - run: python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote --load-bin target/debug/examples/remote_load baseline
+      - run: python3 deploy/compose/stack.py restore-smoke
+      - run: python3 deploy/compose/stack.py fault-smoke
+      - name: Stop only the owned development project
+        if: always()
+        run: python3 deploy/compose/stack.py down
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo check --workspace --all-targets --locked
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo xtask boundaries
+      - run: cargo xtask schema --check
+      - run: cargo xtask rest-schema --check
+      - run: cargo xtask recording-schema --check
+      - run: cargo check --package qgenie-remote-proto --no-default-features --locked
+      - run: cargo check --package qgenie-remote-transport --no-default-features --locked
+      - run: cargo check --package qgenie-remote-transport --no-default-features --features elapsed-clock --locked
+      - run: cargo check --package qgenie-remote-transport --no-default-features --features client-ws --locked
+      - run: cargo check --package qgenie-remote-transport --no-default-features --features server-ws --locked
+      - run: cargo clippy --package qgenie-remote-transport --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --package qgenie-remote-transport --all-features --locked
+      - run: cargo check --package qgenie-remote-adapters --no-default-features --locked
+      - run: cargo check --package qgenie-remote-host --no-default-features --locked
+      - run: cargo check --package qgenie-remote-adapters --no-default-features --features codex --locked
+      - run: cargo test --package qgenie-remote-adapters --all-features --locked
+      - run: cargo clippy --package qgenie-remote-adapters --all-features --all-targets --locked -- -D warnings
+      - run: cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings
+      - run: cargo test --package qgenie-remote-sessiond --all-features --locked
+      - run: cargo build --package qgenie-remote --locked
+      - run: python3 tests/e2e/local_tui_smoke.py target/debug/qgenie-remote
+      - if: runner.os == 'Linux'
+        run: bash tests/e2e/foreign_uid_ipc.sh
+      - if: runner.os == 'Linux'
+        run: bash tests/e2e/recording_disk_full.sh
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 56379:6379
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: qgr-local-test-only
+          POSTGRES_DB: qgr_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Create private synthetic PostgreSQL test binding
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/qgr-postgres-test-url')
+          path.write_text('postgres://postgres:qgr-local-test-only@127.0.0.1:55432/qgr_test?sslmode=disable\n')
+          path.chmod(0o600)
+          path = Path('/tmp/qgr-redis-test-url')
+          path.write_text('redis://127.0.0.1:56379/\n')
+          path.chmod(0o600)
+          PY
+      - run: cargo build --package qgenie-remote-gateway --locked
+      - run: 'cargo test --package qgenie-remote-gateway --lib --locked -- --include-ignored --skip transcripts::durability::'
+        env:
+          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+          QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway
+      - run: cargo test --package qgenie-remote --test host_enrollment --locked scoped_pkce_device_enrollment_lost_ack_credentials_and_unenrollment -- --ignored
+        env:
+          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+      - run: cargo test --package qgenie-remote --test host_enrollment --locked actual_connector_enforces_roots_refreshes_in_place_and_survives_replacement -- --ignored
+        env:
+          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+      - run: cargo test --package qgenie-remote --test host_enrollment --locked actual_native_connector_activates_original_nonces_across_gateways_and_survives_revocation -- --ignored
+        env:
+          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+      - run: cargo test --package qgenie-remote-host --lib --locked -- --include-ignored
+        env:
+          QGR_EXPECT_MISSING_KEYRING: "yes"
+          DBUS_SESSION_BUS_ADDRESS: unix:path=/tmp/qgr-no-session-bus
+      - name: Install transaction-pooling test dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y pgbouncer
+      - name: Synchronous receipts and primary-volume loss
+        run: python3 tests/e2e/recording_durability.py --report target/validation/synchronous-report.json
+      - name: Preserve sanitized acceptance result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synchronous-acceptance
+          path: target/validation/synchronous-report.json
+          if-no-files-found: warn
+          retention-days: 14
+      - run: python3 tests/e2e/pgbouncer_recordings.py
+        env:
+          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+          QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway

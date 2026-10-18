@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "id": "req_550e8400-e29b-41d4-a716-446655440000",
+  "client": "client_550e8400-e29b-41d4-a716-446655440001",
+  "body": {
+    "type": "start",
+    "body": {
+      "key": "idem_550e8400-e29b-41d4-a716-446655440002",
+      "command": ["/bin/sh"],
+      "cwd": "/tmp/project",
+      "rows": 24,
+      "cols": 80
+    }
+  }
+}

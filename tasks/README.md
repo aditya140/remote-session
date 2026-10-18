@@ -1,14 +1,23 @@
 # QGenie Remote development tasks
 
-This folder contains **28 separate tasks** for starting development from the current design-only repository. Read a task, complete its prerequisites, and implement it as a focused change. The numbered order is a valid sequential order; tasks whose prerequisites are complete can be developed in parallel.
+This folder contains **28 development tasks** originally planned from a design-only baseline.
+The repository now contains their standalone Rust implementation, fixtures and deployment.
+The numbered order records dependencies; current results are in [progress](PROGRESS.md).
 
-## What exists today
+**Selected scope:** The user authorized standalone CLI/TUI composition and then selected
+“Finish Linux development scope; document external release gates” through
+[ADR 0007](../docs/adr/0007-standalone-preview.md). Task 001's corporate-source inspection
+is superseded for that path. Read [current progress](PROGRESS.md) before interpreting
+baseline-only observations below. Original criteria requiring unrun environments remain
+unchecked and are tracked in the [external release gates](../docs/validation/external-release-gates.md).
+
+## Original planning baseline
 
 Reviewed baseline: commit `c6c46a8`. The repository contains [README](../README.md), [PRD v0.8](../PRD.md), [architecture v0.8](../architecture.md), [the component proposal](../components.md), and [the subcrate standard](../subcrate-standard.md). There are no application sources, Cargo manifests, tests, deployment files, or repository `AGENTS.md` at this baseline. Paths inside the tasks are proposed implementation locations, not claims about existing code.
 
 QGenie Remote is a Rust system for working on enrolled machines through a corporate gateway using outbound HTTPS/WSS. The client is a TUI in the existing QGenie CLI. A host connector handles network access and policy; a separate sessiond process owns PTYs/agents, replay, and recording. The gateway owns access, routing, durable metadata, approval decisions, audit, and transcript history. PostgreSQL is durable authority; Redis is disposable routing/presence infrastructure.
 
-The task boundaries follow the nine-crate proposal: `proto`, `transport`, `policy`, `adapters`, `sessiond`, `host`, `client`, `tui`, and `gateway`. They also isolate CLI integration, deployment, and verification. There is no implementation to refactor yet.
+The task boundaries follow the nine-crate proposal: `proto`, `transport`, `policy`, `adapters`, `sessiond`, `host`, `client`, `tui`, and `gateway`. They also isolate CLI integration, deployment, and verification. All nine now have implemented behavior; the observations above describe the original baseline.
 
 ## Scope and release gates
 
@@ -28,7 +37,7 @@ These requirements apply across tasks:
 
 ## Task index
 
-All tasks start as **Not started**. Dependencies are direct prerequisites; their own prerequisites are transitive. The individual task documents define implementation scope, acceptance criteria, tests, exclusions, and handoff.
+All tasks initially started as **Not started**. [Progress and blockers](PROGRESS.md) records the active goal and current status. Dependencies are direct prerequisites; their own prerequisites are transitive. The individual task documents define implementation scope, acceptance criteria, tests, exclusions, and handoff.
 
 | Task | Deliverable | Depends on | Workstream |
 | --- | --- | --- | --- |

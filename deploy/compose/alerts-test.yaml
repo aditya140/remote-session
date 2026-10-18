@@ -1,0 +1,256 @@
+rule_files:
+- /etc/prometheus/alerts.yaml
+evaluation_interval: 15s
+tests:
+- name: sustained failures then recovery
+  interval: 15s
+  input_series:
+  - series: qgr_authority_ready
+    values: 0+0x25 1+0x80
+  - series: qgr_routing_available
+    values: 0+0x25 1+0x80
+  - series: qgr_directory_enabled
+    values: 1+0x25 1+0x80
+  - series: qgr_directory_collection_success
+    values: 0+0x25 1+0x80
+  - series: qgr_directory_stale_principals
+    values: 1+0x25 0+0x80
+  - series: up{job="qgenie-remote-gateway",instance="gateway-1:9091"}
+    values: 0+0x25 1+0x80
+  - series: qgr_development_collection_success
+    values: 0+0x25 1+0x80
+  - series: qgr_development_probe_timestamp_seconds
+    values: 0+0x25 390+15x80
+  - series: qgr_development_gap_receipts_total
+    values: 0+1x25 25+0x80
+  - series: qgr_development_native_oldest_upload_age_seconds
+    values: 120+0x25 0+0x80
+  - series: qgr_development_native_recording_warnings
+    values: 1+0x25 0+0x80
+  - series: qgr_development_storage_available_bytes
+    values: 10+0x25 90+0x80
+  - series: qgr_development_storage_total_bytes
+    values: 100+0x25 100+0x80
+  - series: qgr_development_backup_age_seconds
+    values: 90000+0x25 60+0x80
+  - series: qgr_development_synchronous_replicas
+    values: 0+0x25 1+0x80
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: QGenieAuthorityUnready
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations:
+        summary: Gateway primary authority is unavailable or draining
+  - eval_time: 6m
+    alertname: QGenieRoutingDegraded
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: Cross-node routing is unavailable; local authority still expires
+          independently
+  - eval_time: 6m
+    alertname: QGenieDirectoryAuthorityStale
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations:
+        summary: Active principals lack current suspend-aware directory evidence and
+          access is denied
+  - eval_time: 6m
+    alertname: QGenieDirectoryEvidenceUnavailable
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations:
+        summary: Directory elapsed evidence cannot be observed
+  - eval_time: 6m
+    alertname: QGenieGatewayScrapeMissing
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        job: qgenie-remote-gateway
+        instance: gateway-1:9091
+      exp_annotations:
+        summary: Private gateway metrics cannot be collected
+  - eval_time: 6m
+    alertname: QGenieDevelopmentProbeFailed
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations:
+        summary: Private development operational evidence cannot be collected
+  - eval_time: 6m
+    alertname: QGenieDevelopmentProbeStale
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations: &id001
+        summary: The scheduled private development probe has stopped publishing
+  - eval_time: 6m
+    alertname: QGenieDevelopmentRecordingGap
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: Protected recording has a newly acknowledged explicit loss range
+  - eval_time: 6m
+    alertname: QGenieDevelopmentRecordingBacklog
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: Native recording uploads are more than one minute behind
+  - eval_time: 6m
+    alertname: QGenieDevelopmentRecordingWarning
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: Native recording reports pressure, storage failure or uncertain durability
+  - eval_time: 6m
+    alertname: QGenieDevelopmentDiskPressure
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: Development recording/database storage has less than 15 percent free
+          space
+  - eval_time: 6m
+    alertname: QGenieDevelopmentBackupOld
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: No completed private development backup in the last day
+  - eval_time: 6m
+    alertname: QGenieDevelopmentSynchronousReplicaMissing
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations:
+        summary: Protected commits cannot rely on the qualified synchronous standby
+  - eval_time: 22m
+    alertname: QGenieAuthorityUnready
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieRoutingDegraded
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDirectoryAuthorityStale
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDirectoryEvidenceUnavailable
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieGatewayScrapeMissing
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentProbeFailed
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentProbeStale
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentRecordingGap
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentRecordingBacklog
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentRecordingWarning
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentDiskPressure
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentBackupOld
+    exp_alerts: []
+  - eval_time: 22m
+    alertname: QGenieDevelopmentSynchronousReplicaMissing
+    exp_alerts: []
+- name: healthy recovery
+  interval: 15s
+  input_series:
+  - series: qgr_authority_ready
+    values: 1+0x40
+  - series: qgr_routing_available
+    values: 1+0x40
+  - series: qgr_directory_enabled
+    values: 1+0x40
+  - series: qgr_directory_collection_success
+    values: 1+0x40
+  - series: qgr_directory_stale_principals
+    values: 0+0x40
+  - series: up{job="qgenie-remote-gateway",instance="gateway-1:9091"}
+    values: 1+0x40
+  - series: qgr_development_collection_success
+    values: 1+0x40
+  - series: qgr_development_probe_timestamp_seconds
+    values: 0+15x40
+  - series: qgr_development_gap_receipts_total
+    values: 0+0x40
+  - series: qgr_development_native_oldest_upload_age_seconds
+    values: 0+0x40
+  - series: qgr_development_native_recording_warnings
+    values: 0+0x40
+  - series: qgr_development_storage_available_bytes
+    values: 90+0x40
+  - series: qgr_development_storage_total_bytes
+    values: 100+0x40
+  - series: qgr_development_backup_age_seconds
+    values: 60+0x40
+  - series: qgr_development_synchronous_replicas
+    values: 1+0x40
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: QGenieAuthorityUnready
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieRoutingDegraded
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDirectoryAuthorityStale
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDirectoryEvidenceUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieGatewayScrapeMissing
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentProbeFailed
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentProbeStale
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentRecordingGap
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentRecordingBacklog
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentRecordingWarning
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentDiskPressure
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentBackupOld
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: QGenieDevelopmentSynchronousReplicaMissing
+    exp_alerts: []
+- name: missing probe fails visibly
+  interval: 15s
+  input_series: []
+  alert_rule_test:
+  - eval_time: 1m
+    alertname: QGenieDevelopmentProbeStale
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations: *id001

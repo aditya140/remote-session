@@ -1,0 +1,12 @@
+{
+  "body": {
+    "host_generation": "18446744073709551615",
+    "max_remaining_ms": 10000,
+    "nonce": "challenge_550e8400-e29b-41d4-a716-446655440000",
+    "policy_revision": "1"
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440130",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440000",
+  "type": "host.access.challenge",
+  "v": 1
+}

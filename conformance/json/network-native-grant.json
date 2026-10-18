@@ -1,0 +1,16 @@
+{
+  "body": {
+    "access": {
+      "connection": "client_550e8400-e29b-41d4-a716-446655440000",
+      "host_generation": "18446744073709551615",
+      "nonce": "challenge_550e8400-e29b-41d4-a716-446655440000",
+      "policy_revision": "1",
+      "remaining_ms": 9999
+    }
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440131",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440000",
+  "re": "msg_550e8400-e29b-41d4-a716-446655440130",
+  "type": "host.access.granted",
+  "v": 1
+}

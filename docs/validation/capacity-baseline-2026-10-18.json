@@ -1,0 +1,155 @@
+{
+  "logical_cpus": 5,
+  "idle_host": {
+    "native": {
+      "rss_bytes": 28839936,
+      "cpu_percent_one_core": 0.9999289145529313
+    },
+    "connector": {
+      "rss_bytes": 25272320,
+      "cpu_percent_one_core": 0.0
+    }
+  },
+  "configured_terminals": 2,
+  "database": {
+    "wal_bytes_during_workload": 232480,
+    "standby_replay_lag_bytes": 0
+  },
+  "samples_per_terminal": 100,
+  "operational_probe_published": true,
+  "input_retries": 0,
+  "same_key_lookup_matches": 2,
+  "output_bytes": 105410,
+  "known_sessions": 2,
+  "operational_probe": {
+    "qgr_development_collection_success": 1,
+    "qgr_development_storage_available_bytes": 11853459456,
+    "qgr_development_storage_total_bytes": 33770192896,
+    "qgr_development_backup_age_seconds": 16951.844543218613,
+    "qgr_development_gap_receipts_total": 0,
+    "qgr_development_approval_outbox_pending": 0,
+    "qgr_development_synchronous_replicas": 1,
+    "qgr_development_standby_replay_lag_bytes": 0,
+    "qgr_development_native_spool_bytes": 0,
+    "qgr_development_native_spool_pending": 0,
+    "qgr_development_native_oldest_upload_age_seconds": 0,
+    "qgr_development_native_recording_warnings": 0
+  },
+  "recording": {
+    "chunks": 5,
+    "normalized_uncompressed_bytes": 173041,
+    "compressed_bytes": 3278,
+    "native_spool_pending_after_reconciliation": 0
+  },
+  "cleanup_failures": 0,
+  "idle_sample_seconds": 2.000142181001138,
+  "baseline_subtracted": false,
+  "simultaneous_echo_workers": 2,
+  "sampling_seconds": 3.499839684,
+  "connection_admission_seconds": 0.140215351,
+  "poll_interval_ms": 1,
+  "active_host": {
+    "native": {
+      "rss_bytes": 32894976,
+      "cpu_seconds": 1.0
+    },
+    "connector": {
+      "rss_bytes": 26329088,
+      "cpu_seconds": 0.77
+    }
+  },
+  "memory_total_bytes": 18882674688,
+  "burst_bytes_per_terminal": 51200,
+  "samples": 200,
+  "beta_target_qualification": false,
+  "p95_ms": 58.030862,
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+  "sockets_established": 8,
+  "measurement": "persistent_sdk_input_to_replay_observation_ms",
+  "p99_ms": 60.131531,
+  "versions": {
+    "rust": "1.99.1",
+    "postgres": "17.11",
+    "schema": "15"
+  },
+  "max_ms": 63.84809599999999,
+  "p50_ms": 46.534895,
+  "prerequisite": "synthetic protected deployment and current owner token",
+  "containers": [
+    {
+      "service": "edge",
+      "cpu_snapshot": "0.09%",
+      "memory_snapshot": "23.86MiB / 128MiB"
+    },
+    {
+      "service": "fixture-identity",
+      "cpu_snapshot": "0.04%",
+      "memory_snapshot": "1.07MiB / 128MiB"
+    },
+    {
+      "service": "gateway-1",
+      "cpu_snapshot": "0.07%",
+      "memory_snapshot": "3.504MiB / 512MiB"
+    },
+    {
+      "service": "gateway-2",
+      "cpu_snapshot": "0.12%",
+      "memory_snapshot": "2.73MiB / 512MiB"
+    },
+    {
+      "service": "gateway-3",
+      "cpu_snapshot": "0.08%",
+      "memory_snapshot": "3.523MiB / 512MiB"
+    },
+    {
+      "service": "gateway-4",
+      "cpu_snapshot": "1.99%",
+      "memory_snapshot": "3.121MiB / 512MiB"
+    },
+    {
+      "service": "jobs",
+      "cpu_snapshot": "0.00%",
+      "memory_snapshot": "1.156MiB / 256MiB"
+    },
+    {
+      "service": "otel",
+      "cpu_snapshot": "0.13%",
+      "memory_snapshot": "28.79MiB / 160MiB"
+    },
+    {
+      "service": "pgbouncer",
+      "cpu_snapshot": "0.01%",
+      "memory_snapshot": "1.723MiB / 96MiB"
+    },
+    {
+      "service": "postgres",
+      "cpu_snapshot": "0.27%",
+      "memory_snapshot": "106.2MiB / 1GiB"
+    },
+    {
+      "service": "prometheus",
+      "cpu_snapshot": "0.05%",
+      "memory_snapshot": "17.25MiB / 256MiB"
+    },
+    {
+      "service": "redis",
+      "cpu_snapshot": "2.53%",
+      "memory_snapshot": "7.105MiB / 96MiB"
+    },
+    {
+      "service": "standby",
+      "cpu_snapshot": "2.05%",
+      "memory_snapshot": "42.72MiB / 1GiB"
+    }
+  ],
+  "executed_date_utc": "2026-10-18",
+  "source_revision": "branch work with uncommitted task implementation; schema 15; bounded revocation and operational metrics enabled",
+  "gateway_image": {
+    "id": "sha256:06a9011e994d7b1dda2f17c8e55921c0d18714164f750830055af59ae9a944a1",
+    "bytes": 19625695
+  },
+  "fixture_identity_image": {
+    "id": "sha256:440e6fa84366d453958607cdc2cd222a722f0918b18499d55b870633fd5160ea",
+    "bytes": 5621503
+  }
+}

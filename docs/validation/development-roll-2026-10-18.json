@@ -1,0 +1,53 @@
+{
+  "format": "qgr-development-roll-v1",
+  "status": "passed",
+  "observed_at": "2026-10-18T05:32:37.008600+00:00",
+  "qualification": "same-host synthetic development",
+  "project": "qgr-goal-development",
+  "gateway_image": {
+    "id": "sha256:06a9011e994d7b1dda2f17c8e55921c0d18714164f750830055af59ae9a944a1",
+    "bytes": 19625695
+  },
+  "gateways": [
+    {
+      "node": "gateway-1",
+      "image": "sha256:06a9011e994d7b1dda2f17c8e55921c0d18714164f750830055af59ae9a944a1",
+      "health": "healthy",
+      "user": "10001:10001"
+    },
+    {
+      "node": "gateway-2",
+      "image": "sha256:06a9011e994d7b1dda2f17c8e55921c0d18714164f750830055af59ae9a944a1",
+      "health": "healthy",
+      "user": "10001:10001"
+    },
+    {
+      "node": "gateway-3",
+      "image": "sha256:06a9011e994d7b1dda2f17c8e55921c0d18714164f750830055af59ae9a944a1",
+      "health": "healthy",
+      "user": "10001:10001"
+    },
+    {
+      "node": "gateway-4",
+      "image": "sha256:06a9011e994d7b1dda2f17c8e55921c0d18714164f750830055af59ae9a944a1",
+      "health": "healthy",
+      "user": "10001:10001"
+    }
+  ],
+  "native_session_kind": "pty",
+  "verified": [
+    "original native owner survived gateway recreation",
+    "same persisted start key reconciled",
+    "new controlled input after explicit reconnect",
+    "cross-node dispatch",
+    "confirmed termination",
+    "redacted protected history",
+    "local native input executed while Redis was stopped",
+    "local native input executed while PostgreSQL primary was stopped",
+    "actual hosting gateway SIGKILL and original-key reconciliation",
+    "outage inputs retained in redacted protected history"
+  ],
+  "managed_agent_deployment": "not_run",
+  "production_qualification": "not_run",
+  "hosting_gateway_sigkill": "gateway-4"
+}

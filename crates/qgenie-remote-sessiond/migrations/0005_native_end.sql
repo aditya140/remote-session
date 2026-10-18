@@ -1,0 +1,4 @@
+BEGIN IMMEDIATE;
+ALTER TABLE sessions ADD COLUMN ended_ms TEXT;
+PRAGMA user_version=5;
+COMMIT;

@@ -1,10 +1,12 @@
 # 028 — Measure resource use and document operational recovery
 
-- **Status:** Not started
+- **Status:** Complete for the selected Linux standalone development scope; external release qualification remains separately tracked
 - **Milestone:** M1 baseline; M2 scale qualification
 - **Workstream:** Observability and operations
 - **Depends on:** [019](019-implement-revocation-and-entra-freshness.md), [022](022-implement-legal-holds-and-retention.md), [025](025-integrate-cli-and-host-services.md), [026](026-build-development-compose-stack.md)
 - **Index:** [Task plan](README.md)
+
+**Scope:** The user selected Linux development completion in [ADR 0007](../docs/adr/0007-standalone-preview.md). See [current progress](PROGRESS.md) and [external release gates](../docs/validation/external-release-gates.md). Original criteria that require unrun environments or waived corporate inspection remain unchecked; this status does not claim full release qualification.
 
 ## Goal and repository context
 
@@ -18,7 +20,7 @@ Replace planning estimates with measured traffic/recording costs and give operat
 - `Gateway/host metric instrumentation and deploy/compose/otel/ configuration`
 - `docs/runbooks/ and docs/validation/capacity.md`
 
-Paths describe proposed implementation locations; they do not exist yet unless another task creates them. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
+Owned paths define this task’s implementation boundary; current source and executed evidence are recorded below. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
 
 ## Implementation
 
@@ -30,10 +32,10 @@ Paths describe proposed implementation locations; they do not exist yet unless a
 
 ## Acceptance criteria
 
-- [ ] A reproducible baseline report records hardware, versions, workload, sample sizes, limitations, and results against applicable PRD targets.
-- [ ] Alerts cover stale access authority, gaps, recording lag, disk pressure, readiness, and backup age without sensitive content or unbounded user/session labels.
-- [ ] The storage model uses measured inputs and explicitly includes roughly 120-day rounded retention plus holds and backup/replication overhead.
-- [ ] Recovery/runbook steps are exercised where infrastructure exists; missing production capacity, tenant access, backup target, or operators remain named blockers.
+- [x] A reproducible baseline report records hardware, versions, workload, sample sizes, limitations, and results against applicable PRD targets.
+- [x] Alerts cover stale access authority, gaps, recording lag, disk pressure, readiness, and backup age without sensitive content or unbounded user/session labels.
+- [x] The storage model uses measured inputs and explicitly includes roughly 120-day rounded retention plus holds and backup/replication overhead.
+- [x] Recovery/runbook steps are exercised where infrastructure exists; missing production capacity, tenant access, backup target, or operators remain named blockers.
 - [ ] Full beta-scale qualification is marked complete only after the stated workload actually runs; local extrapolation is labeled as an estimate.
 
 ## Verification
@@ -47,3 +49,28 @@ Run the relevant formatting, lint, dependency-boundary, and supported-platform c
 No claim that the one-server dev stack is highly available, no automatic production deployment, and no changes to retention merely to fit storage.
 
 **Deliver:** Capacity evidence, alert definitions, operational runbooks, and an explicit beta-readiness gap list. This work can run alongside 027 using separate test environments.
+
+## Current executed evidence
+
+[Reduced capacity report](../docs/validation/capacity.md),
+[load tooling](../tests/load/README.md), and
+[operations procedures](../docs/runbooks/operations.md) record actual eight-socket/two-PTY,
+200-echo measurements, private spool reconciliation, stored compression/WAL/resource samples,
+and measured versus assumed storage costs. Development dependency failures, rolling gateway
+restarts and isolated restore have executed successfully. The pinned evaluator runs all 13 rules; firing/recovery/missing-probe fixtures and actual
+private ingestion pass. A host operator command schedules aggregate collection and optionally
+reads the active native spool. Directory metrics use the original elapsed clock without
+extending authority. The host probe still needs an operator supervisor; the notification
+destination remains unconfigured. Fixed-cardinality transport/queue/replay/approval counters
+and a coherent native delivery-attempt histogram are implemented. The actual two-gateway
+managed proof observed five delivery attempts, 168 replay requests and nonzero traffic;
+the artifact states the timing definition and does not claim a release distribution.
+Production operators/backup target,
+full workload, representative traffic, off-server recovery and platform/tenant evidence are
+explicitly unassigned or unrun in the [external release gates](../docs/validation/external-release-gates.md).
+The selected Linux development scope is complete; full beta qualification remains unchecked.
+
+[Executed alert evidence](../docs/validation/operational-alerts-2026-10-18.json) records the
+private evaluator, 40 firing/recovery/missing-probe assertions, all four elapsed-directory
+metric sources, three scheduled probe iterations and actual native spool ingestion.
+Production notification delivery and installed host-probe supervision remain unqualified.

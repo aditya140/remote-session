@@ -1,0 +1,305 @@
+name: ${QGR_PROJECT:-qgr-development}
+
+x-logs: &logs
+  driver: local
+  options: {max-size: 10m, max-file: "3"}
+x-sandbox: &sandbox
+  environment: &environment
+    NO_PROXY: localhost,127.0.0.1,::1,edge,fixture-identity,postgres,standby,redis,pgbouncer,gateway-1,gateway-2,gateway-3,gateway-4,otel,prometheus
+    no_proxy: localhost,127.0.0.1,::1,edge,fixture-identity,postgres,standby,redis,pgbouncer,gateway-1,gateway-2,gateway-3,gateway-4,otel,prometheus
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ["/tmp:size=16m,mode=1777"]
+  logging: *logs
+  stop_grace_period: 75s
+x-gateway: &gateway
+  <<: *sandbox
+  image: ${QGR_GATEWAY_IMAGE:-qgenie-remote-gateway:development}
+  build: {context: ../.., dockerfile: deploy/images/Dockerfile, target: gateway}
+  restart: unless-stopped
+  mem_limit: 512m
+  cpus: 1.0
+  environment: {<<: *environment, RUST_LOG: info}
+  networks: [backend, egress]
+  volumes: [gateway-secrets:/run/qgr:ro]
+  depends_on:
+    init-secrets: {condition: service_completed_successfully}
+    postgres: {condition: service_healthy}
+    pgbouncer: {condition: service_started}
+    redis: {condition: service_healthy}
+  healthcheck:
+    test: [CMD, /app/gateway, probe]
+    interval: 5s
+    timeout: 4s
+    retries: 12
+    start_period: 30s
+
+services:
+  init-secrets:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    user: "0:0"
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt: [no-new-privileges:true]
+    entrypoint: [/bin/sh, /scripts/init-secrets.sh]
+    volumes:
+      - ${QGR_SECRETS_DIR:?Run stack.py init}/input:/input:ro
+      - ./init-secrets.sh:/scripts/init-secrets.sh:ro
+      - gateway-secrets:/generated/gateway
+      - edge-secrets:/generated/edge
+      - identity-secrets:/generated/identity
+      - redis-secrets:/generated/redis
+      - bouncer-secrets:/generated/bouncer
+      - migrate-secrets:/generated/migrate
+      - jobs-secrets:/generated/jobs
+      - postgres-secrets:/generated/postgres
+      - primary-data:/pg-primary
+      - standby-data:/pg-standby
+    logging: *logs
+    mem_limit: 64m
+
+  postgres:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    user: "70:70"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_DB: qgr
+      POSTGRES_PASSWORD_FILE: /run/qgr/super-password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=trust
+    command: [postgres, -c, max_connections=192, -c, max_wal_senders=10, -c, wal_keep_size=64MB, -c, synchronous_commit=remote_apply]
+    volumes:
+      - primary-data:/var/lib/postgresql/data
+      - postgres-secrets:/run/qgr:ro
+      - postgres-secrets:/docker-entrypoint-initdb.d:ro
+    tmpfs: ["/tmp:size=16m,mode=1777", "/var/run/postgresql:size=16m,mode=1777"]
+    networks: [backend]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, pg_isready, --host=127.0.0.1, --username=postgres, --dbname=qgr]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    mem_limit: 1g
+    cpus: 1.0
+    stop_grace_period: 75s
+    logging: *logs
+
+  standby:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    user: "70:70"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment: {PGDATA: /var/lib/postgresql/data}
+    entrypoint: [/bin/sh, /scripts/standby.sh]
+    volumes:
+      - standby-data:/var/lib/postgresql/data
+      - postgres-secrets:/run/qgr:ro
+      - ./standby.sh:/scripts/standby.sh:ro
+    tmpfs: ["/tmp:size=16m,mode=1777", "/var/run/postgresql:size=16m,mode=1777"]
+    networks: [backend]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, pg_isready, --host=127.0.0.1, --username=postgres, --dbname=qgr]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 10s
+    mem_limit: 1g
+    cpus: 1.0
+    stop_grace_period: 75s
+    logging: *logs
+
+  redis:
+    <<: *sandbox
+    image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    restart: unless-stopped
+    command: [redis-server, /run/qgr/redis.conf]
+    volumes: [redis-secrets:/run/qgr:ro]
+    networks: [backend]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+    healthcheck:
+      # TCP readiness needs no password in an argv, environment or health log.
+      test: [CMD-SHELL, 'redis-cli --tls --cacert /run/qgr/ca.pem --sni redis -h redis ping 2>&1 | grep -q NOAUTH']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+    mem_limit: 96m
+    cpus: 0.5
+
+  pgbouncer:
+    <<: *sandbox
+    image: edoburu/pgbouncer:v1.24.1-p0@sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628
+    restart: unless-stopped
+    entrypoint: [/usr/bin/pgbouncer, /run/qgr/pgbouncer.ini]
+    volumes: [bouncer-secrets:/run/qgr:ro]
+    networks: [backend]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+    mem_limit: 96m
+    cpus: 0.5
+
+  fixture-identity:
+    <<: *sandbox
+    image: ${QGR_FIXTURE_IMAGE:-qgenie-remote-fixture-identity:development}
+    build: {context: ../.., dockerfile: deploy/images/Dockerfile, target: fixture-identity}
+    restart: unless-stopped
+    command: [--fixture-only, --listen, "0.0.0.0:8080", --public-origin, "https://localhost:${QGR_IDENTITY_PORT:-9443}", --graph-secret-file, /run/qgr/graph-secret]
+    volumes: [identity-secrets:/run/qgr:ro]
+    networks: [backend]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+    mem_limit: 128m
+    cpus: 0.5
+
+  migrate:
+    <<: *sandbox
+    image: ${QGR_GATEWAY_IMAGE:-qgenie-remote-gateway:development}
+    profiles: [tools]
+    command: [migrate, --database-url-file, /run/qgr/database-url]
+    volumes: [migrate-secrets:/run/qgr:ro]
+    networks: [backend]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+    mem_limit: 256m
+    cpus: 1.0
+
+  gateway-1:
+    <<: *gateway
+    environment: {<<: *environment, RUST_LOG: info, QGR_NODE_ID: development-1}
+    command: &gateway-args
+      - serve
+      - --origin
+      - https://localhost:${QGR_EDGE_PORT:-8443}
+      - --listen
+      - 0.0.0.0:8080
+      - --health-listen
+      - 0.0.0.0:9091
+      - --database-url-file
+      - /run/qgr/database-url
+      - --audit-database-url-file
+      - /run/qgr/audit-url
+      - --identity-config-file
+      - /run/qgr/identity.json
+      - --directory-config-file
+      - /run/qgr/directory.json
+      - --machine-key-file
+      - /run/qgr/machine-key
+      - --redis-url-file
+      - /run/qgr/redis-url
+      - --routing-key-file
+      - /run/qgr/routing-key
+      - --redis-ca-file
+      - /run/qgr/ca.pem
+      - --recording-lifecycle-database-url-file
+      - /run/qgr/lifecycle-url
+      - --recording-ingest-database-url-file
+      - /run/qgr/ingest-url
+      - --recording-owner-database-url-file
+      - /run/qgr/history-owner-url
+      - --recording-admin-database-url-file
+      - /run/qgr/history-admin-url
+      - --recording-redaction-file
+      - /run/qgr/redaction.json
+  gateway-2:
+    <<: *gateway
+    environment: {<<: *environment, RUST_LOG: info, QGR_NODE_ID: development-2}
+    command: *gateway-args
+  gateway-3:
+    <<: *gateway
+    environment: {<<: *environment, RUST_LOG: info, QGR_NODE_ID: development-3}
+    command: *gateway-args
+  gateway-4:
+    <<: *gateway
+    environment: {<<: *environment, RUST_LOG: info, QGR_NODE_ID: development-4}
+    command: *gateway-args
+
+  jobs:
+    <<: *sandbox
+    image: ${QGR_GATEWAY_IMAGE:-qgenie-remote-gateway:development}
+    restart: on-failure
+    command: [jobs, --database-url-file, /run/qgr/database-url, --interval-seconds, "3600", --batch-size, "32", --max-steps, "1024"]
+    volumes: [jobs-secrets:/run/qgr:ro]
+    networks: [backend]
+    depends_on:
+      postgres: {condition: service_healthy}
+      pgbouncer: {condition: service_started}
+    mem_limit: 256m
+    cpus: 0.5
+
+  edge:
+    <<: *sandbox
+    image: haproxy:3.2-alpine@sha256:254e6370f01cd654e0744edf607c67f33777c1b6a9dc0d4b28bcba7171460122
+    restart: unless-stopped
+    command: [haproxy, -W, -db, -f, /usr/local/etc/haproxy/haproxy.cfg]
+    ports:
+      - 127.0.0.1:${QGR_EDGE_PORT:-8443}:8443
+      - 127.0.0.1:${QGR_IDENTITY_PORT:-9443}:9443
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - edge-secrets:/run/qgr:ro
+    networks: [backend, egress]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+      fixture-identity: {condition: service_started}
+    mem_limit: 128m
+    cpus: 0.5
+
+  otel:
+    <<: *sandbox
+    image: otel/opentelemetry-collector-contrib:0.143.0@sha256:3bc07732530c87c53f9103b01a3afed972fdeba26087a590c1098781736e58c2
+    restart: unless-stopped
+    command: [--config=/etc/otelcol-contrib/config.yaml]
+    volumes: [./otel.yaml:/etc/otelcol-contrib/config.yaml:ro]
+    networks: [backend]
+    mem_limit: 160m
+    cpus: 0.5
+
+  prometheus:
+    <<: *sandbox
+    image: prom/prometheus:v3.7.3@sha256:49214755b6153f90a597adcbff0252cc61069f8ab69ce8411285cd4a560e8038
+    restart: unless-stopped
+    command: [--config.file=/etc/prometheus/prometheus.yaml, --storage.tsdb.path=/prometheus, --storage.tsdb.retention.time=6h, --storage.tsdb.retention.size=96MB, --storage.tsdb.wal-segment-size=16MB]
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - ./alerts-test.yaml:/etc/prometheus/alerts-test.yaml:ro
+    tmpfs: ["/tmp:size=16m,mode=1777", "/prometheus:size=128m,uid=10001,gid=10001,mode=0700"]
+    networks: [backend]
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: [CMD, wget, -Y, "off", -q, --spider, "http://127.0.0.1:9090/-/ready"]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+
+networks:
+  backend: {internal: true}
+  egress: {}
+volumes:
+  gateway-secrets: {}
+  edge-secrets: {}
+  identity-secrets: {}
+  redis-secrets: {}
+  bouncer-secrets: {}
+  migrate-secrets: {}
+  jobs-secrets: {}
+  postgres-secrets: {}
+  primary-data: {}
+  standby-data: {}

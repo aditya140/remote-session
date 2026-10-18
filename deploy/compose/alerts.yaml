@@ -1,0 +1,67 @@
+groups:
+  - name: qgenie-remote-development
+    rules:
+      - alert: QGenieAuthorityUnready
+        expr: qgr_authority_ready == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "Gateway primary authority is unavailable or draining"}
+      - alert: QGenieRoutingDegraded
+        expr: qgr_routing_available == 0
+        for: 30s
+        labels: {severity: warning}
+        annotations: {summary: "Cross-node routing is unavailable; local authority still expires independently"}
+      - alert: QGenieDirectoryAuthorityStale
+        expr: qgr_directory_stale_principals > 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "Active principals lack current suspend-aware directory evidence and access is denied"}
+      - alert: QGenieDirectoryEvidenceUnavailable
+        expr: qgr_directory_enabled == 1 and qgr_directory_collection_success == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "Directory elapsed evidence cannot be observed"}
+      - alert: QGenieGatewayScrapeMissing
+        expr: up{job="qgenie-remote-gateway"} == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "Private gateway metrics cannot be collected"}
+      - alert: QGenieDevelopmentProbeFailed
+        expr: qgr_development_collection_success == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "Private development operational evidence cannot be collected"}
+      - alert: QGenieDevelopmentProbeStale
+        expr: time() - qgr_development_probe_timestamp_seconds > 60 or absent(qgr_development_probe_timestamp_seconds)
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "The scheduled private development probe has stopped publishing"}
+      - alert: QGenieDevelopmentRecordingGap
+        expr: increase(qgr_development_gap_receipts_total[15m]) > 0
+        labels: {severity: warning}
+        annotations: {summary: "Protected recording has a newly acknowledged explicit loss range"}
+      - alert: QGenieDevelopmentRecordingBacklog
+        expr: qgr_development_native_oldest_upload_age_seconds > 60
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "Native recording uploads are more than one minute behind"}
+      - alert: QGenieDevelopmentRecordingWarning
+        expr: qgr_development_native_recording_warnings > 0
+        for: 15s
+        labels: {severity: warning}
+        annotations: {summary: "Native recording reports pressure, storage failure or uncertain durability"}
+      - alert: QGenieDevelopmentDiskPressure
+        expr: qgr_development_storage_available_bytes / qgr_development_storage_total_bytes < 0.15
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "Development recording/database storage has less than 15 percent free space"}
+      - alert: QGenieDevelopmentBackupOld
+        expr: qgr_development_backup_age_seconds > 86400
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "No completed private development backup in the last day"}
+      - alert: QGenieDevelopmentSynchronousReplicaMissing
+        expr: qgr_development_synchronous_replicas < 1
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "Protected commits cannot rely on the qualified synchronous standby"}

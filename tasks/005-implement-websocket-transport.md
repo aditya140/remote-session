@@ -1,10 +1,12 @@
 # 005 — Implement bounded WSS transport with proxy support
 
-- **Status:** Not started
+- **Status:** Complete for the selected Linux standalone development scope; external release qualification remains separately tracked
 - **Milestone:** M0 foundation
 - **Workstream:** Transport / WSS
 - **Depends on:** [004](004-implement-protocol-and-conformance.md)
 - **Index:** [Task plan](README.md)
+
+**Scope:** The user selected Linux development completion in [ADR 0007](../docs/adr/0007-standalone-preview.md). See [current progress](PROGRESS.md) and [external release gates](../docs/validation/external-release-gates.md). Original criteria that require unrun environments or waived corporate inspection remain unchecked; this status does not claim full release qualification.
 
 ## Goal and repository context
 
@@ -17,7 +19,7 @@ Both hosts and clients use outbound HTTPS/WSS through corporate proxies. Provide
 - `crates/qgenie-remote-transport/src/{config,codec,connection,queues,heartbeat,backoff,error}.rs`
 - `crates/qgenie-remote-transport/src/ws/ and WSS integration tests`
 
-Paths describe proposed implementation locations; they do not exist yet unless another task creates them. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
+Implementation lives in `crates/qgenie-remote-transport/src/ws/` and `tests/wss.rs`. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
 
 ## Implementation
 
@@ -28,10 +30,10 @@ Paths describe proposed implementation locations; they do not exist yet unless a
 
 ## Acceptance criteria
 
-- [ ] A client connects through a test CONNECT proxy using a trusted test CA; untrusted certificates are rejected.
-- [ ] Idle-timeout, dropped pong, oversized frame, saturated queue, and shutdown paths have bounded resource use.
-- [ ] Control traffic remains responsive during bulk output, and queued approvals/mutations are never silently dropped.
-- [ ] The transport never blindly retries starts, approvals, or terminal input and does not make authorization decisions.
+- [x] A client connects through a test CONNECT proxy using a trusted test CA; untrusted certificates are rejected.
+- [x] Idle-timeout, dropped pong, oversized frame, saturated queue, and shutdown paths have bounded resource use.
+- [x] Control traffic remains responsive during bulk output, and queued approvals/mutations are never silently dropped.
+- [x] The transport never blindly retries starts, approvals, or terminal input and does not make authorization decisions.
 
 ## Verification
 
@@ -44,3 +46,7 @@ Run the relevant formatting, lint, dependency-boundary, and supported-platform c
 Local IPC is owned by 006. Client replay and operation outcomes are owned by 023.
 
 **Deliver:** WSS connection APIs, queue policies, backoff primitives, and error classifications usable with fake authenticated peers.
+
+## Completed evidence
+
+Real rustls TLS tests cover direct connections, HTTP and HTTPS CONNECT with a trusted test CA, untrusted rejection, proxy credentials/redaction, NO_PROXY, and proxy errors. A real 65-second test through a 60-second-idle proxy passed. Bounded priority/byte/count tests, stalled writer deadlines, dropped pong, oversized/malformed input, slow-observer isolation, owner cancellation, and graceful close passed. Strict all-feature Clippy and independent client/server feature builds passed on Linux; macOS execution remains CI evidence. Transport does not reconnect or retry operations; receipts distinguish not-sent from unknown and do not claim native application. See the [transport API and limits](../crates/qgenie-remote-transport/README.md).

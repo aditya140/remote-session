@@ -1,12 +1,16 @@
 # 001 — Inspect the existing QGenie CLI and define integration seams
 
-- **Status:** Not started
+- **Status:** Superseded for the standalone path by explicit user direction; corporate inspection was waived
 - **Milestone:** M0 foundation
 - **Workstream:** Integration
 - **Depends on:** None
 - **Index:** [Task plan](README.md)
 
+**Scope:** The user selected Linux development completion in [ADR 0007](../docs/adr/0007-standalone-preview.md). See [current progress](PROGRESS.md) and [external release gates](../docs/validation/external-release-gates.md). Original criteria that require unrun environments or waived corporate inspection remain unchecked; this status does not claim full release qualification.
+
 ## Goal and repository context
+
+**Scope update:** The user authorized a new/sample TUI without the existing CLI source. [ADR 0007](../docs/adr/0007-standalone-preview.md) replaces this prerequisite with a standalone composition root. Do not request that source again to continue local implementation. The original inspection criteria below remain unperformed; they apply only to a future corporate integration.
 
 This checkout contains only design documents. The existing QGenie CLI, its OAuth code, service installers, agent launchers, and redaction utilities are referenced but absent. Establish what can actually be reused before choosing implementation APIs or a Rust toolchain.
 
@@ -17,7 +21,7 @@ This checkout contains only design documents. The existing QGenie CLI, its OAuth
 - `docs/integration/qgenie-cli.md`
 - `Integration ADR under docs/adr/; no product implementation in this task`
 
-Paths describe proposed implementation locations; they do not exist yet unless another task creates them. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
+Owned paths define this task’s implementation boundary; current source and executed evidence are recorded below. Follow [the subcrate standard](../subcrate-standard.md), add only useful modules, and coordinate shared manifests/exports and migrations as described in the index.
 
 ## Implementation
 
@@ -44,3 +48,11 @@ Run the relevant formatting, lint, dependency-boundary, and supported-platform c
 No new OAuth stack, service installer, or CLI executable. Access to the existing CLI repository is an external prerequisite; this checkout cannot supply it.
 
 **Deliver:** A versioned integration map and toolchain decision consumed by 003, 009, 011, 013, 020, and 025.
+
+## Evidence and blocker (2026-10-16)
+
+The tracked file inventory and workspace were inspected. No existing QGenie CLI source, toolchain manifest, or source location is available. The requested input is a readable repository URL or workspace path, with its intended revision.
+
+[The integration inventory](../docs/integration/qgenie-cli.md) records each required facility and its dependent task. [ADR 0001](../docs/adr/0001-cli-integration.md) records package direction and the blocked toolchain/API decisions. No actual CLI symbols or native key-protection claims have been invented.
+
+`rustc --version` and `cargo --version` report `1.99.1` in the prepared development environment. These are tooling observations, not the product MSRV. No CLI authentication, service, launch, or redaction example could run without that source.

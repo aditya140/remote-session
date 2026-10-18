@@ -1,0 +1,1 @@
+These RSA keys are public, synthetic test fixtures. They authorize no real identity, tenant, or service. Never configure a deployed gateway to trust this key set. Tests sign temporary dedicated-audience JWTs to verify rejection and ownership boundaries.

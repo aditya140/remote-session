@@ -1,6 +1,6 @@
 # QGenie Remote subcrate standard
 
-Status: proposed team convention, 2026-10-16. Applies to the target workspace described in [components](components.md); manifests and tooling are not implemented yet.
+Status: workspace convention. Applies to the implemented and planned crates described in [components](components.md). Manifests, pinned tooling, schema export, and dependency checks now exist; [task progress](tasks/PROGRESS.md) records verification.
 
 ## 1. When to make a crate
 

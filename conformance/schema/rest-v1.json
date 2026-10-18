@@ -1,0 +1,1146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RestSchemas",
+  "type": "object",
+  "properties": {
+    "access_revocation": {
+      "$ref": "#/$defs/AccessRevocation"
+    },
+    "admin_history_query": {
+      "$ref": "#/$defs/AdminHistoryQuery"
+    },
+    "admin_history_streams_query": {
+      "$ref": "#/$defs/AdminHistoryStreamsQuery"
+    },
+    "challenge": {
+      "$ref": "#/$defs/Challenge"
+    },
+    "challenge_request": {
+      "$ref": "#/$defs/ChallengeRequest"
+    },
+    "enrolled": {
+      "$ref": "#/$defs/Enrolled"
+    },
+    "enrollment": {
+      "$ref": "#/$defs/EnrollmentRequest"
+    },
+    "error": {
+      "$ref": "#/$defs/RemoteError"
+    },
+    "history_page": {
+      "$ref": "#/$defs/HistoryPage"
+    },
+    "history_query": {
+      "$ref": "#/$defs/HistoryQuery"
+    },
+    "history_streams_page": {
+      "$ref": "#/$defs/HistoryStreamsPage"
+    },
+    "history_streams_query": {
+      "$ref": "#/$defs/HistoryStreamsQuery"
+    },
+    "hold_change": {
+      "$ref": "#/$defs/HoldChange"
+    },
+    "hold_commit": {
+      "$ref": "#/$defs/HoldCommit"
+    },
+    "lifecycle_progress": {
+      "$ref": "#/$defs/LifecycleProgress"
+    },
+    "machine_patch": {
+      "$ref": "#/$defs/MachinePatch"
+    },
+    "machine_revoke": {
+      "$ref": "#/$defs/MachineRevoke"
+    },
+    "machine_token": {
+      "$ref": "#/$defs/MachineToken"
+    },
+    "machines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Machine"
+      }
+    },
+    "proof": {
+      "$ref": "#/$defs/Proof"
+    },
+    "recording_authority": {
+      "$ref": "#/$defs/RecordingAuthority"
+    },
+    "recording_authority_request": {
+      "$ref": "#/$defs/RecordingAuthorityRequest"
+    },
+    "revoke_access": {
+      "$ref": "#/$defs/RevokeAccess"
+    },
+    "revoked": {
+      "$ref": "#/$defs/Revoked"
+    }
+  },
+  "required": [
+    "enrollment",
+    "proof",
+    "challenge_request",
+    "challenge",
+    "enrolled",
+    "machine_patch",
+    "machine_revoke",
+    "revoked",
+    "revoke_access",
+    "access_revocation",
+    "history_query",
+    "recording_authority_request",
+    "recording_authority",
+    "history_page",
+    "history_streams_query",
+    "history_streams_page",
+    "admin_history_streams_query",
+    "admin_history_query",
+    "hold_change",
+    "hold_commit",
+    "lifecycle_progress",
+    "machine_token",
+    "machines",
+    "error"
+  ],
+  "$defs": {
+    "AccessRevocation": {
+      "type": "object",
+      "properties": {
+        "committed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "propagation": {
+          "$ref": "#/$defs/RevocationPropagation"
+        },
+        "request": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "revision": {
+          "$ref": "#/$defs/Counter"
+        },
+        "target": {
+          "$ref": "#/$defs/RevocationTarget"
+        }
+      },
+      "required": [
+        "request",
+        "target",
+        "revision",
+        "committed_at",
+        "propagation"
+      ]
+    },
+    "AdminHistoryQuery": {
+      "type": "object",
+      "properties": {
+        "case_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "history": {
+          "$ref": "#/$defs/HistoryQuery"
+        },
+        "include_held": {
+          "type": "boolean",
+          "default": false
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "history",
+        "reason"
+      ]
+    },
+    "AdminHistoryStreamsQuery": {
+      "type": "object",
+      "properties": {
+        "case_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "history": {
+          "$ref": "#/$defs/HistoryStreamsQuery"
+        },
+        "include_held": {
+          "type": "boolean",
+          "default": false
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "history",
+        "reason"
+      ]
+    },
+    "AgentInventory": {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "$ref": "#/$defs/Capabilities"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "capabilities"
+      ]
+    },
+    "Capabilities": {
+      "type": "object",
+      "properties": {
+        "approvals": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "external_control": {
+          "type": "boolean",
+          "default": false
+        },
+        "input": {
+          "type": "boolean",
+          "default": false
+        },
+        "interrupt": {
+          "type": "boolean",
+          "default": false
+        },
+        "resize": {
+          "type": "boolean",
+          "default": false
+        },
+        "resume": {
+          "type": "boolean",
+          "default": false
+        },
+        "steer": {
+          "type": "boolean",
+          "default": false
+        },
+        "terminate": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "Challenge": {
+      "type": "object",
+      "properties": {
+        "challenge": {
+          "$ref": "#/$defs/ChallengeId"
+        },
+        "expires_at_ms": {
+          "$ref": "#/$defs/Counter"
+        },
+        "issued_at_ms": {
+          "$ref": "#/$defs/Counter"
+        },
+        "key": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "machine",
+        "key",
+        "challenge",
+        "nonce",
+        "issued_at_ms",
+        "expires_at_ms"
+      ]
+    },
+    "ChallengeId": {
+      "type": "string"
+    },
+    "ChallengeRequest": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/KeyId"
+        }
+      },
+      "required": [
+        "key"
+      ]
+    },
+    "ChunkId": {
+      "type": "string"
+    },
+    "Counter": {
+      "type": "string"
+    },
+    "Enrolled": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        }
+      },
+      "required": [
+        "machine",
+        "key"
+      ]
+    },
+    "EnrollmentRequest": {
+      "type": "object",
+      "properties": {
+        "arch": {
+          "type": "string"
+        },
+        "cli_version": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "installation": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "key": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "name": {
+          "type": "string"
+        },
+        "os": {
+          "type": "string"
+        },
+        "os_user": {
+          "type": "string"
+        },
+        "public_key": {
+          "type": "string"
+        },
+        "recovery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Recovery"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "installation",
+        "key",
+        "public_key",
+        "os_user",
+        "hostname",
+        "os",
+        "arch",
+        "cli_version",
+        "name"
+      ]
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "unauthenticated",
+        "forbidden",
+        "access_stale",
+        "unsupported_version",
+        "unsupported_capability",
+        "invalid_frame",
+        "frame_too_large",
+        "overloaded",
+        "idempotency_conflict",
+        "stale_generation",
+        "already_resolved",
+        "history_truncated",
+        "capacity_exhausted",
+        "not_found",
+        "internal",
+        "control_held"
+      ]
+    },
+    "GapId": {
+      "type": "string"
+    },
+    "HistoricalChunk": {
+      "description": "Stored redacted bytes have a separate digest from the immutable upload/receipt digest.",
+      "type": "object",
+      "properties": {
+        "captured_from": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "captured_to": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "codec": {
+          "$ref": "#/$defs/RecordingCodec"
+        },
+        "data": {
+          "type": "string"
+        },
+        "from": {
+          "$ref": "#/$defs/Counter"
+        },
+        "id": {
+          "$ref": "#/$defs/ChunkId"
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        },
+        "redaction_saturated": {
+          "type": "boolean"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionId"
+        },
+        "stored_digest": {
+          "type": "string"
+        },
+        "stream": {
+          "$ref": "#/$defs/RecordingStream"
+        },
+        "stream_epoch": {
+          "$ref": "#/$defs/RecordingEpochId"
+        },
+        "to": {
+          "$ref": "#/$defs/Counter"
+        },
+        "uncompressed_bytes": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "session",
+        "machine",
+        "stream",
+        "stream_epoch",
+        "from",
+        "to",
+        "captured_from",
+        "captured_to",
+        "codec",
+        "uncompressed_bytes",
+        "stored_digest",
+        "data",
+        "redaction_saturated"
+      ]
+    },
+    "HistoryItem": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "body": {
+              "$ref": "#/$defs/HistoricalChunk"
+            },
+            "kind": {
+              "type": "string",
+              "const": "content"
+            }
+          },
+          "required": [
+            "kind",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "body": {
+              "$ref": "#/$defs/LossRange"
+            },
+            "kind": {
+              "type": "string",
+              "const": "gap"
+            }
+          },
+          "required": [
+            "kind",
+            "body"
+          ]
+        }
+      ]
+    },
+    "HistoryPage": {
+      "description": "A bounded view of committed history. This does not certify native capture completeness.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HistoryItem"
+          }
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        },
+        "next": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session": {
+          "$ref": "#/$defs/SessionId"
+        },
+        "stream_epoch": {
+          "$ref": "#/$defs/RecordingEpochId"
+        }
+      },
+      "required": [
+        "session",
+        "machine",
+        "stream_epoch",
+        "items"
+      ]
+    },
+    "HistoryQuery": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "limit": {
+          "type": "integer",
+          "format": "uint16",
+          "default": 4,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "stream_epoch": {
+          "$ref": "#/$defs/RecordingEpochId"
+        }
+      },
+      "required": [
+        "stream_epoch"
+      ]
+    },
+    "HistoryStream": {
+      "type": "object",
+      "properties": {
+        "stream": {
+          "$ref": "#/$defs/RecordingStream"
+        },
+        "stream_epoch": {
+          "$ref": "#/$defs/RecordingEpochId"
+        }
+      },
+      "required": [
+        "stream_epoch",
+        "stream"
+      ]
+    },
+    "HistoryStreamsPage": {
+      "description": "Only currently authorized visible content/gaps; never a capture-completeness claim.",
+      "type": "object",
+      "properties": {
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        },
+        "next": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session": {
+          "$ref": "#/$defs/SessionId"
+        },
+        "streams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HistoryStream"
+          }
+        }
+      },
+      "required": [
+        "session",
+        "machine",
+        "streams"
+      ]
+    },
+    "HistoryStreamsQuery": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "limit": {
+          "type": "integer",
+          "format": "uint16",
+          "default": 32,
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "HoldChange": {
+      "description": "Revision 1 places a hold; each subsequent change/release increments it by one.\nRetrying the same revision is safe. A hold's affected user is immutable.",
+      "type": "object",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "captured_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "captured_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "case_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "$ref": "#/$defs/HoldId"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Counter"
+        },
+        "user": {
+          "$ref": "#/$defs/UserId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "user",
+        "revision",
+        "active",
+        "reason"
+      ]
+    },
+    "HoldCommit": {
+      "description": "Success fences deletion immediately; bounded materialization may still be pending.",
+      "type": "object",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/HoldId"
+        },
+        "revision": {
+          "$ref": "#/$defs/Counter"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "active"
+      ]
+    },
+    "HoldId": {
+      "type": "string"
+    },
+    "InstallationId": {
+      "type": "string"
+    },
+    "KeyId": {
+      "type": "string"
+    },
+    "LifecycleProgress": {
+      "type": "object",
+      "properties": {
+        "affected": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "content_month": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stage": {
+          "$ref": "#/$defs/LifecycleStage"
+        }
+      },
+      "required": [
+        "stage",
+        "affected"
+      ]
+    },
+    "LifecycleStage": {
+      "type": "string",
+      "enum": [
+        "preserved_content",
+        "preserved_gaps",
+        "released_content_coverage",
+        "released_gap_coverage",
+        "retiring",
+        "retired",
+        "expired_gaps",
+        "expired_held_content",
+        "expired_held_gaps",
+        "idle"
+      ]
+    },
+    "LossRange": {
+      "type": "object",
+      "properties": {
+        "captured_from": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "captured_to": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "from": {
+          "$ref": "#/$defs/Counter"
+        },
+        "id": {
+          "$ref": "#/$defs/GapId"
+        },
+        "reason": {
+          "$ref": "#/$defs/LossReason"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionId"
+        },
+        "stream": {
+          "$ref": "#/$defs/RecordingStream"
+        },
+        "stream_epoch": {
+          "$ref": "#/$defs/RecordingEpochId"
+        },
+        "to": {
+          "$ref": "#/$defs/Counter"
+        }
+      },
+      "required": [
+        "id",
+        "session",
+        "stream",
+        "from",
+        "to",
+        "stream_epoch",
+        "captured_from",
+        "captured_to",
+        "reason"
+      ]
+    },
+    "LossReason": {
+      "type": "string",
+      "enum": [
+        "spool_cap",
+        "disk_failure",
+        "recovery_loss",
+        "replay_truncated",
+        "capture_backpressure",
+        "unknown"
+      ]
+    },
+    "Machine": {
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/AgentInventory"
+          }
+        },
+        "arch": {
+          "type": "string"
+        },
+        "cli_version": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/MachineId"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "last_seen": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "name": {
+          "type": "string"
+        },
+        "online": {
+          "type": "boolean"
+        },
+        "os": {
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/UserId"
+        },
+        "sessions": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "owner",
+        "name",
+        "hostname",
+        "os",
+        "arch",
+        "cli_version",
+        "labels",
+        "agents",
+        "online",
+        "last_seen",
+        "sessions"
+      ]
+    },
+    "MachineId": {
+      "type": "string"
+    },
+    "MachinePatch": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "MachineRevoke": {
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "MachineToken": {
+      "description": "A bearer credential intentionally returned to the host; Debug always redacts it.",
+      "type": "object",
+      "properties": {
+        "expires_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "expires_at"
+      ]
+    },
+    "OperationOutcome": {
+      "type": "string",
+      "enum": [
+        "not_sent",
+        "unknown",
+        "rejected"
+      ]
+    },
+    "Proof": {
+      "type": "object",
+      "properties": {
+        "challenge": {
+          "$ref": "#/$defs/ChallengeId"
+        },
+        "signature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "challenge",
+        "signature"
+      ]
+    },
+    "RecordingAuthority": {
+      "type": "object",
+      "properties": {
+        "backend_epoch": {
+          "type": "string"
+        },
+        "challenge": {
+          "$ref": "#/$defs/ChallengeId"
+        },
+        "key": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/UserId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "challenge",
+        "origin",
+        "owner",
+        "machine",
+        "key",
+        "backend_epoch"
+      ]
+    },
+    "RecordingAuthorityRequest": {
+      "description": "Independently request recovery authority before accepting any upload receipt.",
+      "type": "object",
+      "properties": {
+        "challenge": {
+          "$ref": "#/$defs/ChallengeId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "challenge"
+      ]
+    },
+    "RecordingCodec": {
+      "type": "string",
+      "enum": [
+        "zstd_jsonl",
+        "zstd_asciicast"
+      ]
+    },
+    "RecordingEpochId": {
+      "type": "string"
+    },
+    "RecordingStream": {
+      "type": "string",
+      "enum": [
+        "events",
+        "pty",
+        "stdout",
+        "stderr"
+      ]
+    },
+    "Recovery": {
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean"
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        }
+      },
+      "required": [
+        "machine",
+        "confirmed"
+      ]
+    },
+    "RemoteError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/OperationOutcome"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "outcome",
+        "message",
+        "retryable"
+      ]
+    },
+    "RequestId": {
+      "type": "string"
+    },
+    "RevocationPropagation": {
+      "description": "Completed requires explicit cross-node/native propagation evidence.",
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed"
+      ]
+    },
+    "RevocationTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "global"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "user"
+            },
+            "user": {
+              "$ref": "#/$defs/UserId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "user"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "machine"
+            },
+            "machine": {
+              "$ref": "#/$defs/MachineId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "machine"
+          ]
+        }
+      ]
+    },
+    "RevokeAccess": {
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean"
+        },
+        "request": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "target": {
+          "$ref": "#/$defs/RevocationTarget"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "target",
+        "confirmed"
+      ]
+    },
+    "Revoked": {
+      "type": "object",
+      "properties": {
+        "machine": {
+          "$ref": "#/$defs/MachineId"
+        }
+      },
+      "required": [
+        "machine"
+      ]
+    },
+    "SessionId": {
+      "type": "string"
+    },
+    "Timestamp": {
+      "description": "Canonical UTC timestamp with exactly millisecond precision.",
+      "type": "string"
+    },
+    "UserId": {
+      "type": "string"
+    }
+  }
+}

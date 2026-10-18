@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RecordingRecord",
+  "type": "object",
+  "properties": {
+    "captured_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "content": {
+      "$ref": "#/$defs/RecordedContent"
+    },
+    "elapsed_ms": {
+      "$ref": "#/$defs/Counter"
+    },
+    "seq": {
+      "$ref": "#/$defs/Counter"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "seq",
+    "captured_at",
+    "elapsed_ms",
+    "content"
+  ],
+  "$defs": {
+    "Counter": {
+      "type": "string"
+    },
+    "RecordedContent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "fragment": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "last": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "const": "output"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "data",
+            "fragment",
+            "last"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "$ref": "#/$defs/RecordingChannel"
+            },
+            "data": {
+              "type": "string"
+            },
+            "fragment": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "last": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "const": "agent_text"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "channel",
+            "data",
+            "fragment",
+            "last"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cols": {
+              "type": "integer",
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0
+            },
+            "rows": {
+              "type": "integer",
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "resize"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "rows",
+            "cols"
+          ]
+        }
+      ]
+    },
+    "RecordingChannel": {
+      "description": "Fixed metadata labels. Vendor/user text belongs in the redacted data field.",
+      "type": "string",
+      "enum": [
+        "message_delta",
+        "user_message",
+        "tool_output",
+        "tool_status",
+        "approval_request",
+        "approval_decision",
+        "approval_application",
+        "usage",
+        "warning",
+        "native"
+      ]
+    },
+    "Timestamp": {
+      "description": "Canonical UTC timestamp with exactly millisecond precision.",
+      "type": "string"
+    }
+  }
+}

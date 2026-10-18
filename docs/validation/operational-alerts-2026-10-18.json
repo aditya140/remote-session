@@ -1,0 +1,91 @@
+{
+  "format": "qgr-development-alerts-v1",
+  "status": "passed",
+  "observed_at": "2026-10-18T05:32:37.008600+00:00",
+  "qualification": "same-host synthetic development",
+  "prometheus_version": "3.7.3",
+  "image_digest": "sha256:49214755b6153f90a597adcbff0252cc61069f8ab69ce8411285cd4a560e8038",
+  "runtime": {
+    "health": "healthy",
+    "user": "10001:10001",
+    "published_ports": {}
+  },
+  "rules": [
+    {
+      "name": "QGenieAuthorityUnready",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieRoutingDegraded",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDirectoryAuthorityStale",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDirectoryEvidenceUnavailable",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieGatewayScrapeMissing",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentProbeFailed",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentProbeStale",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentRecordingGap",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentRecordingBacklog",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentRecordingWarning",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentDiskPressure",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentBackupOld",
+      "health": "ok"
+    },
+    {
+      "name": "QGenieDevelopmentSynchronousReplicaMissing",
+      "health": "ok"
+    }
+  ],
+  "rule_fixture_assertions": 40,
+  "rule_fixture_cases": [
+    "sustained failures then recovery",
+    "healthy recovery",
+    "missing probe fails visibly"
+  ],
+  "gateway_scrapes": 4,
+  "gateway_elapsed_directory_metrics": 4,
+  "scheduled_probe_iterations": 3,
+  "scheduled_probe_interval_seconds": 2,
+  "default_probe_interval_seconds": 30,
+  "stopped_probe_alert_observed_firing": true,
+  "actual_native_spool_metrics_seen_by_evaluator": [
+    "qgr_development_native_oldest_upload_age_seconds",
+    "qgr_development_native_spool_pending",
+    "qgr_development_native_recording_warnings"
+  ],
+  "notification_destination": "not_configured",
+  "production_delivery_and_threshold_qualification": "not_run",
+  "host_probe_service_supervisor": "not_installed",
+  "stopped_probe_alert_previous_observation": "2026-10-18T05:04:07.375701+00:00",
+  "gateway_transport_replay_approval_metric_sources": 4,
+  "gateway_queue_pressure_series": 12,
+  "gateway_metric_labels": "Three fixed priorities only; no owner/session/content labels"
+}

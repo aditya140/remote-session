@@ -1,0 +1,12 @@
+[package]
+name = "qgenie-remote-policy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+qgenie-remote-proto = { path = "../qgenie-remote-proto" }
+
+[lints]
+workspace = true
