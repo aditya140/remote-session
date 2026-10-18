@@ -1,0 +1,192 @@
+//! Verify actual owned tool descendants, rather than inferring cleanup from the app-server PID.
+use super::*;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+struct Current;
+impl qgenie_remote_adapters::NativeEffectAuthorization for Current {
+    fn perform(
+        &self,
+        effect: &mut dyn FnMut() -> std::io::Result<usize>,
+    ) -> std::io::Result<usize> {
+        effect()
+    }
+}
+
+#[tokio::test]
+async fn failed_native_startup_is_reaped_before_returning_to_its_executor_owner() {
+    use std::os::unix::fs::PermissionsExt;
+    let temp = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    for stalled_probe in [false, true] {
+        let pid_file = root.join("startup.pid");
+        let wrapper = root.join("broken-native");
+        let quote =
+            |path: &Path| format!("'{}'", path.display().to_string().replace('\'', "'\\''"));
+        let probe = if stalled_probe {
+            ""
+        } else {
+            "if [ \"$1\" = --version ]; then printf 'codex-cli 0.159.2\\n'; exit 0; fi\n"
+        };
+        std::fs::write(
+            &wrapper,
+            format!(
+                "#!/bin/sh\n{probe}printf '%s' \"$$\" > {}\nexec sleep 60\n",
+                quote(&pid_file)
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let result = Codex::launch(config(&wrapper, &root, 9)).await;
+        assert!(result.is_err());
+        let pid: i32 = std::fs::read_to_string(&pid_file).unwrap().parse().unwrap();
+        // A zombie is still present under kill(pid, 0); this checks actual reap,
+        // before the current-thread runtime gets another opportunity to run.
+        assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::ESRCH)
+        );
+        std::fs::remove_file(pid_file).unwrap();
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires actual pinned QGR_CODEX_BINARY; native original-grant spawn qualification"]
+async fn actual_native_spawn_rechecks_authority_after_version_probe() {
+    use std::os::unix::fs::PermissionsExt;
+    let binary = PathBuf::from(std::env::var_os("QGR_CODEX_BINARY").expect("set QGR_CODEX_BINARY"));
+    let temp = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    let wrapper = root.join("native-wrapper");
+    let quote = |path: &Path| format!("'{}'", path.display().to_string().replace('\'', "'\\''"));
+    std::fs::write(
+        &wrapper,
+        format!(
+            "#!/bin/sh\nif [ \"$1\" != --version ]; then printf spawned > {}; fi\nexec {} \"$@\"\n",
+            quote(&root.join("native_spawned")),
+            quote(&binary)
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    struct Expires(AtomicUsize);
+    impl qgenie_remote_adapters::NativeEffectAuthorization for Expires {
+        fn perform(
+            &self,
+            effect: &mut dyn FnMut() -> std::io::Result<usize>,
+        ) -> std::io::Result<usize> {
+            if self.0.fetch_add(1, Ordering::SeqCst) == 0 {
+                effect()
+            } else {
+                Err(std::io::ErrorKind::PermissionDenied.into())
+            }
+        }
+    }
+    let authorization = Arc::new(Expires(AtomicUsize::new(0)));
+    let mut configuration = config(&wrapper, &root, 9);
+    configuration.cwd = root.clone();
+    let directory = std::fs::File::open(&root).unwrap();
+    let result = Codex::launch_at_authorized(configuration, directory, authorization.clone()).await;
+    assert!(matches!(
+        result,
+        Err(qgenie_remote_adapters::CodexError::NotSent)
+    ));
+    assert_eq!(authorization.0.load(Ordering::SeqCst), 2);
+    assert!(
+        !root.join("native_spawned").exists(),
+        "native startup executed after its original grant expired"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires actual pinned QGR_CODEX_BINARY; native process-tree qualification"]
+async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descendant_running() {
+    let binary = PathBuf::from(std::env::var_os("QGR_CODEX_BINARY").expect("set QGR_CODEX_BINARY"));
+    let temp = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let model = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut header = Vec::new();
+        while !header.ends_with(b"\r\n\r\n") {
+            assert!(header.len() < 32768);
+            header.push(stream.read_u8().await.unwrap());
+        }
+        let header = String::from_utf8(header).unwrap();
+        let length = header
+            .lines()
+            .find_map(|line| {
+                line.to_ascii_lowercase()
+                    .strip_prefix("content-length:")
+                    .map(|v| v.trim().parse::<usize>().unwrap())
+            })
+            .unwrap();
+        assert!(length < 2 * 1024 * 1024);
+        let mut request = vec![0; length];
+        stream.read_exact(&mut request).await.unwrap();
+        let item = json!({"type":"function_call","id":"fc_tree","call_id":"call_tree","name":"exec_command","arguments":json!({"cmd":"(printf ready > tool_live; sleep 1; printf escaped > escaped_descendant) & wait","max_output_chars":1000}).to_string()});
+        let events = [
+            json!({"type":"response.created","response":{"id":"tree"}}),
+            json!({"type":"response.output_item.added","output_index":0,"item":item}),
+            json!({"type":"response.output_item.done","output_index":0,"item":item}),
+            json!({"type":"response.completed","response":{"id":"tree","status":"completed","output":[item],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}),
+        ];
+        let mut output =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n"
+                .to_owned();
+        for event in events {
+            output.push_str(&format!(
+                "event: {}\ndata: {}\n\n",
+                event["type"].as_str().unwrap(),
+                event
+            ));
+        }
+        stream.write_all(output.as_bytes()).await.unwrap();
+    });
+    let mut adapter = Codex::launch(config(&binary, &root, port)).await.unwrap();
+    let thread = adapter.start_thread(&root).await.unwrap();
+    adapter
+        .prompt(&thread, "Run the controlled owned process-tree fixture.")
+        .await
+        .unwrap();
+    let approval = loop {
+        if let NativeEvent::Approval(approval) = next(&mut adapter).await {
+            break approval;
+        }
+    };
+    adapter
+        .answer(&approval, ApprovalDecision::AllowOnce)
+        .await
+        .unwrap();
+    timeout(Duration::from_secs(10), async {
+        while !root.join("tool_live").exists() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    adapter
+        .process_control()
+        .terminate(Arc::new(Current))
+        .await
+        .unwrap();
+    let _ = adapter.closed().await;
+    adapter.shutdown().await.unwrap();
+    model.await.unwrap();
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    assert!(
+        !root.join("escaped_descendant").exists(),
+        "owned app-server termination left an approved tool descendant alive"
+    );
+}

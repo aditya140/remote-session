@@ -250,6 +250,8 @@ Priority: **P0 = MVP, P1 = GA, P2 = later.**
 | M3: GA | Hardening, threat-model fixes, runbooks, admin UI and remaining admin APIs; the revocation API already ships in M1. | Security sign-off, SLOs met for 4 weeks. |
 | Later | Sharing (ID-9), web client, file transfer, Kubernetes, multiple sites/regions. | — |
 
+**Persistent-recording release gate:** [ADR 0005](docs/adr/0005-recording-and-retention.md) resolves the implementation dependency between mandatory recording and the M2 placement of PO-4/6/7/8. Any milestone that persists real session content must also deliver protected owner/admin access, audited admin reads, retention, and legal-hold preservation through tasks 020–022. M0 can use disposable synthetic fixtures to prove the contract. The phase durations above remain planning estimates. This gate does not establish a revised delivery schedule.
+
 ## 10. Risks
 
 | Risk | Mitigation |

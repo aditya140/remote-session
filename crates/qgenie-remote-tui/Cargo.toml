@@ -1,0 +1,19 @@
+[package]
+name = "qgenie-remote-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+qgenie-remote-proto = { path = "../qgenie-remote-proto" }
+qgenie-remote-client = { path = "../qgenie-remote-client" }
+anyhow.workspace = true
+base64.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
+vt100.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

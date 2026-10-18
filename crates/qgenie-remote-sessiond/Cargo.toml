@@ -1,0 +1,35 @@
+[package]
+name = "qgenie-remote-sessiond"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+managed-codex = ["qgenie-remote-adapters/codex"]
+
+[dependencies]
+qgenie-remote-proto = { path = "../qgenie-remote-proto" }
+qgenie-remote-policy = { path = "../qgenie-remote-policy" }
+qgenie-remote-transport = { path = "../qgenie-remote-transport",features=["elapsed-clock"] }
+qgenie-remote-adapters = { path = "../qgenie-remote-adapters" }
+anyhow.workspace = true
+base64.workspace = true
+hmac.workspace = true
+fs2.workspace = true
+libc.workspace = true
+sha2.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+rusqlite.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+zstd.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+qgenie-remote-adapters = { path = "../qgenie-remote-adapters", features = ["codex"] }
+tempfile.workspace = true
+
+[lints]
+workspace = true

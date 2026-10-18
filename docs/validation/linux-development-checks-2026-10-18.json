@@ -1,0 +1,34 @@
+{
+  "format": "qgr-linux-development-checks-v1",
+  "status": "passed",
+  "source": "branch work with uncommitted task implementation",
+  "workspace_all_features": {
+    "passed": 178,
+    "failed": 0,
+    "ignored": 21
+  },
+  "strict_workspace_all_targets_all_features_clippy": "passed",
+  "default_workspace_all_targets_check": "passed",
+  "formatting": "passed",
+  "dependency_boundaries": "passed",
+  "public_rest_recording_schemas": "passed",
+  "new_subset_proofs_in_workspace": {
+    "linux_pty_process_tests": 3,
+    "scoped_native_changes_tests": 3,
+    "directory_elapsed_metrics_test": 1,
+    "revocation_elapsed_concurrency_tests": 4
+  },
+  "explicit_fixture_artifacts": [
+    "synchronous-acceptance-2026-10-18.json",
+    "development-roll-2026-10-18.json",
+    "capacity-baseline-2026-10-18.json",
+    "operational-alerts-2026-10-18.json",
+    "revocation-propagation-2026-10-18.json"
+  ],
+  "ignored_tests_note": "Ignored environment proofs are not counted as passed; only separately executed artifacts establish fixture coverage.",
+  "overall_28_task_goal": "complete_for_user_selected_linux_standalone_development_scope",
+  "external_release_gates": "not_run",
+  "task_001": "corporate_source_inspection_waived_by_user",
+  "external_release_gates_document": "external-release-gates.md",
+  "gateway_observations": "Actual two-gateway traffic/replay/approval counters and native delivery histogram verified by the synchronous runner"
+}

@@ -1,0 +1,9 @@
+.git
+target
+deploy/compose/secrets
+.env
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sock
+**/__pycache__

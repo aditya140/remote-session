@@ -1,0 +1,20 @@
+{
+  "body": {
+    "snapshot": {
+      "cols": 80,
+      "data": "eyJ2IjoxLCJzZXEiOiI5MDA3MTk5MjU0NzQwOTk1IiwiaGlzdG9yeV90cnVuY2F0ZWQiOnRydWUsInVuY29uZmlybWVkX3RhaWwiOmZhbHNlLCJldmVudHMiOlt7InNlcSI6IjkwMDcxOTkyNTQ3NDA5OTQiLCJhdCI6IjIwMjYtMTAtMTdUMDA6MDA6MDAuMDAwWiIsImV2ZW50Ijp7ImtpbmQiOiJtZXNzYWdlX2NvbXBsZXRlZCIsImRhdGEiOnsibWVzc2FnZSI6Im5hdGl2ZS1tZXNzYWdlLTEiLCJ0ZXh0IjoiU3ludGhldGljIHN0cnVjdHVyZWQgb3V0cHV0In19fSx7InNlcSI6IjkwMDcxOTkyNTQ3NDA5OTUiLCJhdCI6IjIwMjYtMTAtMTdUMDA6MDA6MDAuMDAwWiIsImV2ZW50Ijp7ImtpbmQiOiJ0dXJuX2NvbXBsZXRlZCIsImRhdGEiOnsidHVybiI6Im5hdGl2ZS10dXJuLTEiLCJpbnB1dF90b2tlbnMiOiI5MDA3MTk5MjU0NzQwOTk3Iiwib3V0cHV0X3Rva2VucyI6IjIifX19XX0=",
+      "epoch": "agent-snapshot-1",
+      "format": "agent_state_v1",
+      "page": 0,
+      "rows": 24,
+      "seq": "9007199254740995",
+      "total_pages": 1
+    }
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440304",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+  "re": "msg_550e8400-e29b-41d4-a716-446655440200",
+  "session": "s_550e8400-e29b-41d4-a716-446655440002",
+  "type": "session.snapshot",
+  "v": 1
+}

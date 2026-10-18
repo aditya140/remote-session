@@ -1,6 +1,8 @@
 # QGenie Remote: components, crates, and file layout
 
-Status: implementation proposal, 2026-10-16. No crates have been implemented in this repository.
+Status: implemented Linux standalone map. All nine crates, the CLI/TUI, native PTY/managed Codex workflows, gateway identity/routing, protected recordings/holds and development deployment now exist. [Task progress](tasks/PROGRESS.md) records the selected-scope completion, capability limits and external release gates.
+
+[Task 002's implementation decisions](docs/adr/README.md) now specify authority, lifecycle, wire, recording, and deployment contracts. They are selected design inputs, not proof of implemented behavior. Use the [operation matrix](docs/contracts/operation-matrix.md) for action requirements.
 
 This document turns PRD v0.8 and architecture v0.8 into a component map. The 2026-10-15 review supplies unresolved implementation concerns; its original findings refer to v0.7, and its follow-up records the decisions already resolved in v0.8. Crate rules are in the [subcrate standard](subcrate-standard.md).
 
@@ -113,8 +115,8 @@ The following ownership rules preserve the architecture's intent. Mechanisms mar
 | Native approval request and application outcome | `sessiond` approval journal and adapter | Deduplicate remote decisions, reconcile native cancellations/local resolutions/restarts; do not claim exactly-once native execution if the vendor protocol cannot prove it |
 | Live replay and PTY screen snapshot | `sessiond` bounded replay log and screen model | Client resync reads the host, never the Postgres transcript copy. Report truncated replay explicitly |
 | Unacknowledged recording content and gap ranges | `sessiond` separate disk-capped spool | Host uploads immutable batches; reclaim content only after durable recording acknowledgment or the documented cap policy. Preserve gap metadata |
-| … | … | … |
-| … subscriptions | … state | … after failure. Affinity is an optimization, not access authority |
+| Stored transcript content and ingest receipts | Postgres content and receipt ledger, committed together | Match immutable batch identity/digest. Reconcile the database recovery epoch; an old receipt does not reconstruct lost content |
+| Inventory, presence, and subscription projections | Authenticated host reports and current connections | Rebuild projections after failure. Affinity is an optimization, not access authority |
 | Legal holds and permission to retire transcript partitions | Postgres-coordinated hold/retention transactions | Redis leadership alone cannot authorize destructive work. Preserve overlapping holds, metadata, and audit references |
 
 ### Contracts to write before implementation grows
@@ -221,7 +223,7 @@ Pause stops the connector while sessiond and its spool continue locally. Resume 
 | Beta/M2 | Claude/Pi/exec, same-user adoption/backfill, Electron/TS SDK, Windows, richer org policy/admin/history operations | SE-3/4/12/12a/12b/13; CL-2/3/5/6; PO-2/4/6/7/8; adapter/local-controller coexistence, RLS/hold/retention races, representative load and recording-volume measurements |
 | GA and later | Operational hardening/admin UI, then sharing/web/file transfer | Threat review, recovery/backup drills, SLO evidence; future clients pass shared conformance |
 
-**Recording milestone proposal:** the PRD says recording is always enabled but places PO-4/6/7/8 in M2. The crate plan must not interpret that as permission to store unprotected recordings in alpha. M0 must prove recording/commit/gap semantics. If M1 records persistent content, its owner/admin access, audited admin reads, purge, and legally required hold preservation must be delivered with that content. Keep this release dependency explicit and reconcile the PRD milestone table before promising alpha dates; it is a scope proposal, not an already confirmed schedule change.
+**Recording release dependency:** [ADR 0005](docs/adr/0005-recording-and-retention.md) and the PRD release gate require tasks 020–022 before any milestone persists real session content. M0 must prove recording/commit/gap semantics with protected content or disposable synthetic fixtures. Owner/admin access, audited admin reads, purge, and hold preservation ship with persistent real content. This dependency does not confirm revised milestone dates.
 
 No crate is independently "done" just because its files exist. Each vertical slice should prove real behavior across process boundaries.
 

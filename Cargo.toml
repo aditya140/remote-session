@@ -1,0 +1,73 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "apps/qgenie-remote", "xtask", "tests/fixtures/identity"]
+default-members = ["crates/*", "apps/qgenie-remote", "xtask"]
+exclude = ["vendor/vt100-0.16.2", "vendor/vte-0.15.0", "vendor/portable-pty-0.9.0", "vendor/sqlx-postgres-0.9.0"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1.0"
+aho-corasick = "1.1"
+axum = { version = "0.8", features = ["ws"] }
+base64 = "0.22"
+clap = { version = "4.5", features = ["derive", "env"] }
+crossterm = "0.29"
+fs2 = "0.4"
+futures-util = { version = "0.3", features = ["sink"] }
+ed25519-dalek = { version = "2.2", features = ["pkcs8"] }
+jsonwebtoken = { version = "10.3", features = ["rust_crypto"] }
+keyring = { version = "3.6.3", default-features = false }
+ipnet = "2.11"
+hmac = "0.12"
+libc = "0.2"
+portable-pty = "=0.9.0"
+percent-encoding = "2.3"
+ratatui = { version = "0.30", default-features = false, features = ["crossterm_0_29"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+schemars = { version = "1.0", features = ["uuid1"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "postgres", "uuid", "json", "time"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-native-certs = "0.8"
+rustls-pemfile = "2.2"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+url = "2.5"
+rcgen = "0.13"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "json"] }
+redis = { version = "1.7", default-features = false, features = ["tokio-rustls-comp", "script"] }
+rand = "0.9"
+tempfile = "3.23"
+tower = { version = "0.5", features = ["util", "limit", "timeout", "load-shed"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "2.0"
+time = { version = "0.3", features = ["parsing", "formatting"] }
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "sync", "signal", "process"] }
+uuid = { version = "1.18", features = ["v4", "serde"] }
+vt100 = { version = "=0.16.2", features = ["checkpoint"] }
+zeroize = { version = "1.8", features = ["derive"] }
+zstd = { version = "0.13", default-features = false }
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+
+[profile.release]
+lto = "thin"
+strip = true
+
+[patch.crates-io]
+vt100 = { path = "vendor/vt100-0.16.2" }
+vte = { path = "vendor/vte-0.15.0" }
+portable-pty = { path = "vendor/portable-pty-0.9.0" }
+sqlx-postgres = { path = "vendor/sqlx-postgres-0.9.0" }

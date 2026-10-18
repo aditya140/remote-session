@@ -1,0 +1,18 @@
+{
+  "name": "start-lost-ack",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+  "key": "idem_550e8400-e29b-41d4-a716-446655440006",
+  "steps": [
+    "persist_client_key",
+    "commit_sessiond_acceptance",
+    "native_launch",
+    "commit_native_identity",
+    "drop_reply",
+    "lookup_same_key"
+  ],
+  "expected": {
+    "native_launches": 1,
+    "session": "s_550e8400-e29b-41d4-a716-446655440002",
+    "lookup_mutates": false
+  }
+}

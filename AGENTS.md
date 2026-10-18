@@ -4,8 +4,8 @@ These instructions apply to all files in this repository.
 
 ## Project status
 
-This repository contains the design for QGenie Remote and a development container configuration.
-It does not yet contain a Cargo workspace, application code, migrations, or application tests.
+This repository contains the standalone Rust workspace, application code, migrations, tests, and development configurations for QGenie Remote.
+The user selected Linux development completion. See [task progress](tasks/PROGRESS.md) for executed evidence and [external release gates](docs/validation/external-release-gates.md) for unrun qualification.
 Treat commands and interfaces in the design documents as proposals until implementation and tests establish their behavior.
 
 The first release uses a Rust terminal user interface (TUI).
@@ -34,9 +34,9 @@ The configuration provides Rust tools, PostgreSQL, Redis, SQLite tools, and tmux
 It does not start an application.
 
 The container image supplies a development toolchain.
-It does not establish the minimum supported Rust version (MSRV) for the product.
-Before you select the Rust edition, MSRV, or workspace toolchain, inspect the existing QGenie CLI.
-Record the agreed toolchain in `rust-toolchain.toml` when the workspace exists.
+The standalone workspace selects Rust 1.99.1 and edition 2024.
+The user waived the corporate CLI source prerequisite in [ADR 0007](docs/adr/0007-standalone-preview.md).
+Review that decision before you change `rust-toolchain.toml` or the workspace edition.
 
 Keep real credentials, tokens, machine keys, and recordings out of Git.
 Use the database credentials in the development configuration only for local development.

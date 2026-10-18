@@ -12,6 +12,8 @@ Diagrams use Mermaid (rendered by GitHub/GitLab). The system overview is also dr
 
 **Network scope:** hosts and clients reach `qgenie-remote.qualcomm.com` through the corporate network or a corporate VPN. The gateway need not be exposed to the public internet. Clients do not need direct network access to enrolled hosts.
 
+**Implementation contracts:** [The decision records](docs/adr/README.md) refine this draft's illustrative flows. They define durable authority, independent service lifetime, full-width counters, fencing, recording receipts, and deployment behavior. [The operation matrix](docs/contracts/operation-matrix.md) defines action requirements. These contracts do not establish native-agent, tenant, platform, or scale proof.
+
 ## 1. System overview
 
 ```text
@@ -151,7 +153,7 @@ Reasons for the less obvious choices:
 - **D16:** see §4.5. "Host by default" applies only after an explicit enrollment, so a machine is never exposed without the user knowing.
 - **D17:** see §9. Leader election, presence, routing and configuration already go through Redis, Postgres and environment variables, so nothing in the gateway depends on the orchestrator. Starting with one Compose deployment keeps operations simple. Kubernetes and additional sites are deferred, not designed out.
 - **D18:** see §4.8. Users already run agents in their own terminals, tmux and Herdr. Showing only the sessions we started would hide most of their real work.
-- **D7:** network disconnects, token refreshes, and connector upgrades must not kill running agents. `sessiond` detaches from the service manager's process group and owns the PTYs and agent children. tmux and Herdr use the same pattern. It restarts only when no sessions are active, or on explicit upgrade.
+- **D7:** network disconnects, token refreshes, and connector upgrades must not kill running agents. `sessiond` owns PTYs and agent children in an independent service-manager lifetime. [ADR 0003](docs/adr/0003-session-lifetime-and-ipc.md) requires separate systemd units/cgroups and launchd jobs. `setsid` alone does not establish this behavior. Defer sessiond updates while sessions are active unless a local user explicitly accepts disruption.
 - **D8:** if a laptop's keyring leaks a machine key, only that machine is compromised, and it can be revoked on its own. User refresh tokens never sit on long-running servers.
 
 ## 3. Gateway language: Rust vs Go
@@ -192,7 +194,7 @@ flowchart TB
             WSS --- MUX
             MUX --- POLICY
         end
-        subgraph SESSIOND["qgenie remote sessiond (detached, survives host restarts)"]
+        subgraph SESSIOND["qgenie remote sessiond (independent service lifetime)"]
             DISCOVERY["Discovery (§4.8)<br/>codex daemon, claude agents,<br/>pi extension, tmux/herdr,<br/>same OS user only"]
             REGISTRY["Session registry<br/>(sessions.db, SQLite)"]
             REPLAY["Replay log per session<br/>ring buffer + spill to disk"]
@@ -208,7 +210,7 @@ flowchart TB
             REGISTRY --> ADAPTERS
         end
         CLI --> HOST
-        MUX <-->|"local IPC (UDS / named pipe), same proto"| REGISTRY
+        MUX <-->|"private IPC, independent version; Unix sockets in MVP"| REGISTRY
     end
     KEYRING[("OS keyring<br/>machine key, tokens")]
     ENDPOINT["QGenie endpoint injection<br/>(same as qgenie codex)"]
@@ -222,7 +224,7 @@ flowchart TB
 | --- | --- |
 | `qgenie remote up` | Signs in with OAuth (reusing the CLI's existing PKCE and keyring code, plus a new scope), generates the machine key, enrolls, and installs/starts the service (reusing the existing systemd/launchd/Task Scheduler/WinSW installer used by `qgenie proxy service`). |
 | `host` (connector) | Keeps one outbound WSS connection to the gateway. Machine authentication, heartbeats, reconnect with exponential backoff and jitter. Enforces host policy on every incoming request: roots for browsing/new-session cwd/file transfer, allowed agents, terminal policy, and approval mode. An existing same-user session's outside-root cwd does not block its supported control operations (§4.8). Forwards authorized operations to `sessiond`. Reports inventory (agents and versions) and presence. |
-| `sessiond` | Owns all sessions and their child processes. Persists the session registry (SQLite) and replay logs. Adapters translate between each agent's native protocol and our normalized session protocol. Started on demand by `host`, then detached (`setsid`). Exits after idling with no sessions. |
+| `sessiond` | Owns sessions and child processes. Persists the registry, replay, approval state, and recording spool. Adapters normalize native protocols. The service integration starts it on demand in an independent unit/job. Connector stop does not propagate. Idle exit requires no active sessions or pending durable work. |
 | Discovery | Finds agent and terminal sessions that the same OS user started outside QGenie Remote and registers them as adopted sessions with control or observe capability (§4.8). |
 | Adapters | **Codex:** connects to the local `codex app-server daemon` over its Unix socket (or `ws://127.0.0.1`), or starts it; Codex's own remote-control relay stays disabled (§4.7). Uses JSON-RPC thread/turn/steer/interrupt, items, and approvals. Schemas are generated from the installed Codex version. **Claude:** a long-lived `claude -p --input-format stream-json --output-format stream-json --permission-prompts host` process per session. **Pi:** `pi --mode rpc`, plus a small QGenie extension whose `tool_call` hook turns confirmations into approvals. **PTY:** for shells or any CLI. Keeps a vt100 screen model so reattach sends a snapshot, then live bytes. |
 
@@ -234,13 +236,13 @@ flowchart TB
 | AuthN | Clients: Entra JWT (audience `qgenie-remote`) on the WS upgrade (`Authorization` header for TUI/desktop; short-lived connect ticket from REST for browsers). Hosts: machine token issued after an Ed25519 challenge. Re-checks on token expiry and checks durable gateway revocation state on new connections. Existing connections use push invalidation plus bounded authoritative reconciliation (§8); token expiry is not the revocation fallback. |
 | AuthZ | Policy engine per message: is this user the owner (or, in v2, a sharee with a role) of this machine/session? Does this operation require the control lease? Approval answers require the owning user and host policy, but not a control lease. Is the org feature enabled? Gateway revocation state is cached for at most 5 s and invalidated through Redis pub/sub; stale authority cannot permit continued remote access (§8). |
 | Router | Publishes client→host frames to `host:{machine_id}` and host→client frames to `sess:{session_id}` / `conn:{conn_id}` (Redis `SPUBLISH`). Subscribes (`SSUBSCRIBE`) only for connections attached to this node. Fan-out to observers happens at the subscribing nodes. |
-| Session/approval state | Writes session metadata (created, state, lease holder, last seq checkpoint) and approval records to Postgres. Approvals are resolved with a conditional update, so the first valid answer wins (exactly once). |
+| Session/approval state | Writes metadata, durable control generations, and approval records to Postgres. One conditional transaction commits an approval winner, audit event, and outbox obligation. Native application has a separate acknowledged or uncertain outcome under ADR 0002. |
 | Control REST API | `/v1/machines`, `/v1/enrollments`, `/v1/sessions` (list/history), `/v1/sessions/{id}/transcript` (owner or admin), `/v1/connect-tickets`, `/v1/admin/*` (kill switch, policy, legal holds), `/v1/audit` (admin). |
 | Admin revocation (MVP) | `POST /v1/admin/revocations` at `qgenie-remote.qualcomm.com`, restricted to platform admins. Targets global access, a user, or a machine. Commits the disable state and audit event in Postgres, immediately denies access at the accepting node, pushes invalidation, and reports propagation status. All gateways enforce the change within 10 s (§8). Host sessions continue; revocation sends no termination command. No desktop app or admin UI is required. |
 | Audit | Emits structured audit events (who/what/where/decision) to an append-only Postgres table + OTel logs. |
-| Transcript writer | Batches normalized agent events into Postgres asynchronously (§4.4). Never on the hot path: if it falls behind, it drops to catch-up from the host replay log rather than slowing the session. |
+| Transcript writer | Ingests immutable batches from the independent host recording spool. Returns a receipt only after the content/gap and receipt ledger commit. Recording failure does not block live output. Replay is not the authoritative recording backlog. |
 | Presence sweeper | One leader at a time (Redis lock `SET NX PX`). Marks machines offline when their presence key expires, e.g. after a gateway node crash. |
-| Retention job | Nightly, single leader. Drops transcript partitions older than the retention period after copying out rows under legal hold (§4.4). |
+| Retention job | Runs nightly with PostgreSQL lifecycle coordination. Drops an entirely expired partition only after preserving all active hold coverage and references (§4.4; ADR 0005). |
 
 ### 4.3 Redis usage
 
@@ -255,13 +257,13 @@ Redis is a fast, disposable bus, never a source of truth. Every key can be rebui
 | Revocations / policy changes | Classic pub/sub (all nodes) | `revocations`, `policy` | Fast invalidation hints. Durable disable state lives in Postgres; gateway reconciliation recovers missed revocation messages within the 10 s bound (§8). |
 | Presence | Key with TTL | `presence:{machine_id}` → `{node, conn_id, since}` EX 30 | Refreshed on each heartbeat (20 s). Expiry means offline. |
 | Replace-older-connection | Key + pub/sub | `presence:{machine_id}` (`SET … GET`) | New host connection finds the old `conn_id` and tells that node to close it (4409). |
-| Control lease cache | Key with TTL | `lease:{session_id}` → `conn_id` | `SET NX PX 15000` grants; holder refreshes. Postgres records lease changes for audit. |
+| Control lease cache | Key with TTL | `lease:{session_id}` → holder/generation projection | PostgreSQL allocates authority; sessiond activates and fences it. Redis TTL does not grant control. |
 | Rate limits | Counters | `rl:{user}:{bucket}` | Per-user and per-machine message/byte budgets. |
 | Sweeper leadership | Lock | `lock:presence-sweeper` | `SET NX PX`, renewed by leader. |
 
 Semantics and limits to design around:
 
-- **At-most-once delivery.** Pub/sub drops messages if a subscriber is disconnected or its output buffer overflows. Every routed frame carries a sequence number, and the receiver detects gaps and requests a resync from the host (`session.attach {from_seq}`), which is the same path as a client reconnect. Control messages (`session.start`, `approval.resolve`) are acknowledged end to end and retried with the same idempotency key.
+- **At-most-once delivery.** Pub/sub can drop messages. Session output uses cursors and periodic host-head reconciliation, including idle tail loss. An uncertain start uses same-key lookup. Committed approval delivery uses its durable decision ID. Input is never resent automatically. A generic transport retry loop does not establish these guarantees.
 - **Backpressure.** Set `client-output-buffer-limit pubsub` with headroom, and coalesce PTY output on the host (≤16 ms or 32 KB batches). Slow observers are dropped and resync; they never slow down the session's controller.
 - **Topology.** Use the latest stable Redis, starting with Sentinel (primary plus replica, in the single on-prem deployment). Sharded pub/sub needs Redis 7 or later, so any current release works. Pin the major version (image tag) in the Compose files and test upgrades in staging. Move to Redis Cluster when pub/sub throughput needs it. Sharded pub/sub (`SPUBLISH` / `SSUBSCRIBE`) only sends each message to the shard that owns the channel, so it scales across shards.
 - **Failure.** If Redis is unavailable, gateway nodes keep serving clients and hosts that are on the same node, and return retryable errors for cross-node traffic. A Redis failover looks like a short gap that sequence-number resync repairs. Presence keys are rewritten on the next heartbeat.
@@ -285,13 +287,15 @@ What recording captures (always enabled, cannot be disabled by users or orgs; ga
 
 Storage (Postgres):
 
+The SQL below illustrates content fields. It is not a migration. [ADR 0005](docs/adr/0005-recording-and-retention.md) additionally requires immutable chunk identity, a unique receipt ledger, explicit held-table RLS, and hold coverage. Use full-u64-safe counter storage from ADR 0004.
+
 ```sql
 -- one row per batch of events or terminal output (typically ≤ 64 KB compressed), monthly partitions
 CREATE TABLE transcript_chunk (
   session_id uuid        NOT NULL,
   owner_id   uuid        NOT NULL,         -- denormalized for RLS
-  seq_from   bigint      NOT NULL,
-  seq_to     bigint      NOT NULL,
+  seq_from   numeric(20,0) NOT NULL,       -- validate the full unsigned 64-bit range
+  seq_to     numeric(20,0) NOT NULL,
   stream     text        NOT NULL,         -- 'events' | 'pty' | 'stdout' | 'stderr'
   events     bytea       NOT NULL,         -- zstd-compressed JSONL / asciicast lines
   created_at timestamptz NOT NULL,         -- validated batch capture time, stable on retries/backfill
@@ -308,7 +312,7 @@ CREATE TABLE legal_hold (
 );
 ```
 
-- The writer batches events per session (every 2 s or 64 KB) and inserts one row per batch. It runs asynchronously and fills gaps from the host replay log.
+- The writer ingests host-spooled immutable batches, targeting 2 seconds or 64 KiB compressed per batch. It commits content and a stable receipt together. [ADR 0005](docs/adr/0005-recording-and-retention.md) defines capture time, bounded decompression, gaps, receipts, and database-recovery limits. Replay is independent.
 - To keep the main database's I/O separate, transcripts can live in their own Postgres database or cluster behind the same code. That's a deployment choice, not a design change.
 - Search across transcripts is P2. If needed, add a `tsvector` column over the extracted text.
 
@@ -562,7 +566,7 @@ erDiagram
         text origin
         text capability
         uuid lease_conn
-        bigint last_seq
+        numeric last_seq
         timestamptz created
         timestamptz ended
     }
@@ -584,8 +588,8 @@ erDiagram
     TRANSCRIPT_CHUNK {
         uuid session_id
         uuid owner_id
-        bigint seq_from
-        bigint seq_to
+        numeric seq_from
+        numeric seq_to
         text stream
         bytea events
         timestamptz created_at
@@ -642,8 +646,8 @@ sequenceDiagram
     end
     H->>H: generate Ed25519 key pair
     H->>K: store private key (non-exportable where supported)
-    H->>G: POST /v1/machines/enroll {pubkey, hostname, os_user, os/arch, name, labels}<br/>(Bearer user token)
-    G->>PG: upsert MACHINE by (owner, hostname, os_user) + insert MACHINE_KEY
+    H->>G: POST /v1/machines/enroll {installation_id, pubkey, proof, hostname, os_user, os/arch, name, labels}<br/>(Bearer user token)
+    G->>PG: find/create by owner + persisted installation identity<br/>verify signing proof; hostname is metadata
     G-->>H: machine_id
     H->>H: install + start user service (reuse proxy service installer)
     Note over H: user token discarded /<br/>not used by service
@@ -661,7 +665,7 @@ sequenceDiagram
 
     H->>G: WSS /v1/connect/host (TLS, via HTTPS_PROXY)
     G->>H: challenge {nonce, server_time}
-    H->>G: hello {machine_id, sig_ed25519(nonce||machine_id||ts), proto_versions, cli_version, inventory}
+    H->>G: hello {machine_id, signature over canonical challenge bytes from ADR 0004,<br/>proto_versions, cli_version, inventory}
     G->>PG: verify key not revoked, machine/user enabled
     G-->>H: welcome {proto_version, machine_token (15 min), heartbeat=20s, policy}
     G->>N: SET presence:{machine_id} node=A EX 30, then SSUBSCRIBE host:{machine_id}
@@ -701,7 +705,7 @@ sequenceDiagram
     H-->>GA: session.started, GA publishes to sess:{session_id} / conn:{conn}
     GA->>GA: PG insert SESSION (state running)
     N-->>GB: deliver
-    GB-->>C: session.started, then C auto-attaches (role controller)
+    GB-->>C: session.started; C observes and requests control separately<br/>writable only after durable generation activation
     loop streaming
         X-->>S: item/agentMessage/delta, turn/command…
         S->>S: append to replay log (seq++)
@@ -709,7 +713,7 @@ sequenceDiagram
     end
 ```
 
-### 6.4 Approval, resolved exactly once
+### 6.4 Approval decision and native application
 
 ```mermaid
 sequenceDiagram
@@ -727,12 +731,18 @@ sequenceDiagram
     G-->>C1: approval.requested
     G-->>C2: approval.requested (+ notification)
     C2->>G: approval.resolve {approval_id, decision: allow_once}
-    G->>G: verify owning user, current access and host policy#59; no control lease required
-    G->>PG: UPDATE … SET state='resolved' WHERE id=$1 AND state='pending' (1 row → winner)
-    G->>S: approval.resolve
-    S->>X: native approval response
-    G-->>C1: approval.resolved {by: C2, decision}
-    G-->>C2: approval.resolved
+    G->>G: verify owner and current access; no control lease required
+    G->>S: preflight native pending state, decision and current host policy
+    S-->>G: bound policy revision and expiring preflight result
+    G->>PG: commit conditional winner + audit + delivery obligation
+    G-->>C1: approval decision committed
+    G-->>C2: approval decision committed
+    G->>S: retry durable decision identity until terminal result
+    S->>S: journal decision and recheck policy/access/native pending state
+    S->>X: native approval response when valid
+    S-->>G: applied / already_applied / cancelled / outcome_unknown
+    G-->>C1: native application status
+    G-->>C2: native application status
     C1->>G: approval.resolve (late)
     G-->>C1: error already_resolved
 ```
@@ -748,8 +758,8 @@ sequenceDiagram
 
     Note over C,G: laptop sleeps#59; WSS dropped
     H->>H: session keeps running, events appended (seq 120..480)
-    C->>G: reconnect, session.attach {session_id, from_seq:119, role: controller}
-    G->>G: authz, lease free or expired? grant lease
+    C->>G: reconnect, session.attach {session_id, from_seq:"119", role: observer}
+    G->>G: authorize observation; control requires separate activation
     G->>H: attach {conn, from_seq:119}
     alt from_seq still in replay log
         H-->>C: replay seq 120..480, then live
@@ -759,7 +769,7 @@ sequenceDiagram
     Note over C,H: PTY: snapshot = rendered vt100 screen + scrollback tail
 ```
 
-**Uncertain outcomes:** if the connection drops after a client sends `session.start` but before `session.started` arrives, the client re-sends with the same `idem_key`. `sessiond` returns the existing session instead of starting a second one. Input frames are never replayed automatically after a reconnect. The client is told which `input_seq` the host last acknowledged.
+**Uncertain outcomes:** if the connection drops after `session.start`, the client reports `unknown` and queries the original key at sessiond. A proven accepted operation can continue under that key. An ambiguous native launch remains uncertain until reconciled; no new process is launched from a timeout alone. Input is never replayed automatically. Input acknowledgment and output cursors remain separate.
 
 ### 6.6 Terminal session (PTY) data path
 
@@ -779,17 +789,17 @@ Text frame (JSON envelope):
 ```jsonc
 {
   "v": 1,
-  "id": "01J9Z…",          // message id (ULID), for acks/dedupe
-  "re": "01J9Y…",          // optional: id this replies to
+  "id": "msg_550e8400-e29b-41d4-a716-446655440000", // envelope ID
+  "re": "msg_550e8400-e29b-41d4-a716-446655440001", // optional request envelope ID
   "type": "session.event",
-  "machine": "m_…",
-  "session": "s_…",
-  "seq": 4812,             // per-session monotonically increasing (host-assigned)
+  "machine": "m_550e8400-e29b-41d4-a716-446655440002",
+  "session": "s_550e8400-e29b-41d4-a716-446655440003",
+  "seq": "4812",           // decimal string; per-session output sequence assigned by sessiond
   "body": { "kind": "agent.item", "item": { "type": "command", "status": "running", "command": "cargo test" } }
 }
 ```
 
-Binary frame (PTY): `| u8 type | u8 flags | u16 reserved | 16B session_id | u64 seq | payload… |`
+Binary frame (PTY): `| u8 type | u8 flags | u16 reserved | 16B session_id | u64 seq | payload… |`. Integers use network byte order. For input, the payload starts with `u64 host_generation` and `u64 controller_generation` before the PTY bytes. [ADR 0004](docs/adr/0004-wire-contract.md) defines exact bounds, full-u64 JSON string encoding, identity types, compatibility, and canonical challenge bytes.
 
 Message families:
 
@@ -882,13 +892,13 @@ Images are built in CI, signed (cosign), scanned, tagged by version and git SHA,
 | Concern | Contract |
 | --- | --- |
 | Config | Environment variables from a per-server `.env` (`QGR_DATABASE_URL`, `QGR_REDIS_URL` (`redis+sentinel://…`), `QGR_OIDC_ISSUER`, `QGR_OIDC_AUDIENCE`, `QGR_PUBLIC_URL`, `QGR_NODE_ID` (defaults to container hostname), `QGR_LISTEN=0.0.0.0:8080`, `QGR_ADMIN_LISTEN=0.0.0.0:9090`) plus an optional mounted `config.toml` for policy defaults |
-| Secrets | Compose `secrets:` (files under `/run/secrets/`, mode `0400`, owned by root on the host). Never in images, `.env`, or git |
-| Ports | 443 on the edge only. Gateways 8080 (WS/HTTP) and 9090 (`/healthz/live`, `/healthz/ready`, `/metrics`) are reachable only on the private network between the servers |
-| Readiness | Ready only when Postgres and Redis are reachable and the schema version matches. Not ready while draining |
+| Secrets | Mount secret files that are readable by gateway UID 10001 or its dedicated group. Verify actual in-container permissions. Root-owned mode `0400` alone is insufficient. Never store secrets in images, `.env`, or Git |
+| Ports | Only edge port 443 is externally reachable. Four development gateways use HTTP ports 8081–8084 and health/metrics ports 9091–9094 on loopback. Production private addresses require explicit firewall rules |
+| Readiness | Require current Postgres authority and a schema inside the binary's supported range. Redis failure permits ready/degraded same-node service. Postgres loss or draining makes the node unready. Enforce access expiry independently |
 | Shutdown | On `SIGTERM`: not-ready → stop accepting → send `4503 draining` → wait up to `QGR_DRAIN_SECONDS` (60) → exit. Compose `stop_grace_period: 75s` |
 | Logs | JSON to stdout (Docker `local` log driver with rotation); OTLP to the collector |
 | State | Gateways keep none. Only Postgres (and backups) are durable |
-| Leader-only work | Retention job and presence sweeper run inside the gateways, guarded by a Redis lock |
+| Coordinated work | Retention/hold jobs require PostgreSQL lifecycle coordination. Redis locks can schedule disposable presence work but cannot authorize deletion |
 | Restart policy | `restart: unless-stopped` for all long-running services; Docker starts on boot (`systemctl enable docker`) |
 
 ### 9.3 Topology: three servers, one Compose project each
@@ -961,7 +971,7 @@ flowchart TB
 - **Edge:** each server runs HAProxy, and the virtual IP moves between servers with keepalived. Every HAProxy balances across all gateways on all three servers (consistent hashing on `X-QGR-Affinity`, health check on `/healthz/ready`), so one gateway draining or a whole server going down doesn't take its share of connections offline. WebSocket idle timeout ≥ 120s, `X-Forwarded-For` for audit.
 - **Redis:** primary on server 1, replica on server 2, Sentinel on all three (quorum 2). Gateways connect through Sentinel and follow failovers automatically.
 - **Postgres:** primary on server 1, streaming-replication standby on server 2. Failover is manual in v1 (a runbook step: promote the standby, then repoint PgBouncer). Add Patroni for automatic failover later if the failover-time target requires it. Backups (base backups + WAL archive, point-in-time recovery) go to server 3 and then to a storage location separate from these servers.
-- **Capacity:** 4 gateway containers per server (12 in total), each sized for up to 40k sockets (`ulimits.nofile: 262144`). See §9.7. Scale with `docker compose up -d --scale gateway=N` per server.
+- **Capacity:** the proposal uses four gateways per server and targets up to 40k sockets per container. These are unverified sizing assumptions. With host networking, define each instance's unique HTTP/health ports and node ID explicitly; scaling identical port bindings is invalid. See [ADR 0006](docs/adr/0006-deployment-and-readiness.md).
 - **Host networking:** HAProxy and gateways use `network_mode: host`. At 100k+ connections this avoids Docker's NAT and connection-tracking overhead.
 
 **Single-server mode (the dev setup, now):** the same `compose.yaml` with all profiles on one machine (`--profile all`):

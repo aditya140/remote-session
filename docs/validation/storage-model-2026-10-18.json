@@ -1,0 +1,52 @@
+{
+  "kind": "estimate_only",
+  "raw_daily_bytes": 884736000000.0,
+  "assumptions": {
+    "baseline": "docs/validation/capacity-baseline-2026-10-18.json",
+    "active_terminals": 2000,
+    "raw_bytes_per_active_second": 51200,
+    "duty_cycle": 0.1,
+    "held_fraction": 0.05,
+    "hold_extra_days": 365,
+    "replicas": 1,
+    "backup_copies": 3,
+    "wal_days": 7,
+    "row_index_factor": 1.5
+  },
+  "measured_normalization_expansion": 1.6415994687411062,
+  "measured_compressed_to_normalized_ratio": 0.018943487381603202,
+  "measured_workload_wal_per_output_byte": 2.2054833507257374,
+  "synthetic_observed_compression_scenario": {
+    "daily_content_bytes": 27513182885.874203,
+    "ordinary_rounded_120_day_bytes": 3301581946304.9043,
+    "additional_held_copy_bytes": 667194684982.4495,
+    "primary_rows_indexes_estimate_bytes": 5953164946931.03,
+    "primary_wal_estimate_bytes": 13658893624513.803,
+    "replicated_online_estimate_bytes": 39224117142889.664,
+    "backup_full_copies_estimate_bytes": 17859494840793.09,
+    "combined_estimate_bytes": 57083611983682.75
+  },
+  "uncompressed_normalized_scenario": {
+    "daily_content_bytes": 1452382147576.1313,
+    "ordinary_rounded_120_day_bytes": 174285857709135.75,
+    "additional_held_copy_bytes": 35220267078721.19,
+    "primary_rows_indexes_estimate_bytes": 314259187181785.4,
+    "primary_wal_estimate_bytes": 13658893624513.803,
+    "replicated_online_estimate_bytes": 655836161612598.4,
+    "backup_full_copies_estimate_bytes": 942777561545356.1,
+    "combined_estimate_bytes": 1598613723157954.5
+  },
+  "excluded_unbounded_costs": [
+    "indefinite receipt/audit/fragment tombstone accumulation",
+    "indefinite holds beyond the explicit model horizon",
+    "other structured agent traffic",
+    "incremental backup/WAL archive/restore staging",
+    "provisioning safety margin"
+  ],
+  "limitations": [
+    "repetitive synthetic bursts strongly favor compression",
+    "row/index factor and future duty cycle are assumptions",
+    "workload WAL includes starts, controllers and termination",
+    "neither result qualifies beta storage capacity"
+  ]
+}

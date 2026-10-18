@@ -1,0 +1,43 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: qgenie-remote-gateway
+          scrape_interval: 15s
+          scrape_timeout: 4s
+          static_configs:
+            - targets: [gateway-1:9091, gateway-2:9091, gateway-3:9091, gateway-4:9091]
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 96
+    spike_limit_mib: 16
+  batch:
+    send_batch_size: 64
+    send_batch_max_size: 128
+    timeout: 5s
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    metric_expiration: 2m
+    translation_strategy: UnderscoreEscapingWithoutSuffixes
+  debug:
+    verbosity: basic
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics/operator:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    metrics:
+      receivers: [prometheus]
+      processors: [memory_limiter, batch]
+      exporters: [debug]

@@ -1,0 +1,38 @@
+{
+  "body": {
+    "cancelled": false,
+    "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+    "outcome": "outcome_unknown",
+    "reason": null,
+    "request": {
+      "allowed_decisions": [
+        "allow_once",
+        "deny"
+      ],
+      "expires_at": null,
+      "id": "a_550e8400-e29b-41d4-a716-446655440004",
+      "kind": "command",
+      "native_id": "native-approval-1",
+      "owner": "u_550e8400-e29b-41d4-a716-446655440003",
+      "policy_revision": "3",
+      "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "requested_at": "2026-10-17T00:00:00.000Z",
+      "session": "s_550e8400-e29b-41d4-a716-446655440002",
+      "summary": "Run cargo test"
+    },
+    "winner": {
+      "actor": "u_550e8400-e29b-41d4-a716-446655440003",
+      "approval": "a_550e8400-e29b-41d4-a716-446655440004",
+      "client": "client_550e8400-e29b-41d4-a716-446655440008",
+      "committed_at": "2026-10-17T00:00:00.000Z",
+      "decision": "allow_once",
+      "id": "d_550e8400-e29b-41d4-a716-446655440005",
+      "policy_revision": "3",
+      "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440301",
+  "re": "msg_550e8400-e29b-41d4-a716-446655440200",
+  "type": "approval.status",
+  "v": 1
+}

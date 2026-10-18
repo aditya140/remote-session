@@ -1,0 +1,556 @@
+//! One owned WSS connection with bounded requests/events. Reconnect is caller-owned;
+//! an interrupted request is never resent by this driver.
+use crate::GatewayClient;
+use qgenie_remote_proto::{
+    rest::AccessToken,
+    wire::{DirectoryEntry, Envelope, Message, Session, StartStage},
+    *,
+};
+use qgenie_remote_transport::ws::{
+    self, ClientConfig, Connection, Frame, Limits, Priority, SecretHeader,
+};
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
+use tokio::{
+    sync::{OwnedSemaphorePermit, Semaphore, mpsc, oneshot, watch},
+    task::JoinHandle,
+    time::Instant,
+};
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveStatus {
+    Connected { client: ClientId },
+    Stopped,
+    Disconnected,
+    ResyncRequired,
+    ProtocolError,
+}
+pub struct LiveEvent {
+    pub frame: Frame,
+    _bytes: OwnedSemaphorePermit,
+}
+#[derive(Clone)]
+pub struct LiveHandle {
+    id: ClientId,
+    pub(crate) origin: String,
+    pub(crate) controls: bool,
+    pub(crate) replays: bool,
+    pub(crate) session_changes: bool,
+    pub(crate) agents: bool,
+    pub(crate) approval_status: bool,
+    pub(crate) approvals: bool,
+    pub(crate) start_work: Arc<Semaphore>,
+    status: watch::Receiver<LiveStatus>,
+    commands: mpsc::Sender<Command>,
+    requests: Arc<Semaphore>,
+    bytes: Arc<Semaphore>,
+    snapshots: Arc<Semaphore>,
+}
+pub struct LiveClient {
+    handle: LiveHandle,
+    events: mpsc::Receiver<LiveEvent>,
+    status: watch::Receiver<LiveStatus>,
+    status_sender: watch::Sender<LiveStatus>,
+    stop: watch::Sender<bool>,
+    task: Option<JoinHandle<()>>,
+}
+struct Command {
+    one_way: bool,
+    envelope: Envelope,
+    deadline: Instant,
+    reply: oneshot::Sender<Result<Vec<Envelope>, RemoteError>>,
+    _request: OwnedSemaphorePermit,
+    _bytes: OwnedSemaphorePermit,
+    _snapshot: Option<OwnedSemaphorePermit>,
+}
+struct Pending {
+    machine: Option<MachineId>,
+    session: Option<SessionId>,
+    deadline: Instant,
+    reply: oneshot::Sender<Result<Vec<Envelope>, RemoteError>>,
+    frames: Vec<Envelope>,
+    snapshot: Option<Snapshot>,
+    attach: bool,
+    _request: OwnedSemaphorePermit,
+    _bytes: OwnedSemaphorePermit,
+    _snapshot: Option<OwnedSemaphorePermit>,
+    response_bytes: Vec<OwnedSemaphorePermit>,
+}
+struct Snapshot {
+    epoch: String,
+    seq: Counter,
+    rows: u16,
+    cols: u16,
+    total: u16,
+    next: u16,
+    format: SnapshotFormat,
+}
+fn refused(code: ErrorCode, message: &str) -> RemoteError {
+    RemoteError {
+        code,
+        outcome: OperationOutcome::NotSent,
+        message: message.into(),
+        retryable: false,
+    }
+}
+fn protocol() -> RemoteError {
+    RemoteError::rejected(
+        ErrorCode::InvalidFrame,
+        "invalid correlated gateway response",
+    )
+}
+impl GatewayClient {
+    pub async fn connect(&self, token: &AccessToken) -> Result<LiveClient, RemoteError> {
+        let mut config = ClientConfig::new(&format!(
+            "{}/v1/connect/client",
+            self.config.origin.replacen("https://", "wss://", 1)
+        ))
+        .map_err(|_| {
+            refused(
+                ErrorCode::InvalidFrame,
+                "invalid gateway connection configuration",
+            )
+        })?
+        .authorization(
+            SecretHeader::bearer(token.as_str())
+                .map_err(|_| refused(ErrorCode::Unauthenticated, "invalid injected credential"))?,
+        );
+        if let Some(ca) = &self.config.ca_bundle {
+            config = config.ca_bundle(ca);
+        }
+        let mut connection =
+            ws::connect(config, Limits::default(), None)
+                .await
+                .map_err(|error| {
+                    refused(
+                        match error {
+                            ws::Error::UpgradeRejected(401) => ErrorCode::Unauthenticated,
+                            ws::Error::UpgradeRejected(403) => ErrorCode::Forbidden,
+                            _ => ErrorCode::AccessStale,
+                        },
+                        "gateway WSS connection unavailable",
+                    )
+                })?;
+        let required: BTreeSet<String> = ["routing-v1", "machine-pages-v1", "auth-refresh-v1"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        let hello = Envelope::new(Message::Hello(Hello {
+            versions: vec![Version { major: 1, minor: 0 }],
+            required: required.clone(),
+            optional: [
+                "session-control-v1".into(),
+                "session-replay-v1".into(),
+                "session-changes-v1".into(),
+                "agent-events-v1".into(),
+                "approval-status-v1".into(),
+                "durable-approvals-v1".into(),
+            ]
+            .into(),
+        }));
+        let id = tokio::time::timeout(Duration::from_secs(8), async {
+            connection
+                .sender()
+                .try_send(Priority::Control, Frame::Text(Box::new(hello)))?
+                .transmitted()
+                .await?;
+            let first = connection.recv().await.ok_or_else(protocol)?;
+            let Frame::Text(first) = &first.frame else {
+                return Err(protocol());
+            };
+            let Message::Welcome(welcome) = &first.message else {
+                return Err(refused(
+                    ErrorCode::UnsupportedVersion,
+                    "gateway compatibility negotiation failed",
+                ));
+            };
+            if welcome.version.major != 1
+                || welcome.version.minor != 0
+                || !required.iter().all(|v| welcome.capabilities.contains(v))
+            {
+                return Err(refused(
+                    ErrorCode::UnsupportedVersion,
+                    "gateway lacks required client capabilities",
+                ));
+            }
+            let ready = connection.recv().await.ok_or_else(protocol)?;
+            match ready.frame {
+                Frame::Text(ref message) => match &message.message {
+                    Message::ConnectionReady {
+                        client,
+                        host_generation: None,
+                        activated: false,
+                    } => Ok((
+                        *client,
+                        welcome.capabilities.contains("session-control-v1"),
+                        welcome.capabilities.contains("session-replay-v1"),
+                        welcome.capabilities.contains("agent-events-v1"),
+                        welcome.capabilities.contains("approval-status-v1"),
+                        welcome.capabilities.contains("durable-approvals-v1"),
+                        welcome.capabilities.contains("session-changes-v1"),
+                    )),
+                    _ => Err(protocol()),
+                },
+                _ => Err(protocol()),
+            }
+        })
+        .await
+        .map_err(|_| {
+            refused(
+                ErrorCode::AccessStale,
+                "gateway negotiation deadline exceeded",
+            )
+        })??;
+        let (id, controls, replays, agents, approval_status, approvals, session_changes) = id;
+        let (commands, receive) = mpsc::channel(64);
+        let (events, subscription) = mpsc::channel(64);
+        let (stop, cancel) = watch::channel(false);
+        let (status, updates) = watch::channel(LiveStatus::Connected { client: id });
+        let handle = LiveHandle {
+            id,
+            origin: self.config.origin.clone(),
+            controls,
+            replays,
+            session_changes,
+            agents,
+            approval_status,
+            approvals,
+            start_work: Arc::new(Semaphore::new(4)),
+            status: updates.clone(),
+            commands,
+            requests: Arc::new(Semaphore::new(128)),
+            bytes: Arc::new(Semaphore::new(8 * 1024 * 1024)),
+            snapshots: Arc::new(Semaphore::new(4)),
+        };
+        let task = tokio::spawn(run(connection, receive, events, status.clone(), cancel));
+        Ok(LiveClient {
+            handle,
+            events: subscription,
+            status: updates,
+            status_sender: status,
+            stop,
+            task: Some(task),
+        })
+    }
+}
+impl LiveClient {
+    pub fn handle(&self) -> LiveHandle {
+        self.handle.clone()
+    }
+    pub fn status(&self) -> watch::Receiver<LiveStatus> {
+        self.status.clone()
+    }
+    pub async fn next(&mut self) -> Option<LiveEvent> {
+        self.events.recv().await
+    }
+    pub async fn close(mut self) {
+        self.stop.send_replace(true);
+        if let Some(mut task) = self.task.take()
+            && tokio::time::timeout(Duration::from_secs(2), &mut task)
+                .await
+                .is_err()
+        {
+            task.abort();
+            let _ = task.await;
+        }
+    }
+}
+impl Drop for LiveClient {
+    fn drop(&mut self) {
+        self.status_sender.send_replace(LiveStatus::Stopped);
+        self.stop.send_replace(true);
+        if let Some(task) = self.task.take() {
+            task.abort();
+        }
+    }
+}
+impl LiveHandle {
+    pub fn id(&self) -> ClientId {
+        self.id
+    }
+    pub async fn request(&self, envelope: Envelope) -> Result<Vec<Envelope>, RemoteError> {
+        if envelope.re.is_some()
+            || !matches!(
+                envelope.message,
+                Message::SessionList
+                    | Message::HostGenerationQuery
+                    | Message::StartLookup { .. }
+                    | Message::FsList { .. }
+                    | Message::Attach { .. }
+                    | Message::Capture
+                    | Message::ReplayRequest { .. }
+                    | Message::ApprovalList
+                    | Message::Reauthenticate { .. }
+            )
+        {
+            return Err(refused(
+                ErrorCode::UnsupportedCapability,
+                "this SDK request path currently supports reads and explicit credential refresh",
+            ));
+        }
+        self.submit(envelope).await
+    }
+    pub(crate) async fn submit(&self, envelope: Envelope) -> Result<Vec<Envelope>, RemoteError> {
+        self.enqueue(envelope, false).await
+    }
+    pub(crate) async fn detach_stream(&self, envelope: Envelope) -> Result<(), RemoteError> {
+        self.enqueue(envelope, true).await.map(|_| ())
+    }
+    async fn enqueue(
+        &self,
+        envelope: Envelope,
+        one_way: bool,
+    ) -> Result<Vec<Envelope>, RemoteError> {
+        if !matches!(*self.status.borrow(), LiveStatus::Connected { .. }) {
+            return Err(refused(
+                ErrorCode::AccessStale,
+                "client connection ended; reconnect explicitly",
+            ));
+        }
+        envelope.validate()?;
+        let size = envelope.encode()?.len();
+        let work = self.requests.clone().try_acquire_owned().map_err(|_| {
+            refused(
+                ErrorCode::Overloaded,
+                "client pending request budget exceeded",
+            )
+        })?;
+        let bytes = self
+            .bytes
+            .clone()
+            .try_acquire_many_owned(size as u32)
+            .map_err(|_| refused(ErrorCode::Overloaded, "client pending byte budget exceeded"))?;
+        let snapshot =
+            if matches!(
+                envelope.message,
+                Message::Attach { .. } | Message::Capture | Message::ReplayRequest { .. }
+            ) {
+                Some(self.snapshots.clone().try_acquire_owned().map_err(|_| {
+                    refused(ErrorCode::Overloaded, "client snapshot budget exceeded")
+                })?)
+            } else {
+                None
+            };
+        let (reply, receive) = oneshot::channel();
+        self.commands
+            .try_send(Command {
+                one_way,
+                envelope,
+                deadline: Instant::now() + Duration::from_secs(10),
+                reply,
+                _request: work,
+                _bytes: bytes,
+                _snapshot: snapshot,
+            })
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => {
+                    refused(ErrorCode::Overloaded, "client connection queue unavailable")
+                }
+                mpsc::error::TrySendError::Closed(_) => refused(
+                    ErrorCode::AccessStale,
+                    "client connection ended; reconnect explicitly",
+                ),
+            })?;
+        receive.await.unwrap_or_else(|_| {
+            Err(RemoteError::unknown(
+                "connection ended before a correlated response; request was not retried",
+            ))
+        })
+    }
+    pub async fn sessions(&self, machine: MachineId) -> Result<Vec<Session>, RemoteError> {
+        let mut request = Envelope::new(Message::SessionList);
+        request.machine = Some(machine);
+        let mut replies = self.request(request).await?;
+        match replies.pop().map(|v| v.message) {
+            Some(Message::Sessions { sessions })
+                if sessions.iter().all(|s| s.machine == machine) =>
+            {
+                Ok(sessions)
+            }
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn browse(
+        &self,
+        machine: MachineId,
+        path: String,
+        cursor: Option<String>,
+        limit: u16,
+    ) -> Result<(Vec<DirectoryEntry>, Option<String>), RemoteError> {
+        let mut request = Envelope::new(Message::FsList {
+            path,
+            cursor,
+            limit,
+        });
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::FsListed { entries, next }) => Ok((entries, next)),
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn lookup_start(
+        &self,
+        machine: MachineId,
+        key: IdempotencyKey,
+    ) -> Result<(StartStage, Option<SessionId>), RemoteError> {
+        let mut request = Envelope::new(Message::StartLookup { key });
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::StartStatus {
+                key: actual,
+                stage,
+                session,
+            }) if actual == key => Ok((stage, session)),
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn reauthenticate(
+        &self,
+        token: AccessToken,
+    ) -> Result<qgenie_remote_proto::wire::Timestamp, RemoteError> {
+        match self
+            .request(Envelope::new(Message::Reauthenticate { token }))
+            .await?
+            .pop()
+            .map(|v| v.message)
+        {
+            Some(Message::AuthRefreshed { expires_at }) => Ok(expires_at),
+            _ => Err(protocol()),
+        }
+    }
+}
+impl Pending {
+    fn accept(&mut self, envelope: Envelope, budget: &Arc<Semaphore>) -> Result<bool, RemoteError> {
+        if let Message::Error(error) = &envelope.message {
+            if envelope.machine.is_some_and(|v| Some(v) != self.machine)
+                || envelope.session.is_some_and(|v| Some(v) != self.session)
+            {
+                return Err(protocol());
+            }
+            return Err(error.clone());
+        }
+        if envelope.machine != self.machine || envelope.session != self.session {
+            return Err(protocol());
+        }
+        let done = match &envelope.message {
+            Message::Snapshot { snapshot: page } => {
+                if !self.attach {
+                    return Err(protocol());
+                }
+                let progress = self.snapshot.get_or_insert_with(|| Snapshot {
+                    epoch: page.epoch.clone(),
+                    seq: page.seq,
+                    rows: page.rows,
+                    cols: page.cols,
+                    total: page.total_pages,
+                    next: 0,
+                    format: page.format,
+                });
+                if page.page != progress.next
+                    || page.total_pages != progress.total
+                    || page.epoch != progress.epoch
+                    || page.seq != progress.seq
+                    || page.rows != progress.rows
+                    || page.cols != progress.cols
+                    || page.format != progress.format
+                {
+                    return Err(protocol());
+                }
+                progress.next += 1;
+                false
+            }
+            Message::Head { head, .. }
+                if self
+                    .snapshot
+                    .as_ref()
+                    .is_some_and(|p| p.next == p.total && *head >= p.seq) =>
+            {
+                true
+            }
+            _ if self.snapshot.is_some() => return Err(protocol()),
+            _ => true,
+        };
+        if self.frames.len() >= 33 {
+            return Err(protocol());
+        }
+        self.response_bytes.push(
+            budget
+                .clone()
+                .try_acquire_many_owned(envelope.encode()?.len() as u32)
+                .map_err(|_| {
+                    refused(
+                        ErrorCode::Overloaded,
+                        "client response assembly budget exceeded",
+                    )
+                })?,
+        );
+        self.frames.push(envelope);
+        Ok(done)
+    }
+}
+async fn run(
+    mut connection: Connection,
+    mut commands: mpsc::Receiver<Command>,
+    events: mpsc::Sender<LiveEvent>,
+    status: watch::Sender<LiveStatus>,
+    mut stop: watch::Receiver<bool>,
+) {
+    let mut pending: HashMap<MessageId, Pending> = HashMap::new();
+    let mut correlations = HashSet::new();
+    let event_budget = Arc::new(Semaphore::new(8 * 1024 * 1024));
+    let response_budget = Arc::new(Semaphore::new(16 * 1024 * 1024));
+    let mut timer = tokio::time::interval(Duration::from_millis(100));
+    timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let ended = loop {
+        tokio::select! {biased;
+            _=stop.changed()=>break LiveStatus::Stopped,
+            _=timer.tick()=>{
+                let expired:Vec<_>=pending.iter().filter(|(_,p)|p.deadline<=Instant::now() || p.reply.is_closed()).map(|(id,_)|*id).collect();
+                for id in expired {if let Some(p)=pending.remove(&id) {let _=p.reply.send(Err(RemoteError::unknown("correlated response deadline exceeded; request was not retried")));}}
+            },
+            command=commands.recv()=>{
+                let Some(command)=command else {break LiveStatus::Stopped;};
+                if command.reply.is_closed() {continue;}
+                let id=command.envelope.id;
+                if correlations.contains(&id) {let _=command.reply.send(Err(refused(ErrorCode::IdempotencyConflict,"request correlation was already used on this connection")));continue;}
+                if correlations.len()>=65536 {let _=command.reply.send(Err(refused(ErrorCode::Overloaded,"connection correlation budget exhausted; reconnect explicitly")));continue;}
+                if command.deadline<=Instant::now() {let _=command.reply.send(Err(refused(ErrorCode::AccessStale,"request expired before transmission")));continue;}
+                let machine=command.envelope.machine;let session=command.envelope.session;let attach=matches!(command.envelope.message,Message::Attach{..}|Message::Capture|Message::ReplayRequest{..});
+                correlations.insert(id);
+                if let Err(error)=connection.sender().try_send(Priority::Control,Frame::Text(Box::new(command.envelope))) {let _=command.reply.send(Err(error));continue;}
+                if command.one_way {let _=command.reply.send(Ok(Vec::new()));continue;}
+                pending.insert(id,Pending{machine,session,deadline:command.deadline,reply:command.reply,frames:Vec::new(),snapshot:None,attach,_request:command._request,_bytes:command._bytes,_snapshot:command._snapshot,response_bytes:Vec::new()});
+            },
+            incoming=connection.recv()=>{
+                let Some(incoming)=incoming else {break LiveStatus::Disconnected;};
+                let frame=incoming.frame.clone();
+                if let Frame::Text(envelope)=&frame && let Some(re)=envelope.re {
+                    if let Some(mut request)=pending.remove(&re) {
+                        if request.deadline<=Instant::now() {let _=request.reply.send(Err(RemoteError::unknown("response arrived after its original request deadline")));continue;}
+                        match request.accept(*envelope.clone(),&response_budget) {
+                            Ok(true)=>{let _=request.reply.send(Ok(request.frames));},Ok(false)=>{pending.insert(re,request);},Err(error)=>{let _=request.reply.send(Err(error));},
+                        }
+                    }
+                    continue; // A late duplicate cannot complete another logical request.
+                }
+                let encoded=match &frame {Frame::Text(v)=>v.encode(),Frame::Binary(v)=>v.encode()};
+                let size=match encoded {Ok(v)=>v.len(),Err(_)=>break LiveStatus::ProtocolError};
+                let Ok(bytes)=event_budget.clone().try_acquire_many_owned(size as u32) else {break LiveStatus::ResyncRequired;};
+                if events.try_send(LiveEvent{frame,_bytes:bytes}).is_err() {break LiveStatus::ResyncRequired;}
+            }
+        }
+    };
+    status.send_replace(ended);
+    for (_, request) in pending {
+        let _ = request.reply.send(Err(RemoteError::unknown(
+            "connection interrupted; request was not retried",
+        )));
+    }
+    drop(commands);
+    let _ = tokio::time::timeout(Duration::from_secs(1), connection.close()).await;
+}
+
+#[cfg(test)]
+mod tests;

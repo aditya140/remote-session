@@ -1,0 +1,22 @@
+{
+  "body": {
+    "captured_from": "2026-10-17T00:00:00.000Z",
+    "captured_to": "2026-10-17T00:00:00.000Z",
+    "chunk": "chunk_550e8400-e29b-41d4-a716-446655440009",
+    "committed_at": "2026-10-17T00:00:00.000Z",
+    "digest": "5fce70df7f8a917c1bf7e8bae957cc4e33cef2475138d5d94b0cca7be7c73de6",
+    "disposition": "stored",
+    "from": "9007199254740993",
+    "id": "receipt_550e8400-e29b-41d4-a716-446655440010",
+    "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+    "recovery_epoch": "epoch-1",
+    "session": "s_550e8400-e29b-41d4-a716-446655440002",
+    "stream_epoch": "recording_550e8400-e29b-41d4-a716-446655440012",
+    "to": "9007199254740993"
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440110",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+  "session": "s_550e8400-e29b-41d4-a716-446655440002",
+  "type": "recording.receipt",
+  "v": 1
+}

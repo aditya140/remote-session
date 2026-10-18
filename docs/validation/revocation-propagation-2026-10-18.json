@@ -1,0 +1,29 @@
+{
+  "format": "qgr-development-revocation-v1",
+  "status": "passed",
+  "qualification": "Linux standalone, signed synthetic identity, real PostgreSQL/Redis/gateway/native processes",
+  "maximum_original_authority_ms": 10000,
+  "completion_semantics": "Pre-revocation authority cannot admit new remote I/O; already-admitted native work may finish and local sessions are not terminated.",
+  "elapsed_observation_tests": 4,
+  "two_gateway_os_process_proof": {
+    "status": "passed",
+    "elapsed_seconds": 64.19,
+    "redis_hints_suppressed": true,
+    "old_user_and_host_connections_denied_within_10_seconds": true,
+    "fresh_connections_denied": true,
+    "separate_node_first_status_pending": true,
+    "separate_node_after_full_observation_completed": true,
+    "accepting_node_safe_retry_preserves_revision_and_timestamp": true,
+    "primary_lock_after_completion_returns_unavailable": true
+  },
+  "actual_native_connector_proof": {
+    "status": "passed",
+    "elapsed_seconds": 25.92,
+    "signed_admin_machine_revocation": true,
+    "remote_denied_within_10_seconds": true,
+    "status_pending_then_completed": true,
+    "same_local_pty_and_original_start_key_preserved": true
+  },
+  "real_entra_disablement_slo": "not_run",
+  "real_suspend_and_macos": "not_run"
+}

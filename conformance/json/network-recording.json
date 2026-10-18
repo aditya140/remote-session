@@ -1,0 +1,22 @@
+{
+  "body": {
+    "captured_from": "2026-10-17T00:00:00.000Z",
+    "captured_to": "2026-10-17T00:00:00.000Z",
+    "codec": "zstd_jsonl",
+    "data": "KLUv/SDA1QQAIgsjIEBL3Aa4tmwLPrtOr1skUUtjn4OB2pegfzfEV8aw0zEmiCjpG44HUCoP5AgwlEpIprqegd/xef1jFuPXbONj9HbgXu144eahj/w4re+37ZjMsk7C8QQDCcIzSPb67WXHbzdmi5d9j5nrGzu3CsohfTtut6Acf5CZCc0sQFKRqRAw0ri+dzF2nm5WORQDAJ2KQGx1UVvnBA==",
+    "digest": "5fce70df7f8a917c1bf7e8bae957cc4e33cef2475138d5d94b0cca7be7c73de6",
+    "from": "9007199254740993",
+    "id": "chunk_550e8400-e29b-41d4-a716-446655440009",
+    "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+    "session": "s_550e8400-e29b-41d4-a716-446655440002",
+    "stream": "events",
+    "stream_epoch": "recording_550e8400-e29b-41d4-a716-446655440012",
+    "to": "9007199254740993",
+    "uncompressed_bytes": 192
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440109",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+  "session": "s_550e8400-e29b-41d4-a716-446655440002",
+  "type": "recording.ingest",
+  "v": 1
+}

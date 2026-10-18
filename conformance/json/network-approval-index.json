@@ -1,0 +1,9 @@
+{
+  "body": {
+    "after": null,
+    "limit": 20
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440302",
+  "type": "approval.index",
+  "v": 1
+}

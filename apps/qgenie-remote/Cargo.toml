@@ -1,0 +1,48 @@
+[package]
+name = "qgenie-remote"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+managed-codex = ["qgenie-remote-sessiond/managed-codex"]
+
+[dependencies]
+qgenie-remote-proto = { path = "../../crates/qgenie-remote-proto" }
+qgenie-remote-client = { path = "../../crates/qgenie-remote-client" }
+qgenie-remote-sessiond = { path = "../../crates/qgenie-remote-sessiond" }
+qgenie-remote-transport = { path = "../../crates/qgenie-remote-transport" }
+qgenie-remote-tui = { path = "../../crates/qgenie-remote-tui" }
+qgenie-remote-host = { path = "../../crates/qgenie-remote-host" }
+anyhow.workspace = true
+clap.workspace = true
+libc.workspace = true
+fs2.workspace = true
+serde.workspace = true
+sha2.workspace = true
+base64.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+qgenie-remote-adapters = { path = "../../crates/qgenie-remote-adapters", features = ["codex"] }
+qgenie-remote-gateway = { path = "../../crates/qgenie-remote-gateway" }
+axum.workspace = true
+futures-util.workspace = true
+jsonwebtoken.workspace = true
+rcgen.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+serde.workspace = true
+sqlx.workspace = true
+rusqlite.workspace = true
+tokio-rustls.workspace = true
+tower.workspace = true
+url.workspace = true
+uuid.workspace = true
+tempfile.workspace = true
+vt100.workspace = true
+
+[lints]
+workspace = true

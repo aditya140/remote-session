@@ -1,0 +1,25 @@
+{
+  "body": {
+    "context": {
+      "actor": "u_550e8400-e29b-41d4-a716-446655440000",
+      "client": "client_550e8400-e29b-41d4-a716-446655440000",
+      "expires_at": "2026-10-17T12:00:00.000Z",
+      "host_generation": "18446744073709551615"
+    },
+    "message": {
+      "body": {
+        "cursor": null,
+        "limit": 100,
+        "path": "/workspace"
+      },
+      "id": "msg_550e8400-e29b-41d4-a716-446655440121",
+      "machine": "m_550e8400-e29b-41d4-a716-446655440000",
+      "type": "fs.list",
+      "v": 1
+    }
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440120",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440000",
+  "type": "host.dispatch",
+  "v": 1
+}

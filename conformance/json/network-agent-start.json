@@ -1,0 +1,18 @@
+{
+  "body": {
+    "cols": 80,
+    "cwd": "/tmp/project",
+    "key": "idem_550e8400-e29b-41d4-a716-446655440007",
+    "kind": {
+      "agent": "codex",
+      "kind": "agent",
+      "native_resume_id": null,
+      "prompt": "Inspect this project"
+    },
+    "rows": 24
+  },
+  "id": "msg_550e8400-e29b-41d4-a716-446655440102",
+  "machine": "m_550e8400-e29b-41d4-a716-446655440001",
+  "type": "session.start",
+  "v": 1
+}
