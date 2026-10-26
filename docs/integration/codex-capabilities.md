@@ -10,6 +10,15 @@ Source inspection found that `features.remote_control` is **removed** in this ve
 
 Relevant source: `codex-rs/app-server-transport/src/transport/{unix_socket.rs,remote_control/mod.rs}` and `codex-rs/uds/src/daemon_directory.rs` at the pinned commit.
 
+On Linux, the socket peer PID must also equal the launched child PID. Set
+`QGR_CODEX_BINARY` to the native executable. The npm `node_modules/.bin/codex` launcher
+forks another process and fails this check. For npm's Linux x64 package, the native path
+is `node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex`.
+A wrapper that uses `exec` preserves the child PID and remains supported. Explicit
+cleanup signals the private process group before reaping its leader. The actual-native
+regression checks launcher rejection, descendant cleanup, and an accepted `exec` wrapper.
+These checks establish Linux behavior only.
+
 ## Proven capabilities and limits
 
 | Operation | Evidence and behavior |

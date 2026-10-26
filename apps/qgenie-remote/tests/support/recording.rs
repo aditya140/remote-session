@@ -492,7 +492,10 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
     let handle = live.handle();
     let starts = tempfile::tempdir().unwrap();
     let local = qgenie_remote_client::Client::local(&native_path);
-    let launch=Launch{key:IdempotencyKey::new(),kind:LaunchKind::Pty{command:vec!["/bin/sh".into(),"-c".into(),"stty -echo; printf READY; IFS= read -r value; printf 'pipeline-secret REAL_NATIVE_DONE\\n'".into()]},cwd:native_path.to_str().unwrap().into(),rows:128,cols:512};
+    assert!(local.sessions().await.unwrap().is_empty());
+    let roots = handle.allowed_roots(binding.machine).await.unwrap();
+    assert_eq!(roots, vec![native_path.to_str().unwrap().to_owned()]);
+    let launch=Launch{key:IdempotencyKey::new(),kind:LaunchKind::Pty{command:vec!["/bin/sh".into(),"-c".into(),"stty -echo; printf READY; IFS= read -r value; printf 'pipeline-secret REAL_NATIVE_DONE\\n'".into()]},cwd:roots[0].clone(),rows:128,cols:512};
     sqlx::query("UPDATE qgr_recordings.state SET recovery_pending=true")
         .execute(&database.admin)
         .await
@@ -1018,7 +1021,8 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
     let settings=private(serde_json::to_vec(&serde_json::json!({
         "gateway":origin,"os_user":"recording-pipeline","name":"recording-pipeline","hostname":"pipeline-fixture","roots":[native_path],"ca_bundle":tls.ca.path(),"identity_directory":directory.path(),"allow_private_file":true
     })).unwrap().as_slice());
-    let binary = env!("CARGO_BIN_EXE_qgenie-remote");
+    let binary_path = super::host_binary();
+    let binary = binary_path.as_path();
     let units = native_path.join("generated-user-services");
     for _ in 0..2 {
         let installed = tokio::process::Command::new(binary)
@@ -1328,6 +1332,44 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
             "CLI resume did not upload native capture retained across connector kill/pause"
         );
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    if let Some(report) = std::env::var_os("QGR_HOST_RESOURCE_REPORT") {
+        let active = local.session_page(None, 64, true).await.unwrap();
+        assert!(
+            active.0.is_empty(),
+            "footprint requires an idle native owner"
+        );
+        let measured = tokio::process::Command::new("python3")
+            .arg(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/load/host_footprint.py"
+            ))
+            .arg("--native")
+            .arg(daemon.0.id().to_string())
+            .arg("--connector")
+            .arg(connector.id().unwrap().to_string())
+            .arg("--report")
+            .arg(report)
+            .kill_on_drop(true)
+            .output()
+            .await
+            .unwrap();
+        assert!(
+            measured.status.success(),
+            "{}",
+            String::from_utf8_lossy(&measured.stderr)
+        );
+        assert!(daemon.0.try_wait().unwrap().is_none());
+        assert!(connector.try_wait().unwrap().is_none());
+        assert!(
+            local
+                .session_page(None, 64, true)
+                .await
+                .unwrap()
+                .0
+                .is_empty()
+        );
+        service_handle.allowed_roots(binding.machine).await.unwrap();
     }
     let retained = service_handle
         .start(

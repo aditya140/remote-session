@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+import sqlite3
 
 
 def main():
@@ -16,10 +17,8 @@ def main():
         view = RemoteTui(Path(binary).resolve(), Path(temporary), arguments=arguments)
         try:
             until(lambda: view.sees("Recorded sessions"), timeout=15)
-            view.send(b"\r")
-            until(lambda: view.sees("Sessions · recorded history"))
-            view.send(b"c")
-            until(lambda: view.sees("New remote terminal"))
+            view.send(b"c")  # No selected session: discover roots before the first creation.
+            until(lambda: view.sees("Choose an allowed root"))
             view.send(b"\r")
             until(lambda: view.sees("Ctrl-N creates a new terminal"))
             view.send(b"\x1b[15~")  # F5 chooses the advertised installed agent.
@@ -35,9 +34,10 @@ def main():
             until(lambda: view.sees("public approved response"), timeout=15)
             view.send(b"\x1b[19~")  # F8 installs a structured checkpoint.
             until(lambda: view.sees("public approved response"))
-            records = list((Path(temporary) / "remote-starts").glob("*.json"))
+            with sqlite3.connect(Path(temporary) / "start-identities.sqlite") as db:
+                records = db.execute("SELECT body FROM identities").fetchall()
             assert len(records) == 1
-            assert "UI_PROMPT_ONLY" not in records[0].read_text()
+            assert "UI_PROMPT_ONLY" not in records[0][0]
             view.send(b"\x1b[17~")
             until(lambda: view.sees("y confirms"))
             view.send(b"n")
@@ -47,7 +47,7 @@ def main():
             view.send(b"y")
             until(lambda: view.sees("Exited"), timeout=10)
             view.send(b"\x1b[21~")
-            until(lambda: view.sees("Sessions · recorded history"))
+            until(lambda: view.sees("Sessions ·"))
             view.quit(b"q")
             recovered = RemoteTui(Path(binary).resolve(), Path(temporary), arguments=arguments)
             try:
@@ -58,13 +58,15 @@ def main():
                 until(lambda: recovered.sees("Remote agent"), timeout=15)
                 until(lambda: recovered.sees("public approved response") and recovered.sees("Exited"))
                 recovered.send(b"\x1b[21~")
-                until(lambda: recovered.sees("Sessions · recorded history"))
+                until(lambda: recovered.sees("Sessions ·"))
                 deadline = time.monotonic() + 12
                 while True:
                     recovered.send(b"\x1b")
-                    until(lambda: recovered.sees("Machines") and not recovered.sees("Sessions · recorded history") and not recovered.sees("Loading"))
+                    until(lambda: recovered.sees("Machines") and not recovered.sees("Sessions ·") and not recovered.sees("Loading"))
                     recovered.send(b"\r")
-                    until(lambda: recovered.sees("Sessions · recorded history"))
+                    until(lambda: recovered.sees("Sessions ·"))
+                    recovered.send(b"b")
+                    until(lambda: not recovered.sees("Loading"))
                     recovered.send(b"/\x15Exited\r")
                     until(lambda: recovered.sees("Filter: Exited"))
                     recovered.send(b"u")
@@ -85,9 +87,10 @@ def main():
                 until(lambda: recovered.sees("y confirms"))
                 recovered.send(b"y")
                 until(lambda: recovered.sees("Exited"), timeout=10)
-                assert len(list((Path(temporary) / "remote-starts").glob("*.json"))) == 2
+                with sqlite3.connect(Path(temporary) / "start-identities.sqlite") as db:
+                    assert db.execute("SELECT count(*) FROM identities").fetchone()[0] == 2
                 recovered.send(b"\x1b[21~")
-                until(lambda: recovered.sees("Sessions · recorded history"))
+                until(lambda: recovered.sees("Sessions ·"))
                 recovered.quit(b"q")
             except Exception:
                 print(recovered.screen.text(), file=sys.stderr)

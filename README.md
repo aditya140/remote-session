@@ -2,11 +2,18 @@
 
 The standalone Rust CLI/TUI supports local shell sessions and authenticated remote PTY and managed Codex workflows. A separate session daemon owns native processes, replay and recording. Closing the TUI leaves sessions running. Reattach to observe output or request input control.
 
-Linux standalone development across all 28 tasks is complete within the user-selected scope,
+The supported Linux journey has development acceptance evidence. The host resource budget,
+real enterprise access, user-service lifetime, and pilot qualification remain open. See the
+[overall completion plan](tasks/030-complete-linux-release-readiness.md) for the ordered
+remaining work. The earlier 28 tasks are complete within the user-selected development scope,
 with external release gates documented separately. [Progress](tasks/PROGRESS.md) records the implementation and
 executed evidence. [ADR 0007](docs/adr/0007-standalone-preview.md) authorizes the new TUI
 without the existing corporate CLI source. See [external release gates](docs/validation/external-release-gates.md)
 for unrun tenant, platform, production operations and beta-scale qualification.
+
+The [BeautifulRust review](docs/validation/beautiful-rust-review-2026-10-26.md) ranks the
+remaining Rust API and readability work. Its [pinned skills](.agents/skills/README.md)
+are installed for this repository.
 
 ## Run the local preview
 
@@ -64,6 +71,12 @@ SQLite stores start identities, input acknowledgments, and bounded replay in the
 Local replay can contain terminal output and secrets printed by commands. Raw terminal input is not stored separately. Unenrolled local preview sessions are separate from protected remote recordings. Remote recording, redaction, audited history, retention and holds now have component and composed proofs; production deployment/platform/identity qualification remains incomplete.
 
 WSS/proxy transport, host OAuth/enrollment, directory freshness, gateway audit, protected recording and original-authority native dispatch are implemented. Remote PTY workflows compose through the SDK, gateways and the independently owned daemon. The four-gateway development deployment and service installers are implemented; real user-manager/platform qualification remains separate. Managed Codex discovery/creation, structured control, owner approval delivery and historical resume now pass composed Linux fixtures; the full release fault/platform matrix remains open. Same-user IPC does not protect against another process running as that OS user.
+
+The [core-journey repair plan](tasks/029-stabilize-core-journey.md) records the current
+completed implementation, ordered steps, acceptance checks, and external pilot gates.
+The [overall completion plan](tasks/030-complete-linux-release-readiness.md) continues
+with dispatch clarity, required regression coverage, host resource measurements, and
+real-environment qualification.
 
 ## Development checks
 
@@ -125,7 +138,11 @@ native sessions and local capture alive. `/` filters machines by ID/name/hostnam
 sessions by ID/cwd/state/agent/command. Enter applies, Esc cancels the edit and Ctrl-U clears;
 hidden rows cannot receive actions. The machine list shows host/platform/CLI/native-agent versions and last seen time; its
 owner approval badge reports pending, partial or unavailable status. In the creation picker,
-F5 selects an advertised agent.
+F5 selects an advertised agent. When no valid directory is selected, the picker offers the host's allowed roots.
+F1 returns to root selection; `p` accepts a manual path when an older peer cannot list roots.
+Session lists open on live work. In the remote list, `b` switches live/history, `n` advances
+one page, and Home returns to the first page. The local list uses `h`, `]`, and `[`.
+Filtering applies to the current page. Completed history does not consume live capacity.
 The agent pane renders structured messages/tools and accepts controlled prompt/steer input.
 `a` opens owner-wide approvals; F7 does the same from observe mode without taking control.
 In the session list, `u` resumes eligible confirmed-ended agent history in a new session and
@@ -136,6 +153,22 @@ Scriptable `remote rename`, `label`, `remove-label` and `revoke --yes` use the s
 `remote send MACHINE SESSION --stdin [--enter]` sends piped input once, with a 32 KiB bound
 including optional Enter, after reading it and acquiring control. Unknown mutation outcomes
 require explicit inventory/key reconciliation. See [remote commands](docs/integration/remote-commands.md).
+
+## Faster development builds
+
+An optional pinned ra-jit launcher supports repeated development edits:
+
+```sh
+./tools/ra-jit setup
+./tools/ra-jit build -p qgenie-remote --locked
+./tools/ra-jit status
+./tools/ra-jit stop
+```
+
+It uses separate build output and Rust 1.99.0. Normal Cargo commands and CI use Rust
+1.99.1. The measured warmed edits took 0.33–0.43 seconds; the first JIT edit took 9.10 seconds.
+Keep the normal Cargo checks: this pinned JIT has no borrow checker. See the
+[setup, measurements, and limits](docs/development/ra-jit.md).
 
 ## Editor development container
 

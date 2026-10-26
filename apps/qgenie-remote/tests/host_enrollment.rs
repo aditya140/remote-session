@@ -783,6 +783,14 @@ async fn connector_contract(native_mode: bool) {
         );
         assert_eq!(local.lookup_start(*key).await.unwrap().id, legacy.id);
     }
+    let mut roots = Envelope::new(Message::FsRoots);
+    roots.machine = Some(binding.machine);
+    let id = roots.id;
+    send_frame(&client, roots).await;
+    assert!(
+        matches!(receive_frame(&mut client, |reply| reply.re == Some(id)).await.message,
+        Message::FsRootsListed { roots } if roots == vec![allowed.to_str().unwrap().to_owned()])
+    );
     for (path, permitted) in [
         (&allowed, true),
         (&outside, false),
@@ -1032,10 +1040,15 @@ async fn connector_contract(native_mode: bool) {
 }
 
 struct NativeDaemon(std::process::Child);
+fn host_binary() -> std::path::PathBuf {
+    std::env::var_os("QGR_HOST_BINARY")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_qgenie-remote").into())
+}
 impl NativeDaemon {
     fn start(state: &std::path::Path, root: &std::path::Path) -> Self {
         Self(
-            std::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"))
+            std::process::Command::new(host_binary())
                 .arg("--state-dir")
                 .arg(state)
                 .arg("--root")

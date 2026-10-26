@@ -47,6 +47,16 @@ pub(crate) enum Action {
     },
     Sessions {
         machine: MachineId,
+        /// Return one page with an explicit continuation cursor.
+        #[arg(long)]
+        page: bool,
+        #[arg(long, requires = "page")]
+        after: Option<SessionId>,
+        #[arg(long)]
+        active: bool,
+    },
+    Roots {
+        machine: MachineId,
     },
     Browse {
         machine: MachineId,
@@ -80,6 +90,10 @@ pub(crate) enum Action {
     /// List original journal identities for this gateway/owner/machine; never resends them.
     Starts {
         machine: MachineId,
+        #[arg(long)]
+        page: bool,
+        #[arg(long, requires = "page")]
+        after: Option<IdempotencyKey>,
     },
     /// Send one explicitly controlled input; lost replies never cause a retry.
     Send {
@@ -198,10 +212,68 @@ pub(crate) async fn run(
     }
     let live = api.connect(&token).await?;
     let handle = live.handle();
+    // Preserve the original JSON array output while reading bounded pages.
+    if matches!(
+        &action,
+        Action::Sessions { page: false, .. } | Action::Starts { page: false, .. }
+    ) {
+        let result: Result<()> = async {
+            let mut first = true;
+            print!("[");
+            match &action {
+                Action::Sessions {
+                    machine, active, ..
+                } => {
+                    let mut after = None;
+                    loop {
+                        let (sessions, next) =
+                            handle.session_page(*machine, after, 64, *active).await?;
+                        write_items(&sessions, &mut first)?;
+                        after = next;
+                        if after.is_none() {
+                            break;
+                        }
+                    }
+                }
+                Action::Starts { machine, .. } => {
+                    let owner = api
+                        .machines(&token)
+                        .await?
+                        .into_iter()
+                        .find(|m| m.id == *machine)
+                        .ok_or_else(|| {
+                            RemoteError::rejected(
+                                ErrorCode::NotFound,
+                                "machine absent from current owner inventory",
+                            )
+                        })?
+                        .owner;
+                    let mut after = None;
+                    loop {
+                        let (identities, next) = handle
+                            .start_identities_page(state, owner, *machine, after, 64)
+                            .await?;
+                        write_items(&identities, &mut first)?;
+                        after = next;
+                        if after.is_none() {
+                            break;
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }
+            println!("]");
+            Ok(())
+        }
+        .await;
+        live.close().await;
+        return result;
+    }
     let result:Result<Value,RemoteError>=async {
         Ok(match action {
             Action::Machines|Action::Rename{..}|Action::Label{..}|Action::RemoveLabel{..}|Action::Revoke{..}|Action::HistoryStreams{..}|Action::History{..}=>unreachable!(),
-            Action::Sessions{machine}=>json!(handle.sessions(machine).await?),
+            Action::Sessions{machine,after,active,..}=>{let(sessions,next)=handle.session_page(machine,after,64,active).await?;json!({"sessions":sessions,"next":next})},
+            Action::Roots{machine}=>json!({"roots":handle.allowed_roots(machine).await?}),
             Action::Browse{machine,path,after}=>{let(entries,next)=handle.browse(machine,path,after,128).await?;json!({"entries":entries,"next":next})},
             Action::Run{machine,cwd,key,rows,cols,command,agent,resume_id}=>{
                 let owner=api.machines(&token).await?.into_iter().find(|m|m.id==machine).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"machine absent from current owner inventory"))?.owner;
@@ -211,7 +283,7 @@ pub(crate) async fn run(
                 json!({"key":key,"session":session})
             },
             Action::Reconcile{machine,key}=>{let (stage,session)=handle.lookup_start(machine,key).await?;json!({"key":key,"stage":stage,"session":session})},
-            Action::Starts{machine}=>{let owner=api.machines(&token).await?.into_iter().find(|m|m.id==machine).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"machine absent from current owner inventory"))?.owner;json!(handle.start_identities(state,owner,machine).await?)},
+            Action::Starts{machine,after,..}=>{let owner=api.machines(&token).await?.into_iter().find(|m|m.id==machine).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"machine absent from current owner inventory"))?.owner;{let(identities,next)=handle.start_identities_page(state,owner,machine,after,64).await?;json!({"identities":identities,"next":next})}},
             Action::Send{machine,session,text,stdin,enter,takeover,prompt,steer}=>{
                 let mut bytes=if stdin {tokio::task::spawn_blocking(|| {use std::io::Read;let mut bytes=Vec::new();std::io::stdin().lock().take(32769).read_to_end(&mut bytes).map(|_|bytes)}).await.map_err(|_|RemoteError::rejected(ErrorCode::Internal,"stdin reader failed before input"))?.map_err(|_|RemoteError::rejected(ErrorCode::Internal,"stdin read failed before input"))?}else{text.unwrap_or_default().into_bytes()};
                 if enter{bytes.push(b'\r');}
@@ -238,6 +310,17 @@ fn finish(result: Result<Value, RemoteError>) -> Result<()> {
             println!("{}", serde_json::to_string(&json!({"error":error}))?);
             return Err(error.into());
         }
+    }
+    Ok(())
+}
+
+fn write_items<T: serde::Serialize>(items: &[T], first: &mut bool) -> Result<()> {
+    for item in items {
+        if !*first {
+            print!(",");
+        }
+        *first = false;
+        print!("{}", serde_json::to_string(item)?);
     }
     Ok(())
 }

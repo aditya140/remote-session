@@ -41,6 +41,7 @@ pub struct RecordingCapture {
     admission: Arc<Mutex<Admission>>,
     captures: SyncSender<Capture>,
     backpressure: Arc<AtomicBool>,
+    worker: thread::Thread,
 }
 impl RecordingCapture {
     /// False means loss is tracked, not that capture may be disabled. The worker persists a gap.
@@ -71,9 +72,11 @@ impl RecordingCapture {
         admission.at = at.clone();
         if !valid {
             self.backpressure.store(true, Ordering::Release);
+            drop(admission);
+            self.worker.unpark();
             return false;
         }
-        match self.captures.try_send(Capture {
+        let accepted = match self.captures.try_send(Capture {
             epoch: self.identity.stream_epoch,
             ordinal,
             at,
@@ -88,13 +91,17 @@ impl RecordingCapture {
                 self.backpressure.store(true, Ordering::Release);
                 false
             }
-        }
+        };
+        drop(admission);
+        self.worker.unpark();
+        accepted
     }
     pub fn finish(&self) {
         if let Ok(mut admission) = self.admission.lock() {
             admission.closed = true;
             admission.finished = true;
         }
+        self.worker.unpark();
     }
     /// The owner closed capture without observing a complete native EOF. The worker
     /// persists an explicit conservative tail gap before freeing the active stream slot.
@@ -106,6 +113,7 @@ impl RecordingCapture {
             admission.closed = true;
             admission.finished = false;
         }
+        self.worker.unpark();
     }
     pub fn backpressure_seen(&self) -> bool {
         self.backpressure.load(Ordering::Acquire)
@@ -291,6 +299,9 @@ impl RecordingWorker {
         self.commands
             .try_send(command(sender))
             .map_err(|_| anyhow::anyhow!("recording worker busy"))?;
+        if let Some(thread) = &self.thread {
+            thread.thread().unpark();
+        }
         receiver
             .recv_timeout(Duration::from_secs(3))
             .context("recording worker reply unknown")?
@@ -298,6 +309,7 @@ impl RecordingWorker {
     pub fn shutdown(mut self) -> Result<()> {
         self.stop.store(true, Ordering::Release);
         if let Some(thread) = self.thread.take() {
+            thread.thread().unpark();
             thread
                 .join()
                 .map_err(|_| anyhow::anyhow!("recording worker panicked"))?;
@@ -309,6 +321,7 @@ impl Drop for RecordingWorker {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
         if let Some(thread) = self.thread.take() {
+            thread.thread().unpark();
             let _ = thread.join();
         }
     }
@@ -352,36 +365,37 @@ fn run(
                             return Ok(existing.capture.clone());
                         }
                         ensure!(
-                            !degraded
-                                && !stop.load(Ordering::Acquire)
-                                && streams.len() < 4096
-                                && streams.values().filter(|s| !s.sealed).count() < 64,
+                            !degraded && !stop.load(Ordering::Acquire) && streams.len() < 64,
                             "recording capture registration unavailable"
                         );
                         spool.register(&identity, at.clone())?;
+                        let sealed = spool.is_sealed(&identity)?;
                         let capture = RecordingCapture {
                             identity: identity.clone(),
                             admission: Arc::new(Mutex::new(Admission {
                                 last: 0,
                                 queued: 0,
                                 at: at.clone(),
-                                closed: false,
-                                finished: false,
+                                closed: sealed,
+                                finished: sealed,
                             })),
                             captures: captures.clone(),
                             backpressure: Arc::new(AtomicBool::new(false)),
+                            worker: thread::current(),
                         };
-                        streams.insert(
-                            identity.stream_epoch,
-                            Stream {
-                                capture: capture.clone(),
-                                encoder: RecordingEncoder::new(identity, rules.clone()),
-                                rules,
-                                processed: 0,
-                                at,
-                                sealed: false,
-                            },
-                        );
+                        if !sealed {
+                            streams.insert(
+                                identity.stream_epoch,
+                                Stream {
+                                    capture: capture.clone(),
+                                    encoder: RecordingEncoder::new(identity, rules.clone()),
+                                    rules,
+                                    processed: 0,
+                                    at,
+                                    sealed: false,
+                                },
+                            );
+                        }
                         Ok(capture)
                     })();
                     let _ = reply.send(result);
@@ -516,6 +530,9 @@ fn run(
                 }
             }
         }
+        // Sealing follows queue drain and a durable commit. SQLite retains epoch
+        // identity; old capture handles retain their closed admission flag.
+        streams.retain(|_, stream| !stream.sealed);
         if flush.elapsed() >= Duration::from_secs(2) {
             if spool
                 .status()
@@ -531,7 +548,10 @@ fn run(
             break;
         }
         if drained {
-            thread::park_timeout(Duration::from_millis(5));
+            // Producers leave a wake token after publishing work, including
+            // completion with no queued record. Idle time still advances flush
+            // and recovery deadlines without polling the empty queues.
+            thread::park_timeout(Duration::from_secs(1));
         }
     }
 }

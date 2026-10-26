@@ -36,6 +36,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
+      - run: python3 -m unittest discover -s tests/tools -v
       - run: cargo check --workspace --all-targets --locked
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
@@ -59,6 +60,7 @@ jobs:
       - run: cargo test --package qgenie-remote-sessiond --all-features --locked
       - run: cargo build --package qgenie-remote --locked
       - run: python3 tests/e2e/local_tui_smoke.py target/debug/qgenie-remote
+      - run: python3 tests/e2e/history_capacity_smoke.py target/debug/qgenie-remote
       - if: runner.os == 'Linux'
         run: bash tests/e2e/foreign_uid_ipc.sh
       - if: runner.os == 'Linux'
@@ -88,6 +90,15 @@ jobs:
         with:
           toolchain: 1.99.1
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the pinned native Codex fixture
+        run: |
+          npm install --prefix "$RUNNER_TEMP/qgr-codex" --no-audit --no-fund --ignore-scripts --save-exact @openai/codex@0.159.2
+          binary="$RUNNER_TEMP/qgr-codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex"
+          test "$("$binary" --version)" = 'codex-cli 0.159.2'
+          echo "QGR_CODEX_BINARY=$binary" >> "$GITHUB_ENV"
       - name: Create private synthetic PostgreSQL test binding
         run: |
           python3 - <<'PY'
@@ -125,7 +136,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y pgbouncer
       - name: Synchronous receipts and primary-volume loss
-        run: python3 tests/e2e/recording_durability.py --report target/validation/synchronous-report.json
+        run: python3 tests/e2e/recording_durability.py --require-managed-codex --report target/validation/synchronous-report.json
+      - name: Native Codex adapter contract
+        run: cargo test --package qgenie-remote-adapters --all-features --test codex_native --locked -- --ignored
       - name: Preserve sanitized acceptance result
         if: always()
         uses: actions/upload-artifact@v4

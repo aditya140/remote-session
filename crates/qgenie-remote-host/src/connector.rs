@@ -170,6 +170,7 @@ impl Connector {
                 .into();
         if self.native.is_some() {
             required.insert("host-native-authority-v1".into());
+            required.insert("host-session-pages-v1".into());
             required.insert("host-generation-floor-v1".into());
         }
         let mut optional: std::collections::BTreeSet<String> = if self.native.is_some() {
@@ -562,7 +563,10 @@ async fn dispatch(
         }
         if matches!(
             request.message,
-            Message::SessionList | Message::StartLookup { .. }
+            Message::SessionList
+                | Message::SessionListPage { .. }
+                | Message::SessionGet { .. }
+                | Message::StartLookup { .. }
         ) {
             return match client
                 .read(access, context.actor, context.client, request.clone())
@@ -573,20 +577,17 @@ async fn dispatch(
             };
         }
     }
-    let Message::FsList {
-        path,
-        cursor,
-        limit,
-    } = &request.message
-    else {
+    if !matches!(request.message, Message::FsList { .. } | Message::FsRoots)
+        || request.session.is_some()
+    {
         return failure(
             &request,
             RemoteError::rejected(
                 ErrorCode::UnsupportedCapability,
-                "native dispatch requires activated session-owner authority",
+                "unsupported host directory operation",
             ),
         );
-    };
+    }
     let facts = Facts {
         owner: true,
         access_fresh: true,
@@ -603,6 +604,27 @@ async fn dispatch(
     if let Err(error) = authorize(Action::Browse, facts) {
         return failure(&request, error);
     }
+    if matches!(request.message, Message::FsRoots) {
+        let mut reply = Envelope::new(Message::FsRootsListed {
+            roots: filesystem
+                .roots()
+                .paths()
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+        });
+        reply.re = Some(request.id);
+        reply.machine = request.machine;
+        return reply;
+    }
+    let Message::FsList {
+        path,
+        cursor,
+        limit,
+    } = &request.message
+    else {
+        unreachable!()
+    };
     let page = filesystem.list(path.clone(), cursor.clone(), *limit).await;
     if native
         .as_ref()
@@ -659,4 +681,124 @@ fn renew_at(expires: Instant) -> Instant {
     expires
         .checked_sub((remaining / 2).min(Duration::from_secs(60)))
         .unwrap_or_else(Instant::now)
+}
+
+#[cfg(test)]
+mod discovery_tests {
+    use super::*;
+    use qgenie_remote_proto::wire::Timestamp;
+    use qgenie_remote_proto::{ClientId, InstallationId, KeyId, MachineId, UserId};
+
+    #[tokio::test]
+    async fn roots_use_browse_authority_and_support_an_empty_machine() {
+        let directory = tempfile::tempdir().unwrap();
+        let first = directory.path().join("first");
+        let second = directory.path().join("second");
+        std::fs::create_dir(&first).unwrap();
+        std::fs::create_dir(&second).unwrap();
+        let filesystem = Filesystem::new(
+            crate::filesystem::Roots::open(&[first.clone(), second.clone()]).unwrap(),
+        );
+        let binding = crate::Binding {
+            installation: InstallationId::new(),
+            key: KeyId::new(),
+            machine: MachineId::new(),
+            owner: UserId::new(),
+            status: crate::BindingStatus::Enrolled,
+        };
+        let context = HostContext {
+            actor: binding.owner,
+            client: ClientId::new(),
+            host_generation: Counter(1),
+            expires_at: Timestamp::from_unix_millis(unix_ms() + 30000).unwrap(),
+            access: None,
+        };
+        let mut request = Envelope::new(Message::FsRoots);
+        request.machine = Some(binding.machine);
+        let reply = dispatch(
+            &filesystem,
+            &binding,
+            Counter(1),
+            context.clone(),
+            request.clone(),
+            true,
+            None,
+        )
+        .await;
+        assert_eq!(reply.re, Some(request.id));
+        let Message::FsRootsListed { roots } = reply.message else {
+            panic!("roots missing")
+        };
+        assert_eq!(
+            roots,
+            vec![first.display().to_string(), second.display().to_string()]
+        );
+        for (authority, allow) in [
+            (
+                HostContext {
+                    actor: UserId::new(),
+                    ..context.clone()
+                },
+                true,
+            ),
+            (context.clone(), false),
+            (
+                HostContext {
+                    host_generation: Counter(2),
+                    ..context.clone()
+                },
+                true,
+            ),
+        ] {
+            let reply = dispatch(
+                &filesystem,
+                &binding,
+                Counter(1),
+                authority,
+                request.clone(),
+                allow,
+                None,
+            )
+            .await;
+            assert!(matches!(reply.message, Message::Error(_)));
+        }
+        request.message = Message::FsList {
+            path: "/".into(),
+            cursor: None,
+            limit: 32,
+        };
+        assert!(matches!(
+            dispatch(
+                &filesystem,
+                &binding,
+                Counter(1),
+                context.clone(),
+                request.clone(),
+                true,
+                None
+            )
+            .await
+            .message,
+            Message::Error(_)
+        ));
+        request.message = Message::FsList {
+            path: roots[0].clone(),
+            cursor: None,
+            limit: 32,
+        };
+        assert!(matches!(
+            dispatch(
+                &filesystem,
+                &binding,
+                Counter(1),
+                context,
+                request,
+                true,
+                None
+            )
+            .await
+            .message,
+            Message::FsListed { .. }
+        ));
+    }
 }

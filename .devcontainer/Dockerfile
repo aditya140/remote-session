@@ -14,6 +14,7 @@ RUN apt-get update \
         libssl-dev \
         pkg-config \
         postgresql-client \
+        python3 \
         redis-tools \
         ripgrep \
         sqlite3 \

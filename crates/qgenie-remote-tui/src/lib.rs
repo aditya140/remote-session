@@ -1,5 +1,6 @@
-//! Interactive local terminal preview using only the client SDK.
+//! Local and remote terminal and agent views backed by the client SDK.
 mod app;
+mod display;
 mod remote;
 mod remote_agent;
 mod remote_approvals;

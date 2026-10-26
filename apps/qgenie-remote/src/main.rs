@@ -73,6 +73,12 @@ enum Action {
     /// List running and historical local sessions.
     List {
         #[arg(long)]
+        page: bool,
+        #[arg(long, requires = "page")]
+        after: Option<SessionId>,
+        #[arg(long)]
+        active: bool,
+        #[arg(long)]
         json: bool,
     },
     /// Start a command in a PTY; keep its printed key to reconcile uncertainty.
@@ -205,22 +211,56 @@ async fn main() -> Result<()> {
                 );
             }
         }
-        Action::List { json } => {
-            let sessions = client.sessions().await?;
+        Action::List {
+            json,
+            page,
+            after,
+            active,
+        } => {
+            if page || active {
+                let (sessions, next) = client.session_page(after, 64, active).await?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(
+                        &serde_json::json!({"sessions":sessions,"next":next})
+                    )?
+                );
+                return Ok(());
+            }
+            let mut after = None;
+            let mut first = true;
             if json {
-                println!("{}", serde_json::to_string_pretty(&sessions)?);
-            } else {
+                print!("[");
+            }
+            loop {
+                let (sessions, next) = client.session_page(after, 64, false).await?;
                 for session in sessions {
-                    println!(
-                        "{}  {:?}  {}  {}",
-                        session.id,
-                        session.state,
-                        session.command.join(" "),
-                        session.cwd
-                    );
+                    if json {
+                        if !first {
+                            print!(",");
+                        }
+                        print!("{}", serde_json::to_string(&session)?);
+                        first = false;
+                    } else {
+                        println!(
+                            "{}  {:?}  {}  {}",
+                            session.id,
+                            session.state,
+                            session.command.join(" "),
+                            session.cwd
+                        );
+                    }
+                }
+                after = next;
+                if after.is_none() {
+                    break;
                 }
             }
+            if json {
+                println!("]");
+            }
         }
+
         Action::Run {
             cwd: run_cwd,
             key,

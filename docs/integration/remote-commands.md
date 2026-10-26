@@ -123,7 +123,7 @@ injects a current private user credential into the SDK. Enter opens machine sess
 recorded history; `v` observes a live PTY; `c` browses an allowed directory and Ctrl-N starts
 the selected runtime; F5 in that picker cycles through the terminal and advertised agents.
 `k` looks up original persisted start keys after restart. Uncertain starts
-cannot be resubmitted from the journal recovery view. Start journal files contain scoped
+cannot be resubmitted from the journal recovery view. The start identity journal contains scoped
 identity/fingerprint metadata without argv, prompts or credentials.
 
 F2 acquires control, explicit takeover asks for confirmation, F3 releases, F4 interrupts,
@@ -187,3 +187,24 @@ manager reports `offline`; macOS execution is unavailable. The development deplo
 verified separately. Managed runtime, approval loss/reconciliation and historical resume pass
 the composed Linux fixture. Remaining enterprise/platform release evidence is tracked in
 `tasks/PROGRESS.md`.
+
+## Inventory pages and upgrade order
+
+`list --json`, `remote sessions MACHINE`, and `remote starts MACHINE` retain their JSON
+array output. They read bounded pages while writing the array. Use `--page` for one atomic
+page with a `next` cursor. Pass that cursor with `--page --after CURSOR` to continue.
+`remote sessions MACHINE --active` selects live work. Local `list --active` returns one
+live page. `remote roots MACHINE` returns authorized configured roots.
+
+Pages contain at most 256 records and 512 KiB of metadata; the CLI requests 64 records.
+Session cursors use stable ID ordering. Concurrent inserts before the cursor require a
+new traversal. A streaming command can fail after partial output; check its exit status.
+Use individual session reads for status and original-key lookup for uncertain starts.
+
+Deploy compatible gateway code and PostgreSQL migration 0016 before new connectors.
+Upgrade sessiond to SQLite schema 7 through the existing guarded native upgrade procedure.
+Do not restart an active native owner merely to install this change. New connectors require
+paged native metadata. Older clients retain bounded complete-list reads and manual paths.
+Upgrade all client processes that share a state directory before its first SQLite journal
+migration. Keep the private legacy files as recovery backups. The migration does not delete
+start identities, replay, recordings, retention records, or legal holds.

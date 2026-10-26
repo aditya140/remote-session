@@ -207,19 +207,18 @@ impl Runtime {
         let mut parameters = serde_json::to_value(&launch).map_err(storage_error)?;
         parameters.as_object_mut().unwrap().remove("key");
         let digest = fingerprint(&parameters)?;
-        let sessions = lock(&self.sessions)?.values().cloned().collect::<Vec<_>>();
-        for session in &sessions {
-            let state = lock(session)?;
-            if state.spec.key == launch.key && state.scope == scope {
-                if state.fingerprint != digest {
-                    return Err(RemoteError::rejected(
-                        ErrorCode::IdempotencyConflict,
-                        "start key has different parameters",
-                    ));
-                }
-                return Ok(state.info.clone());
+        if let Some(session) = self.lookup_start(scope.as_ref(), launch.key)? {
+            let state = lock(&session)?;
+            if state.fingerprint != digest {
+                return Err(RemoteError::rejected(
+                    ErrorCode::IdempotencyConflict,
+                    "start key has different parameters",
+                ));
             }
+            return Ok(state.info.clone());
         }
+        self.reap_sessions()?;
+        let sessions = lock(&self.sessions)?.values().cloned().collect::<Vec<_>>();
         let LaunchKind::Agent {
             agent,
             prompt,
@@ -237,69 +236,55 @@ impl Runtime {
                 "this host only supports managed Codex",
             ));
         }
-        let native_home =
-            if let Some(thread) = &native_resume_id {
-                let mut homes = std::collections::BTreeSet::new();
-                for session in &sessions {
-                    let state = lock(session)?;
-                    if state.scope == scope
-                        && matches!(state.info.state, SessionState::Exited)
-                        && state.info.ended_at_ms.is_some()
-                        && let Some(identity) = &state.info.agent
-                        && identity.agent == agent
+        let native_home = if let Some(thread) = &native_resume_id {
+            let homes = lock(&self.store)?
+                .history_homes(scope.as_ref(), &agent, thread)
+                .map_err(storage_error)?;
+            if homes.len() != 1 {
+                return Err(RemoteError::rejected(
+                    ErrorCode::NotFound,
+                    "no confirmed ended native history in this owner scope",
+                ));
+            }
+            let home = *homes.first().unwrap();
+            let root = self.session(home)?;
+            let state = lock(&root)?;
+            let canonical = state.scope == scope
+                && matches!(state.info.state, SessionState::Exited)
+                && state.info.ended_at_ms.is_some()
+                && state.info.agent.as_ref().is_some_and(|identity| {
+                    identity.agent == agent
+                        && identity.native_home.is_none()
                         && identity.native_thread.as_ref() == Some(thread)
-                    {
-                        homes.insert(identity.native_home.unwrap_or(state.info.id));
-                    }
-                }
-                if homes.len() != 1 {
-                    return Err(RemoteError::rejected(
-                        ErrorCode::NotFound,
-                        "no confirmed ended native history in this owner scope",
-                    ));
-                }
-                let home = *homes.first().unwrap();
-                let mut canonical = false;
-                for session in &sessions {
-                    let state = lock(session)?;
-                    if state.info.id == home {
-                        canonical = state.scope == scope
-                            && matches!(state.info.state, SessionState::Exited)
-                            && state.info.ended_at_ms.is_some()
+                });
+            drop(state);
+            if !canonical {
+                return Err(RemoteError::rejected(
+                    ErrorCode::Forbidden,
+                    "native history root differs from this owner and thread",
+                ));
+            }
+            if lock(&self.store)?
+                .history_uncertain(home)
+                .map_err(storage_error)?
+                || sessions.iter().any(|session| {
+                    session.lock().is_ok_and(|state| {
+                        owns_process(&state)
                             && state.info.agent.as_ref().is_some_and(|identity| {
-                                identity.agent == agent
-                                    && identity.native_home.is_none()
-                                    && identity.native_thread.as_ref() == Some(thread)
-                            });
-                        break;
-                    }
-                }
-                if !canonical {
-                    return Err(RemoteError::rejected(
-                        ErrorCode::Forbidden,
-                        "native history root differs from this owner and thread",
-                    ));
-                }
-                for session in &sessions {
-                    let state = lock(session)?;
-                    if state.info.agent.as_ref().is_some_and(|identity| {
-                        identity.native_home.unwrap_or(state.info.id) == home
-                    }) && (owns_process(&state)
-                        || !matches!(
-                            state.info.state,
-                            SessionState::Exited | SessionState::Failed
-                        ))
-                    {
-                        return Err(RemoteError::rejected(
-                            ErrorCode::Forbidden,
-                            "native history has an active or unconfirmed owner",
-                        ));
-                    }
-                }
-                Some(home)
-            } else {
-                None
-            };
+                                identity.native_home.unwrap_or(state.info.id) == home
+                            })
+                    })
+                })
+            {
+                return Err(RemoteError::rejected(
+                    ErrorCode::Forbidden,
+                    "native history has an active or unconfirmed owner",
+                ));
+            }
+            Some(home)
+        } else {
+            None
+        };
         validate_size(launch.rows, launch.cols)?;
         if prompt
             .as_ref()
@@ -316,12 +301,11 @@ impl Runtime {
                 "managed Codex is not configured on this host",
             )
         })?;
-        if sessions.len() >= 4096
-            || sessions
-                .iter()
-                .filter(|session| session.lock().is_ok_and(|state| owns_process(&state)))
-                .count()
-                >= self.config.max_sessions
+        if sessions
+            .iter()
+            .filter(|session| session.lock().is_ok_and(|state| owns_process(&state)))
+            .count()
+            >= self.config.max_sessions
         {
             return Err(RemoteError::rejected(
                 ErrorCode::CapacityExhausted,

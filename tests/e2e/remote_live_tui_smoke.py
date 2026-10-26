@@ -8,18 +8,19 @@ import signal
 import sys
 import tempfile
 import time
+import sqlite3
 
 def select_session(view, suffix):
     # The common app header is present on every page; wait for the actual mode
     # before sending Enter so Esc/Enter cannot become an unintended Alt key.
     deadline = time.monotonic() + 15
-    while not (view.sees("Machines") and not view.sees("Sessions · recorded history")):
+    while not (view.sees("Machines") and not view.sees("Sessions ·")):
         view.send(b"\x1b")
         time.sleep(0.08)
         assert time.monotonic() < deadline, "machine page did not become ready"
     until(lambda: not view.sees("Loading"))
     view.send(b"\r")
-    until(lambda: view.sees("Sessions · recorded history") and not view.sees("Loading"))
+    until(lambda: view.sees("Sessions ·") and not view.sees("Loading"))
     view.send(b"/\x15" + suffix.encode() + b"\r")
     until(lambda: view.sees("Filter: " + suffix))
     def selected():
@@ -74,7 +75,7 @@ def main():
             time.sleep(0.3)
             assert not view.sees("UNSENT_READ_ONLY_MARKER")
             view.send(b"\x1b[21~")  # F10: detach, leaving the native process alive.
-            until(lambda: view.sees("Sessions · recorded history"))
+            until(lambda: view.sees("Sessions ·"))
             view.quit(b"q")
             terminated = RemoteTui(Path(binary).resolve(), Path(temporary), arguments=arguments)
             views.append(terminated)
@@ -86,7 +87,9 @@ def main():
             views.append(created)
             select_session(created, suffix)
             created.send(b"c")
-            until(lambda: created.sees("New remote terminal"))
+            # A PTY read can contain the new header before the busy footer. Wait
+            # for the roots reply's explicit ready message before sending Enter.
+            until(lambda: created.sees("Enter browses this directory; F1 selects another allowed root."))
             created.send(b"\r")
             until(lambda: created.sees("Ctrl-N creates a new terminal"))
             created.send(b"\x0e")
@@ -98,9 +101,10 @@ def main():
             time.sleep(0.2)
             created.send(b"printf 'LIVE_UI_CREATED_OK\\n'\r")
             until(lambda: created.sees("LIVE_UI_CREATED_OK"), timeout=10)
-            records = list((Path(temporary) / "remote-starts").glob("*.json"))
+            with sqlite3.connect(Path(temporary) / "start-identities.sqlite") as db:
+                records = db.execute("SELECT body FROM identities").fetchall()
             assert len(records) == 1, "new terminal must have one persisted start identity"
-            saved = records[0].read_text()
+            saved = records[0][0]
             assert '"key"' in saved and '"fingerprint"' in saved
             assert '"command"' not in saved and "LIVE_UI_CREATED_OK" not in saved
             created.send(b"\x1b[17~")  # F6, then cancel the destructive action.
@@ -113,7 +117,7 @@ def main():
             created.send(b"y")
             until(lambda: created.sees("Exited"), timeout=10)
             created.send(b"\x1b[21~")
-            until(lambda: created.sees("Sessions · recorded history"))
+            until(lambda: created.sees("Sessions ·"))
             created.quit(b"q")
             recovered = RemoteTui(Path(binary).resolve(), Path(temporary), arguments=arguments)
             views.append(recovered)
@@ -126,7 +130,7 @@ def main():
             until(lambda: recovered.sees("LIVE_UI_CREATED_OK"))
             until(lambda: recovered.sees("Exited"))
             recovered.send(b"\x1b[21~")
-            until(lambda: recovered.sees("Sessions · recorded history"))
+            until(lambda: recovered.sees("Sessions ·"))
             recovered.quit(b"q")
             print("Remote create, observe, control, input, release, detach, confirmed termination and SIGTERM mode restoration passed")
         except Exception:

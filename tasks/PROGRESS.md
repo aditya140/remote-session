@@ -1,6 +1,38 @@
 # Implementation goal and completion
 
-Updated: 2026-10-18 (UTC).
+Updated: 2026-10-26 (UTC).
+
+## Current goal — overall Linux completion
+
+[Task 030](030-complete-linux-release-readiness.md) sets overall completion as the goal.
+Its ordered steps cover remaining code clarity, regression coverage, release-build host
+measurements, and real-environment qualification. Work continues until each applicable
+gate has evidence. External qualification remains open; the completed development
+milestones below do not close it.
+
+Task 030's local repairs and checks pass. The [BeautifulRust review](../docs/validation/beautiful-rust-review-2026-10-26.md)
+records fixed pagination, cancellation, launcher ownership, and recording-worker lifetime
+defects. The [final composed proof](../docs/validation/linux-completion-2026-10-26.json)
+passes all functional phases. The separate host budget remains unmet at 32.53 MB aggregate
+RSS and 0.57 percent idle CPU. The [capacity report](../docs/validation/capacity.md) gives the
+measurement limits. Real enterprise access, user services, and the developer pilot remain unrun.
+
+[Task 031](031-add-ra-jit-development-builds.md) adds the requested optional ra-jit
+development workflow. It is installed and tested on Linux x86-64. Warm CLI edits measured
+0.33–0.43 seconds, with a slower 9.10-second first JIT edit. Normal Cargo and CI retain
+Rust 1.99.1. See the [development guide](../docs/development/ra-jit.md).
+
+## Completed milestone — core journey repairs
+
+[Task 029](029-stabilize-core-journey.md) records the user-authorized repair plan and its
+implementation evidence. All six Linux repair steps passed their local acceptance checks.
+The [composed result](../docs/validation/core-journey-2026-10-26.json) records the process,
+Codex, recording, and crash proofs. The sequence is: fix lifecycle limits, complete directory
+discovery, verify the composed journey, then qualify real enterprise access and user
+services with a small pilot. Keep Linux, one owner, shells, and pinned Codex as the scope.
+Do not expand adapters or deployment targets before this journey passes.
+
+The completion statement below records the earlier Linux development milestone.
 
 ## Selected goal — complete
 

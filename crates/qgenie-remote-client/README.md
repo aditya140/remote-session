@@ -20,7 +20,7 @@ Consume `next()` for `ObservedOutput` values. At most eight updates and 16 MiB o
 
 ## Start and control
 
-`LiveHandle::start(state_dir, owner, machine, launch)` persists an immutable scoped key and launch fingerprint before dispatch. PTY and advertised agent starts use the same journal. Journal files contain no argv, prompts or credentials. Changed parameters fail with `NotSent`. Retain the returned identity and use `lookup_start` after uncertainty; a reconnect never creates another start automatically. Generic `request` refuses mutations.
+`LiveHandle::start(state_dir, owner, machine, launch)` persists an immutable scoped key and launch fingerprint before dispatch. PTY and advertised agent starts use the same journal. The SQLite identity journal contains digests, without argv, prompts or credentials. Changed parameters fail with `NotSent`. Retain the returned identity and use `lookup_start` after uncertainty; a reconnect never creates another start automatically. Generic `request` refuses mutations.
 
 `take_control` returns a `RemoteController` tied to the exact connection, machine, session and native-confirmed host/controller generations. It supports explicit renewal, takeover, release, input, resize and interrupt. Agent prompt/steer require advertised support. Input is poisoned before awaiting delivery; cancellation, loss or stale authority requires explicit reacquisition. Renewal and token refresh cannot clear an uncertain input or resend it. Owner termination requires explicit confirmation and no control lease.
 
@@ -40,6 +40,22 @@ Four concurrent attachment assemblies share a 16 MiB response budget. Each fixed
 
 Local `Client::local(state_dir)` provides start, lookup, attach, replay and control over private same-user IPC, with 128 calls and 16 journal workers admitted.
 
+`session_page` reads at most 256 records and 512 KiB per page. `session` reads one remote
+session. `allowed_roots` requires `root-discovery-v1`; an older peer returns an explicit
+unsupported error so the UI can accept a manual path. `session-pages-v1` distinguishes
+partial `session.updates` events from complete legacy lists. Treat those events as page
+refresh hints. A cursor is not a snapshot across concurrent starts. Restart traversal to
+see inserts before the cursor.
+
+Client state now uses private `start-identities.sqlite`, with a 64 MiB database budget.
+The first open imports legacy `starts/*.json` and `remote-starts/*.json` in transactions.
+The old files remain private backups. Local legacy backups can contain command arguments.
+Upgrade all writers before sharing migrated state; old writers do not maintain this database.
+Do not delete saved keys after uncertainty. Storage exhaustion fails before transmission.
+`start_identities_page` reads recovery identities in bounded pages. It does not classify a
+saved identity as a confirmed launch; use the original key to query native authority.
+The legacy `start_identities` method retains a 4,096-record complete-list bound.
+
 ## Verification
 
 ```sh
@@ -47,4 +63,4 @@ cargo test -p qgenie-remote-client
 cargo clippy -p qgenie-remote-client --all-targets -- -D warnings
 ```
 
-Twenty-four SDK tests pass on Linux, including real TLS fixtures for reversed/duplicate replies, PTY/agent lost-start replies, poisoned input, refresh during uncertainty, approval loss, malformed checkpoints, observer final-tail delivery, cancellation and slow consumers. The owned synchronous PostgreSQL/Redis/two-gateway/native fixture additionally exercises actual starts, controls, structured output, approvals, historical resume and protected history. macOS and the full release fault matrix remain task 027 evidence gates.
+The SDK test suite covers real TLS fixtures for reversed/duplicate replies, PTY/agent lost-start replies, poisoned input, refresh during uncertainty, approval loss, malformed checkpoints, observer final-tail delivery, cancellation and slow consumers. The owned synchronous PostgreSQL/Redis/two-gateway/native fixture additionally exercises actual starts, controls, structured output, approvals, historical resume and protected history. macOS and the full release fault matrix remain task 027 evidence gates.

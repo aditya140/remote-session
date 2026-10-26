@@ -1,0 +1,44 @@
+{
+  "measurement_date_utc": "2026-10-26",
+  "stage": "Before idle polling and sealed recording-state repairs",
+  "functional_composed_result": "passed",
+  "host_resources": {
+    "format": "qgr-host-footprint-v1",
+    "platform": {
+      "system": "Linux",
+      "arch": "x86_64"
+    },
+    "binary_sha256": "9018a06db13a201e132924092dd7cac6dd330918815a3151fddcba4400d2e619",
+    "binary_bytes": 22217384,
+    "sample_seconds": 60.00039964899952,
+    "sample_count": 61,
+    "processes": {
+      "native": {
+        "rss_max_bytes": 18649088,
+        "rss_final_bytes": 18649088,
+        "cpu_percent_one_core": 1.2666582296884294,
+        "threads_max": 7
+      },
+      "connector": {
+        "rss_max_bytes": 13930496,
+        "rss_final_bytes": 13930496,
+        "cpu_percent_one_core": 0.4499970026524684,
+        "threads_max": 4
+      }
+    },
+    "aggregate_rss_max_bytes": 32579584,
+    "aggregate_cpu_percent_one_core": 1.716655232340898,
+    "targets": {
+      "rss_less_than_bytes": 30000000,
+      "cpu_less_than_percent_one_core": 0.5,
+      "rss_met": false,
+      "cpu_met": false
+    },
+    "limits": [
+      "RSS sampled once per second; transient peaks can be missed",
+      "No network socket count or child-process memory measurement",
+      "One Linux fixture host; no fleet or long-run qualification"
+    ],
+    "workload": "Idle after composed PTY lifecycle; no active sessions; connector authenticated; recording enabled"
+  }
+}

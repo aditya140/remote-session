@@ -1,4 +1,5 @@
 //! Native remote terminal view; accepted processes outlive this view and its jobs.
+use crate::display::single_line as safe;
 use crate::{
     app::{TerminalGuard, encode_key, is_command_prefix},
     view::draw_terminal,
@@ -341,17 +342,6 @@ impl Pane {
         );
     }
 }
-fn safe(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if c.is_control() || matches!(c,'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}') {
-                '�'
-            } else {
-                c
-            }
-        })
-        .collect()
-}
 async fn mutation(
     handle: LiveHandle,
     machine: MachineId,
@@ -442,7 +432,7 @@ pub(crate) async fn run(
             _=ticks.tick()=>{
                 if signal.load(Ordering::Acquire){break;}
                 if !handle.session_changes_available() && metadata.is_empty() && pane.connected && Instant::now()>=next_metadata {
-                    let handle=handle.clone();metadata.spawn(async move {handle.sessions(machine).await});next_metadata=Instant::now()+Duration::from_secs(3);
+                    let handle=handle.clone();metadata.spawn(async move {handle.session(machine,id).await});next_metadata=Instant::now()+Duration::from_secs(3);
                 }
                 if event::poll(Duration::ZERO)? {match event::read()? {
                     Event::Key(key) if key.kind!=KeyEventKind::Release=>{
@@ -502,7 +492,7 @@ pub(crate) async fn run(
             },
             read=reads.join_next(),if !reads.is_empty()=>{match read {Some(Ok(result))=>pane.attachment(result),_=>{pane.message="Native read stopped; F8 retries this read.".into();pane.read_paused=true;}}pane.next_read=Instant::now()+if matches!(pane.output.read_plan(),ReadPlan::Idle){Duration::from_millis(250)}else{Duration::from_millis(10)};},
             result=metadata.join_next(),if !metadata.is_empty()=>{match result {
-                Some(Ok(Ok(sessions)))=>{if let Some(current)=sessions.iter().find(|s|s.id==id && s.machine==machine && s.owner==session.owner) {pane.metadata(current);}else{pane.message="Native session is absent from current inventory; displayed output is retained.".into();}},
+                Some(Ok(Ok(current)))=>{if current.owner==session.owner {pane.metadata(&current);}else{pane.message="Native session is absent from current inventory; displayed output is retained.".into();}},
                 Some(Ok(Err(error)))=>pane.message=format!("Session status unavailable: {:?}. Displayed output is retained.",error.code),
                 _=>{},
             }},
@@ -519,7 +509,7 @@ pub(crate) async fn run(
             incoming=client.next(),if pane.connected=>match incoming {
                 Some(event)=>{
                     if let LiveFrame::Text(envelope)=&event.frame
-                        && let Message::Sessions{sessions}=&envelope.message
+                        && let Message::Sessions{sessions}|Message::SessionUpdates{sessions}=&envelope.message
                         && let Some(current)=sessions.iter().find(|current|current.id==id && current.machine==machine && current.owner==session.owner) {pane.metadata(current);}
                     if let LiveFrame::Text(envelope)=&event.frame && let Message::ApprovalRequested(request)=&envelope.message && request.session==id {pane.message="Approval pending · F7 reviews owner approvals without taking control.".into();}
                     match pane.output.frame(&event.frame){Ok(update)=>{if let Err(error)=pane.paint_update(update,None){pane.read_paused=true;pane.message=error.message;}},Err(error)=>pane.message=error.message}

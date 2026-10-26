@@ -1,9 +1,14 @@
 # Standalone MVP acceptance evidence
 
-Updated 2026-10-18. Development across tasks 001–028 is complete for the user-selected
+Updated 2026-10-26. Development across tasks 001–028 is complete for the user-selected
 Linux standalone scope. This report describes executed proofs and names the external
 release gates. It is not enterprise release approval. The user waived corporate CLI
 inspection and selected this scope in [ADR 0007](../adr/0007-standalone-preview.md).
+
+[Task 030](../../tasks/030-complete-linux-release-readiness.md) continues toward overall
+completion. Its [latest composed result](linux-completion-2026-10-26.json) passes all
+functional phases. The host resource budget remains unmet. Real enterprise access,
+Linux user services, and the developer pilot remain unrun.
 
 ## Reproduce the composed proof
 
@@ -14,14 +19,16 @@ controlled fixtures, while native execution, TLS, database storage and routing a
 
 ```sh
 export QGR_CODEX_BINARY=/absolute/path/to/codex
-python3 tests/e2e/recording_durability.py --report target/validation/synchronous-report.json
+python3 tests/e2e/recording_durability.py --require-managed-codex --report target/validation/synchronous-report.json
 ```
 
 The runner creates an isolated PostgreSQL synchronous pair and Redis, uses verified HTTPS/WSS
 through two gateways, and removes only its generated resources. The final database proof
 destroys the owned primary's tmpfs data volume and promotes its independent standby.
-Completion markers from both Rust proofs are mandatory. The [executed Linux result](synchronous-acceptance-2026-10-18.json) records the latest composed pass. Omitting `QGR_CODEX_BINARY` runs
-the terminal/recording subset and explicitly leaves managed Codex unrun in the JSON report.
+Completion markers from both Rust proofs are mandatory. The [executed Linux result](linux-completion-2026-10-26.json)
+records the latest composed pass and release-host measurement. Remove `--require-managed-codex`
+and omit `QGR_CODEX_BINARY` to run only the terminal/recording subset. That subset explicitly
+leaves managed Codex unrun in the JSON report.
 `--probe-only` qualifies only a database probe. CI preserves the sanitized report on success
 and failure; it includes no DSNs, tokens, provider keys, private paths or exception messages.
 

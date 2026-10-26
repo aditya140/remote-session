@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Optional, isolated ra-jit development builds. See docs/development/ra-jit.md."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+
+ROOT = Path(__file__).resolve().parent.parent
+PIN = json.loads((ROOT / "tools/ra-jit.lock.json").read_text())
+PROGRAMS = ("ra-jit", "cargo-ra-jit", "ra-jit-rustc")
+
+
+def target():
+    host = (platform.system(), platform.machine())
+    targets = {
+        ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
+        ("Linux", "aarch64"): "aarch64-unknown-linux-gnu",
+        ("Darwin", "arm64"): "aarch64-apple-darwin",
+    }
+    if host not in targets:
+        raise RuntimeError(f"No pinned ra-jit binary for {host[0]} {host[1]}")
+    return targets[host]
+
+
+def install(directory, triple):
+    if all((directory / program).is_file() for program in PROGRAMS):
+        return
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    archive_name = f"ra-jit-{triple}.tar.gz"
+    url = f"{PIN['repository']}/releases/download/{PIN['release']}/{archive_name}"
+    with tempfile.TemporaryDirectory(prefix=".install-", dir=directory.parent) as temporary:
+        temporary = Path(temporary)
+        archive = temporary / archive_name
+        print(f"Downloading pinned ra-jit for {triple}", flush=True)
+        with urllib.request.urlopen(url, timeout=45) as response, archive.open("wb") as output:
+            shutil.copyfileobj(response, output)
+        with archive.open("rb") as source:
+            digest = hashlib.file_digest(source, "sha256").hexdigest()
+        if digest != PIN["archives"][triple]:
+            raise RuntimeError("Archive checksum differs from tools/ra-jit.lock.json; nothing installed")
+        staged = temporary / "bin"
+        staged.mkdir()
+        # Copy only named, regular files. Never extract archive paths or links.
+        with tarfile.open(archive, "r:gz") as bundle:
+            for name in (*PROGRAMS, "LICENSE-MIT", "LICENSE-APACHE", "README.md"):
+                member = bundle.getmember(f"ra-jit-{triple}/{name}")
+                if not member.isfile():
+                    raise RuntimeError(f"Unexpected archive member: {name}")
+                with bundle.extractfile(member) as source, (staged / name).open("wb") as output:
+                    shutil.copyfileobj(source, output)
+                (staged / name).chmod(0o755 if name in PROGRAMS else 0o644)
+        staged.rename(directory)
+
+
+def daemon_directory():
+    identity = hashlib.sha256(os.fsencode(ROOT)).hexdigest()[:16]
+    directory = Path(tempfile.gettempdir()) / f"qgr-jit-{os.getuid()}-{identity}"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+        raise RuntimeError(f"The daemon directory must be private and owned: {directory}")
+    return directory
+
+
+def main():
+    arguments = sys.argv[1:]
+    if not arguments or arguments[0] in ("-h", "--help"):
+        print("Usage: ./tools/ra-jit setup | build | run | test | check | status | stop [Cargo arguments]")
+        print("Experimental dev builds use Rust 1.99.0 and target/ra-jit-build.")
+        print("Use ordinary Cargo with Rust 1.99.1 for validation and release builds.")
+        return 0
+    command = arguments[0]
+    if command not in ("setup", "build", "run", "test", "check", "status", "stop"):
+        raise RuntimeError("Unsupported command; run ./tools/ra-jit --help")
+    cargo_arguments = arguments[1:arguments.index("--")] if "--" in arguments else arguments[1:]
+    for argument in cargo_arguments:
+        if argument.split("=", 1)[0] in ("--release", "-r", "--profile", "--target-dir", "--manifest-path"):
+            raise RuntimeError("This launcher uses dev builds in this workspace's isolated target directory")
+    triple = target()
+    directory = ROOT / "target/tools/ra-jit" / PIN["archives"][triple] / triple
+    if command == "setup":
+        if len(arguments) != 1:
+            raise RuntimeError("setup takes no arguments")
+        install(directory, triple)
+        subprocess.run([
+            "rustup", "toolchain", "install", PIN["rust_toolchain"],
+            "--profile", "minimal", "--component", "rust-src", "--no-self-update",
+        ], check=True)
+        print("Installed. Run ./tools/ra-jit build -p qgenie-remote --locked")
+        return 0
+    if not all((directory / program).is_file() for program in PROGRAMS):
+        raise RuntimeError("Run ./tools/ra-jit setup first")
+    rustc = Path(subprocess.check_output([
+        "rustup", "which", "--toolchain", PIN["rust_toolchain"], "rustc",
+    ], text=True).strip())
+    environment = os.environ.copy()
+    environment.update({
+        "RUSTUP_TOOLCHAIN": PIN["rust_toolchain"],
+        "RUSTC": str(rustc),
+        "RUSTDOC": str(rustc.with_name("rustdoc")),
+        "CARGO": str(rustc.with_name("cargo")),
+        "PATH": os.pathsep.join((str(directory), str(rustc.parent), environment.get("PATH", ""))),
+        "CARGO_TARGET_DIR": str(ROOT / "target/ra-jit-build"),
+        "RA_JIT_HOME": str(daemon_directory()),
+    })
+    environment.setdefault("RA_JIT_IDLE_SECS", "600")
+    environment.setdefault("CARGO_PROFILE_DEV_DEBUG", "0")
+    environment.setdefault("CARGO_PROFILE_TEST_DEBUG", "0")
+    os.chdir(ROOT)
+    os.execve(rustc.with_name("cargo"), ["cargo", "ra-jit", *arguments], environment)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, RuntimeError, KeyError, tarfile.TarError, subprocess.CalledProcessError) as error:
+        print(f"ra-jit: {error}", file=sys.stderr)
+        sys.exit(1)

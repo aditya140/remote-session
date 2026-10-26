@@ -1,5 +1,6 @@
 //! One-shot owner metadata/access changes, independent of a writable attachment.
 use crate::app::TerminalGuard;
+use crate::display::single_line as clean;
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use qgenie_remote_client::GatewayClient;
@@ -34,17 +35,6 @@ enum Stage {
 enum Change {
     Patch(MachinePatch),
     Revoke,
-}
-fn clean(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if c.is_control() || matches!(c,'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}') {
-                '�'
-            } else {
-                c
-            }
-        })
-        .collect()
 }
 pub(crate) async fn run(
     terminal: &mut TerminalGuard,

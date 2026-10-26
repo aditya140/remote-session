@@ -21,6 +21,7 @@ use tokio::sync::Semaphore;
 mod replay;
 pub use replay::NativeAttachment;
 mod changes;
+mod inventory;
 pub use changes::NativeChanges;
 
 #[derive(Clone)]
@@ -481,7 +482,11 @@ impl NativeClient {
         }
         if !matches!(
             message.message,
-            Message::SessionList | Message::StartLookup { .. } | Message::ApprovalList
+            Message::SessionList
+                | Message::SessionListPage { .. }
+                | Message::SessionGet { .. }
+                | Message::StartLookup { .. }
+                | Message::ApprovalList
         ) {
             return Err(Error::Rejected(RemoteError::rejected(
                 ErrorCode::UnsupportedCapability,
@@ -521,7 +526,12 @@ impl NativeClient {
             {
                 response.validate().map_err(Error::Rejected)?;
                 let valid = match (&response.message, lookup) {
-                    (Message::Sessions { .. }, None) if !approval_list => true,
+                    (
+                        Message::Sessions { .. }
+                        | Message::SessionPage { .. }
+                        | Message::SessionFound(_),
+                        None,
+                    ) if !approval_list => true,
                     (Message::Approvals { .. }, None) if approval_list => true,
                     (Message::Error(_), _) => true,
                     (Message::StartStatus { key, .. }, Some(expected)) => *key == expected,
@@ -745,6 +755,7 @@ impl NativeClient {
                 &["native-authority-v1"]
             };
             let mut required = required.to_vec();
+            if matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::SessionListPage{..}|Message::SessionGet{..})) {required.push("native-pages-v1");}
             if agent {
                 required.push("native-agent-v1");
             }

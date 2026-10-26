@@ -407,6 +407,83 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     inventory.machine = Some(enrolled.machine);
     send!(&host, inventory).await;
     receive!(&mut client,|envelope| matches!(&envelope.message,Message::MachineUpdated(machine) if machine.id==enrolled.machine && machine.sessions==1)).await;
+    // Page a large ended history through the application role without hiding live work.
+    let mut seeded = Vec::new();
+    let mut tx = admin.begin().await.unwrap();
+    for _ in 0..4100 {
+        let mut old = session.clone();
+        old.id = SessionId::new();
+        old.state = qgenie_remote_proto::SessionState::Exited;
+        old.ended_at = Some(old.created_at.clone());
+        sqlx::query(
+            "INSERT INTO qgr.sessions(id,machine,owner,body,state) VALUES($1,$2,$3,$4,'exited')",
+        )
+        .bind(old.id.to_string())
+        .bind(old.machine.to_string())
+        .bind(old.owner.to_string())
+        .bind(serde_json::to_value(&old).unwrap())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+        seeded.push(old.id.to_string());
+    }
+    tx.commit().await.unwrap();
+    let mut after = None;
+    let mut seen = std::collections::BTreeSet::new();
+    loop {
+        let (page, next) = store
+            .session_page(owner, enrolled.machine, after, 127, false)
+            .await
+            .unwrap();
+        assert!(page.len() <= 127);
+        assert!(page.windows(2).all(|pair| pair[0].id < pair[1].id));
+        for item in &page {
+            assert!(seen.insert(item.id));
+        }
+        if next.is_none() {
+            break;
+        }
+        assert_eq!(next, page.last().map(|item| item.id));
+        after = next;
+    }
+    assert_eq!(seen.len(), 4101);
+    let (live, next) = store
+        .session_page(owner, enrolled.machine, None, 64, true)
+        .await
+        .unwrap();
+    assert_eq!(live.len(), 1);
+    assert_eq!(live[0].id, session.id);
+    assert!(next.is_none());
+    assert!(
+        store
+            .session_page(
+                qgenie_remote_proto::UserId::new(),
+                enrolled.machine,
+                None,
+                64,
+                false
+            )
+            .await
+            .unwrap()
+            .0
+            .is_empty()
+    );
+    let mut request = Envelope::new(Message::SessionListPage {
+        after: None,
+        limit: 64,
+        active_only: true,
+    });
+    request.machine = Some(enrolled.machine);
+    let request_id = request.id;
+    send!(&client, request).await;
+    assert!(
+        matches!(receive!(&mut client,|reply|reply.re==Some(request_id)).await.message,Message::SessionPage{sessions,next:None} if sessions.len()==1 && sessions[0].id==session.id)
+    );
+    sqlx::query("DELETE FROM qgr.sessions WHERE id=ANY($1)")
+        .bind(seeded)
+        .execute(admin)
+        .await
+        .unwrap();
     // Route a read across nodes. Affinity is absent; authenticated ownership determines admission.
     let mut listing = Envelope::new(Message::FsList {
         path: "/fixture".into(),

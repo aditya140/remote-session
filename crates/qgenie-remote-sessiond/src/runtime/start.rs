@@ -39,19 +39,18 @@ impl Runtime {
         let mut parameters = serde_json::to_value(&spec).map_err(storage_error)?;
         parameters.as_object_mut().unwrap().remove("key");
         let digest = fingerprint(&parameters)?;
-        let sessions: Vec<_> = lock(&self.sessions)?.values().cloned().collect();
-        for session in &sessions {
-            let state = lock(session)?;
-            if state.spec.key == spec.key && state.scope == scope {
-                if state.fingerprint != digest {
-                    return Err(RemoteError::rejected(
-                        ErrorCode::IdempotencyConflict,
-                        "start key has different parameters",
-                    ));
-                }
-                return Ok(state.info.clone());
+        if let Some(session) = self.lookup_start(scope.as_ref(), spec.key)? {
+            let state = lock(&session)?;
+            if state.fingerprint != digest {
+                return Err(RemoteError::rejected(
+                    ErrorCode::IdempotencyConflict,
+                    "start key has different parameters",
+                ));
             }
+            return Ok(state.info.clone());
         }
+        self.reap_sessions()?;
+        let sessions: Vec<_> = lock(&self.sessions)?.values().cloned().collect();
         validate_size(spec.rows, spec.cols)?;
         if spec.command.is_empty()
             || spec.command.len() > 128
@@ -81,7 +80,7 @@ impl Runtime {
             .iter()
             .filter(|s| s.lock().is_ok_and(|s| owns_process(&s)))
             .count();
-        if active >= self.config.max_sessions || sessions.len() >= 4096 {
+        if active >= self.config.max_sessions {
             return Err(RemoteError::rejected(
                 ErrorCode::CapacityExhausted,
                 "session registry capacity reached",
@@ -155,19 +154,7 @@ impl Runtime {
                     "output supervisor capacity unavailable; no launch accepted",
                 )
             })?;
-        {
-            let mut readers = lock(&self.readers)?;
-            let mut pending = Vec::new();
-            for reader in readers.drain(..) {
-                if reader.is_finished() {
-                    let _ = reader.join();
-                } else {
-                    pending.push(reader);
-                }
-            }
-            pending.push(reader);
-            *readers = pending;
-        }
+        lock(&self.readers)?.push(reader);
         #[cfg(test)]
         self.fault(StartFault::BeforeJournal);
         if let Some(fence) = &fence {

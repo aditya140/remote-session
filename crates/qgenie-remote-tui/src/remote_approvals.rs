@@ -1,5 +1,5 @@
 //! Owner-wide approval inbox. Choices never acquire a controller or retry.
-use crate::{app::TerminalGuard, remote::clean};
+use crate::{app::TerminalGuard, display::multiline as clean};
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use qgenie_remote_client::{ApprovalPage, LiveClient, LiveFrame};

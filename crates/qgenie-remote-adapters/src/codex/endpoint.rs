@@ -114,6 +114,7 @@ fn resolve(path: &Path) -> Result<(PathBuf, SocketGuard), CodexError> {
 }
 pub(super) async fn connect_owned(
     path: &Path,
+    owner_pid: u32,
     running: watch::Receiver<bool>,
     scope: WriteScope,
 ) -> Result<(WebSocketStream<NativeStream>, SocketGuard), CodexError> {
@@ -125,7 +126,8 @@ pub(super) async fn connect_owned(
             if path.exists() {
                 let (_, guard) = resolve(path)?;
                 let socket =
-                    connect_retained(&guard.identity(), running.clone(), scope.clone()).await?;
+                    connect_retained(&guard.identity(), owner_pid, running.clone(), scope.clone())
+                        .await?;
                 return Ok((socket, guard));
             }
             sleep(Duration::from_millis(10)).await;
@@ -138,6 +140,7 @@ pub(super) async fn connect_owned(
 /// Never resolve/adopt a replacement alias or silently create a new process.
 pub(super) async fn connect_retained(
     identity: &SocketIdentity,
+    owner_pid: u32,
     running: watch::Receiver<bool>,
     scope: WriteScope,
 ) -> Result<WebSocketStream<NativeStream>, CodexError> {
@@ -149,11 +152,19 @@ pub(super) async fn connect_retained(
         let stream = UnixStream::connect(&identity.0.first().ok_or(CodexError::Configuration)?.0)
             .await
             .map_err(|_| CodexError::Process)?;
+        let peer = stream.peer_cred().map_err(|_| CodexError::Process)?;
         // SAFETY: geteuid has no preconditions.
-        if stream.peer_cred().map_err(|_| CodexError::Process)?.uid() != unsafe { libc::geteuid() }
-        {
+        if peer.uid() != unsafe { libc::geteuid() } {
             return Err(CodexError::Configuration);
         }
+        // Owner-death binding and termination cover the child we launched.
+        // A launcher that forks a different server cannot satisfy that contract.
+        #[cfg(target_os = "linux")]
+        if peer.pid().and_then(|pid| u32::try_from(pid).ok()) != Some(owner_pid) {
+            return Err(CodexError::Configuration);
+        }
+        #[cfg(not(target_os = "linux"))]
+        let _ = owner_pid;
         identity.validate()?;
         if !*running.borrow() {
             return Err(CodexError::Process);

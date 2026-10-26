@@ -1,5 +1,6 @@
 //! Owner metadata and protected recorded history. Network work never holds the UI loop.
 use crate::app::{SignalGuard, TerminalGuard};
+use crate::display::multiline as clean;
 use anyhow::Result;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
@@ -30,6 +31,9 @@ struct App {
     machines: Vec<Machine>,
     machine: usize,
     sessions: Vec<Session>,
+    session_after: Option<SessionId>,
+    session_next: Option<SessionId>,
+    active_only: bool,
     selected: usize,
     streams: Vec<HistoryStream>,
     stream: usize,
@@ -49,7 +53,7 @@ struct App {
 }
 enum Update {
     Machines(Vec<Machine>),
-    Sessions(MachineId, Vec<Session>),
+    Sessions(MachineId, Vec<Session>, Option<SessionId>),
     Streams(SessionId, Vec<HistoryStream>, Option<String>, bool),
     History(
         SessionId,
@@ -59,19 +63,6 @@ enum Update {
         bool,
     ),
     Connected(LiveClient, Vec<Machine>),
-}
-pub(crate) fn clean(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if (c.is_control() && c != '\n' && c != '\t')
-                || matches!(c,'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}')
-            {
-                '�'
-            } else {
-                c
-            }
-        })
-        .collect()
 }
 impl App {
     fn matches_machine(machine: &Machine, query: &str) -> bool {
@@ -176,15 +167,16 @@ impl App {
                     self.mode = Mode::Machines;
                 }
             }
-            Update::Sessions(machine, sessions) if Some(machine) == self.machine_id() => {
+            Update::Sessions(machine, sessions, next) if Some(machine) == self.machine_id() => {
                 let selected = self.session_id();
                 self.sessions = sessions;
+                self.session_next = next;
                 self.selected = selected
                     .and_then(|id| self.sessions.iter().position(|s| s.id == id))
                     .unwrap_or(0);
                 self.mode = Mode::Sessions;
                 self.message =
-                    "Enter opens recorded streams. Sessions retain their native lifetime.".into();
+                    "v live view · Enter recordings · b live/all history · n next page · Home first page".into();
             }
             Update::Streams(session, mut streams, next, append)
                 if Some(session) == self.session_id() =>
@@ -311,7 +303,11 @@ impl App {
                         .block(
                             Block::default()
                                 .borders(Borders::ALL)
-                                .title("Sessions · recorded history"),
+                                .title(if self.active_only {
+                                    "Sessions · live"
+                                } else {
+                                    "Sessions · history"
+                                }),
                         )
                         .highlight_style(Style::default().fg(Color::Cyan))
                         .highlight_symbol("› "),
@@ -359,7 +355,7 @@ impl App {
         } else if self.mode == Mode::History {
             "↑/↓ scroll · n next page · Esc streams · r reconnect · q quit"
         } else {
-            "↑/↓ select · / filter · Enter history · a approvals · v live · c create · u resume history · k keys · n more · Esc back · r reconnect · q quit"
+            "↑/↓ select · / filter · Enter history · a approvals · v live · c create · u resume history · k keys · b live/history · n next · Home first · Esc back · r reconnect · q quit"
         };
         let filter = if self.mode == Mode::Machines {
             &self.machine_filter
@@ -386,6 +382,25 @@ impl App {
             areas[2],
         );
     }
+}
+fn cancels_read(code: KeyCode) -> bool {
+    matches!(
+        code,
+        KeyCode::Enter
+            | KeyCode::Esc
+            | KeyCode::Home
+            | KeyCode::F(2 | 3 | 6)
+            | KeyCode::Char('/' | 'a' | 'b' | 'h' | 'r' | 'n' | 'v' | 'c' | 'k' | 'u')
+    )
+}
+async fn session_page(
+    handle: qgenie_remote_client::LiveHandle,
+    machine: MachineId,
+    after: Option<SessionId>,
+    active_only: bool,
+) -> Result<Update, RemoteError> {
+    let (sessions, next) = handle.session_page(machine, after, 64, active_only).await?;
+    Ok(Update::Sessions(machine, sessions, next))
 }
 async fn history(
     api: GatewayClient,
@@ -507,6 +522,9 @@ async fn run_remote_inner(
         machines,
         machine: 0,
         sessions: Vec::new(),
+        session_after: None,
+        session_next: None,
+        active_only: true,
         selected: 0,
         streams: Vec::new(),
         stream: 0,
@@ -549,7 +567,7 @@ async fn run_remote_inner(
                         app.refilter(); terminal.terminal.draw(|frame|app.draw(frame))?; continue;
                     }
                     if key.code==KeyCode::Char('q') || (key.code==KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)) {break;}
-                    if matches!(key.code,KeyCode::Enter|KeyCode::Esc|KeyCode::Char('h'|'r'|'n'|'v'|'c'|'k')) && !jobs.is_empty() {
+                    if cancels_read(key.code) && !jobs.is_empty() {
                         jobs.abort_all();while jobs.join_next().await.is_some() {}
                     }
                     match key.code {
@@ -575,14 +593,20 @@ async fn run_remote_inner(
                                     crate::remote_dialog::drain(Some(client),crate::remote_start::run(&mut terminal,&signals.requested,handle,machine,state,start)).await
                                 };
                                 match result {
-                                    Ok(Some(session))=>{let machine=session.machine;app.mode=Mode::Sessions;app.selected=app.sessions.len();app.sessions.push(session.clone());app.refilter();if let Err(error)=crate::remote_terminal::run(&mut terminal,&signals.requested,client,session).await{app.message=error.to_string();}let handle=client.handle();jobs.spawn(async move {Ok(Update::Sessions(machine,handle.sessions(machine).await?))});},
+                                    Ok(Some(session))=>{let machine=session.machine;app.active_only=true;app.session_after=None;app.mode=Mode::Sessions;app.selected=app.sessions.len();app.sessions.push(session.clone());app.refilter();if let Err(error)=crate::remote_terminal::run(&mut terminal,&signals.requested,client,session).await{app.message=error.to_string();}let handle=client.handle();jobs.spawn(session_page(handle,machine,None,true));},
                                     Ok(None)=>app.message="Creation view closed. Submitted identities remain in your private start journal; uncertain launches are never resent.".into(),
                                     Err(error)=>app.message=error.to_string(),
                                 }
                             }else{app.message="Creation requires a connection and a caller-provided private state directory.".into();}
                         },
                         KeyCode::Char('r') if jobs.is_empty()=>{let api=api.clone();let token=token.clone();jobs.spawn(async move {let machines=api.machines(&token).await?;Ok(Update::Connected(api.connect(&token).await?,machines))});},
-                        KeyCode::Enter if jobs.is_empty() && app.mode==Mode::Machines=>{if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()) {let handle=client.handle();jobs.spawn(async move {Ok(Update::Sessions(machine,handle.sessions(machine).await?))});}},
+                        KeyCode::Enter if jobs.is_empty() && app.mode==Mode::Machines=>{app.active_only=true;app.session_after=None;if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()) {let handle=client.handle();jobs.spawn(session_page(handle,machine,None,true));}},
+                        KeyCode::Char('b')|KeyCode::Home|KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::Sessions=>{
+                            if key.code==KeyCode::Char('b') {app.active_only = !app.active_only;app.session_after=None;}
+                            else if key.code==KeyCode::Home {app.session_after=None;}
+                            else if let Some(next)=app.session_next {app.session_after=Some(next);}else{continue;}
+                            if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()){jobs.spawn(session_page(client.handle(),machine,app.session_after,app.active_only));}
+                        },
                         KeyCode::Enter|KeyCode::Char('h') if jobs.is_empty() && app.mode==Mode::Sessions=>{if let Some(session)=app.session_id() {let api=api.clone();let token=token.clone();jobs.spawn(async move {let page=api.history_streams(&token,session,HistoryStreamsQuery{after:None,limit:64}).await?;Ok(Update::Streams(session,page.streams,page.next,false))});}},
                         KeyCode::Enter if jobs.is_empty() && app.mode==Mode::Streams=>{if let (Some(session),Some(stream))=(app.session_id(),app.streams.get(app.stream)) {let api=api.clone();let token=token.clone();let epoch=stream.stream_epoch;jobs.spawn(history(api,token,session,epoch,None,false));}},
                         KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::Streams=>{if let (Some(session),Some(after))=(app.session_id(),app.stream_next.clone()) {if app.streams.len()>=4096 {app.message="Stream display limit reached; reopen history to browse again.".into();}else{let api=api.clone();let token=token.clone();jobs.spawn(async move {let page=api.history_streams(&token,session,HistoryStreamsQuery{after:Some(after),limit:64}).await?;Ok(Update::Streams(session,page.streams,page.next,true))});}}},
@@ -596,7 +620,7 @@ async fn run_remote_inner(
             update=jobs.join_next(),if !jobs.is_empty()=>{match update {Some(Ok(Ok(update)))=>{if let Some(replacement)=app.apply(update) {drop(live.replace(replacement));}},Some(Ok(Err(error)))=>app.message=format!("{:?}: {}. Replace an expired credential and reopen this view.",error.code,error.message),_=>app.message="Remote request stopped; press r to reconnect.".into()}},
             incoming=async {match &mut live {Some(client)=>client.next().await,None=>std::future::pending().await}}=>{
                 match incoming {Some(event)=>if let LiveFrame::Text(envelope)=&event.frame {app.approvals.event(&envelope.message);match &envelope.message {
-                    Message::Sessions{sessions} if app.mode==Mode::Sessions && envelope.machine==app.machine_id()=>{if let Some(machine)=app.machine_id(){app.apply(Update::Sessions(machine,sessions.clone()));}},
+                    Message::Sessions{..}|Message::SessionUpdates{..} if app.mode==Mode::Sessions && envelope.machine==app.machine_id() && jobs.is_empty()=>{if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()){jobs.spawn(session_page(client.handle(),machine,app.session_after,app.active_only));}},
                     Message::MachineUpdated(_)=>app.reload=true,Message::MachinePage{page,total_pages,..} if page+1==*total_pages=>app.reload=true,Message::Error(error)=>app.message=format!("{:?}: {}",error.code,clean(&error.message)),_=>{}}},None=>{let status=live.as_ref().map(|l|l.status().borrow().clone()).unwrap_or(LiveStatus::Disconnected);app.message=format!("{status:?}; press r to reconnect.");live=None;}}
             }
         }

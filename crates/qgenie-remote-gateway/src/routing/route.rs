@@ -127,6 +127,8 @@ impl Hub {
                 return Ok(());
             }
             Message::SessionList
+            | Message::SessionListPage { .. }
+            | Message::SessionGet { .. }
             | Message::Start(_)
             | Message::LeaseRequest { .. }
             | Message::LeaseRenew { .. }
@@ -141,6 +143,7 @@ impl Hub {
             | Message::Capture
             | Message::ReplayRequest { .. }
             | Message::FsList { .. }
+            | Message::FsRoots
             | Message::ApprovalList => {}
             _ => return self.unsupported(client, Some(id)),
         }
@@ -179,6 +182,33 @@ impl Hub {
                 .store
                 .route_access(actor.owner, machine, session)
                 .await?;
+        }
+        let page_reply = match &envelope.message {
+            Message::SessionListPage {
+                after,
+                limit,
+                active_only,
+            } => {
+                let (sessions, next) = self
+                    .gateway
+                    .store
+                    .session_page(actor.owner, machine, *after, *limit, *active_only)
+                    .await?;
+                Some(Message::SessionPage { sessions, next })
+            }
+            Message::SessionGet { session } => Some(Message::SessionFound(
+                self.gateway
+                    .store
+                    .session_get(actor.owner, machine, *session)
+                    .await?,
+            )),
+            _ => None,
+        };
+        if let Some(body) = page_reply {
+            let mut reply = Envelope::new(body);
+            reply.re = Some(id);
+            reply.machine = Some(machine);
+            return self.client_send(client, Frame::Text(Box::new(reply)), Priority::Event);
         }
         if matches!(envelope.message, Message::SessionList) {
             let sessions = self
@@ -397,6 +427,8 @@ impl Hub {
         if !matches!(
             envelope.message,
             Message::SessionList
+                | Message::SessionListPage { .. }
+                | Message::SessionGet { .. }
                 | Message::Start(_)
                 | Message::LeaseRequest { .. }
                 | Message::LeaseRenew { .. }
@@ -411,6 +443,7 @@ impl Hub {
                 | Message::Capture
                 | Message::ReplayRequest { .. }
                 | Message::FsList { .. }
+                | Message::FsRoots
                 | Message::ApprovalList
         ) || envelope.machine != Some(machine)
             || envelope.re.is_some()
@@ -775,7 +808,7 @@ impl Hub {
                             )
                             .await;
                     }
-                    Message::Sessions { sessions } => {
+                    Message::Sessions { sessions } | Message::SessionUpdates { sessions } => {
                         if sessions.len() > 1024 {
                             return Err(Error::Overloaded);
                         }
@@ -821,6 +854,9 @@ impl Hub {
                     | Message::InputAck { .. }
                     | Message::ActionResult { .. }
                     | Message::FsListed { .. }
+                    | Message::FsRootsListed { .. }
+                    | Message::SessionPage { .. }
+                    | Message::SessionFound(_)
                     | Message::Replay { .. }
                     | Message::Head { .. }
                     | Message::Snapshot { .. }
@@ -891,6 +927,7 @@ impl Hub {
                     | Message::Exited { .. }
                     | Message::Started(_)
                     | Message::Sessions { .. }
+                    | Message::SessionUpdates { .. }
             )
         {
             return Err(Error::Forbidden);
@@ -976,7 +1013,8 @@ impl Hub {
             .route_access(owner, machine, session)
             .await?;
         let frame = data.frame()?;
-        let owner_wide = matches!(&frame,Frame::Text(envelope) if matches!(envelope.message,Message::Sessions{..}|Message::ApprovalRequested(_)|Message::ApprovalCommitted(_)|Message::ApprovalApplication{..}|Message::ApprovalCancelled{..}));
+        let owner_wide = matches!(&frame,Frame::Text(envelope) if matches!(envelope.message,Message::Sessions{..}|Message::SessionUpdates{..}|Message::ApprovalRequested(_)|Message::ApprovalCommitted(_)|Message::ApprovalApplication{..}|Message::ApprovalCancelled{..}));
+        let partial = matches!(&frame, Frame::Text(envelope) if matches!(envelope.message, Message::SessionUpdates {..}));
         let priority = if matches!(frame, Frame::Binary(_)) {
             Priority::Bulk
         } else {
@@ -985,6 +1023,7 @@ impl Hub {
         let peers = self.peers.lock().unwrap();
         for peer in peers.clients.values().filter(|peer| {
             peer.owner == owner
+                && (!partial || peer.session_pages)
                 && peer.expires.load(Ordering::Acquire).saturating_mul(1000)
                     > now_ms().unwrap_or(u64::MAX)
                 && (owner_wide

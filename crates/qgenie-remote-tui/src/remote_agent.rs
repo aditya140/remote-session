@@ -1,4 +1,5 @@
 //! Structured content is rendered as text widgets, never processed as terminal escapes.
+use crate::display::single_line as clean;
 use qgenie_remote_proto::{
     AgentState, RemoteError,
     wire::{AgentEvent, SequencedEvent},
@@ -93,17 +94,6 @@ impl AgentView {
             .flat_map(|text| text.split('\n').map(clean).collect::<Vec<_>>())
             .collect();
     }
-}
-fn clean(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if c.is_control() || matches!(c,'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}') {
-                '�'
-            } else {
-                c
-            }
-        })
-        .collect()
 }
 
 #[cfg(test)]

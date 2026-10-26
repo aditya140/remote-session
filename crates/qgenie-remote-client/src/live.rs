@@ -36,6 +36,8 @@ pub struct LiveHandle {
     id: ClientId,
     pub(crate) origin: String,
     pub(crate) controls: bool,
+    pub(crate) pages: bool,
+    pub(crate) roots: bool,
     pub(crate) replays: bool,
     pub(crate) session_changes: bool,
     pub(crate) agents: bool,
@@ -142,6 +144,8 @@ impl GatewayClient {
             required: required.clone(),
             optional: [
                 "session-control-v1".into(),
+                "session-pages-v1".into(),
+                "root-discovery-v1".into(),
                 "session-replay-v1".into(),
                 "session-changes-v1".into(),
                 "agent-events-v1".into(),
@@ -190,6 +194,8 @@ impl GatewayClient {
                         welcome.capabilities.contains("approval-status-v1"),
                         welcome.capabilities.contains("durable-approvals-v1"),
                         welcome.capabilities.contains("session-changes-v1"),
+                        welcome.capabilities.contains("session-pages-v1"),
+                        welcome.capabilities.contains("root-discovery-v1"),
                     )),
                     _ => Err(protocol()),
                 },
@@ -203,7 +209,17 @@ impl GatewayClient {
                 "gateway negotiation deadline exceeded",
             )
         })??;
-        let (id, controls, replays, agents, approval_status, approvals, session_changes) = id;
+        let (
+            id,
+            controls,
+            replays,
+            agents,
+            approval_status,
+            approvals,
+            session_changes,
+            pages,
+            roots,
+        ) = id;
         let (commands, receive) = mpsc::channel(64);
         let (events, subscription) = mpsc::channel(64);
         let (stop, cancel) = watch::channel(false);
@@ -212,6 +228,8 @@ impl GatewayClient {
             id,
             origin: self.config.origin.clone(),
             controls,
+            pages,
+            roots,
             replays,
             session_changes,
             agents,
@@ -275,9 +293,12 @@ impl LiveHandle {
             || !matches!(
                 envelope.message,
                 Message::SessionList
+                    | Message::SessionListPage { .. }
+                    | Message::SessionGet { .. }
                     | Message::HostGenerationQuery
                     | Message::StartLookup { .. }
                     | Message::FsList { .. }
+                    | Message::FsRoots
                     | Message::Attach { .. }
                     | Message::Capture
                     | Message::ReplayRequest { .. }
@@ -359,6 +380,82 @@ impl LiveHandle {
             ))
         })
     }
+    /// Reads one ID-ordered page for a machine. `limit` must be 1..=256.
+    /// Use the returned cursor for the next page. Pages are not a transactional snapshot;
+    /// restart traversal to include concurrent inserts before the cursor.
+    ///
+    /// # Errors
+    /// Returns an error for invalid bounds, denied or unavailable access, or malformed
+    /// metadata. An older gateway uses the bounded legacy complete-list fallback.
+    pub async fn session_page(
+        &self,
+        machine: MachineId,
+        after: Option<SessionId>,
+        limit: u16,
+        active_only: bool,
+    ) -> Result<(Vec<Session>, Option<SessionId>), RemoteError> {
+        if !(1..=256).contains(&limit) {
+            return Err(refused(
+                ErrorCode::InvalidFrame,
+                "session page limit must be 1..=256",
+            ));
+        }
+        if !self.pages {
+            if after.is_some() {
+                return Err(refused(
+                    ErrorCode::UnsupportedCapability,
+                    "gateway does not support session pages",
+                ));
+            }
+            let mut sessions = self.sessions(machine).await?;
+            if active_only {
+                sessions.retain(|s| {
+                    matches!(
+                        s.state,
+                        SessionState::Accepted
+                            | SessionState::Launching
+                            | SessionState::Running
+                            | SessionState::Idle
+                    )
+                });
+            }
+            return Ok((sessions, None));
+        }
+        let mut request = Envelope::new(Message::SessionListPage {
+            after,
+            limit,
+            active_only,
+        });
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::SessionPage { sessions, next })
+                if valid_session_page(&sessions, next, machine, after, limit) =>
+            {
+                Ok((sessions, next))
+            }
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn session(&self, machine: MachineId, id: SessionId) -> Result<Session, RemoteError> {
+        if !self.pages {
+            return self
+                .sessions(machine)
+                .await?
+                .into_iter()
+                .find(|s| s.id == id)
+                .ok_or_else(|| RemoteError::rejected(ErrorCode::NotFound, "session not found"));
+        }
+        let mut request = Envelope::new(Message::SessionGet { session: id });
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::SessionFound(session))
+                if session.id == id && session.machine == machine =>
+            {
+                Ok(session)
+            }
+            _ => Err(protocol()),
+        }
+    }
     pub async fn sessions(&self, machine: MachineId) -> Result<Vec<Session>, RemoteError> {
         let mut request = Envelope::new(Message::SessionList);
         request.machine = Some(machine);
@@ -369,6 +466,20 @@ impl LiveHandle {
             {
                 Ok(sessions)
             }
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn allowed_roots(&self, machine: MachineId) -> Result<Vec<String>, RemoteError> {
+        if !self.roots {
+            return Err(refused(
+                ErrorCode::UnsupportedCapability,
+                "gateway does not support root discovery; enter an allowed path manually",
+            ));
+        }
+        let mut request = Envelope::new(Message::FsRoots);
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::FsRootsListed { roots }) => Ok(roots),
             _ => Err(protocol()),
         }
     }
@@ -420,6 +531,20 @@ impl LiveHandle {
             _ => Err(protocol()),
         }
     }
+}
+fn valid_session_page(
+    sessions: &[Session],
+    next: Option<SessionId>,
+    machine: MachineId,
+    after: Option<SessionId>,
+    limit: u16,
+) -> bool {
+    sessions.len() <= usize::from(limit)
+        && sessions
+            .iter()
+            .all(|s| s.machine == machine && after.is_none_or(|id| s.id > id))
+        && sessions.windows(2).all(|pair| pair[0].id < pair[1].id)
+        && next.is_none_or(|id| sessions.last().is_some_and(|s| s.id == id))
 }
 impl Pending {
     fn accept(&mut self, envelope: Envelope, budget: &Arc<Semaphore>) -> Result<bool, RemoteError> {
