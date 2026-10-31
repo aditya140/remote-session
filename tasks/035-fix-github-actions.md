@@ -1,6 +1,6 @@
 # Fix GitHub Actions
 
-Status: In progress.
+Status: Complete.
 
 ## Goal and sequence
 
@@ -92,8 +92,7 @@ another build used the same machine. A separate run passed the session workflow,
 native Codex approval delivery, managed start crash checks, and primary-volume
 loss. The [sanitized result](../docs/validation/ci-recording-2026-10-31.json) records
 all five passing phases under `umask 0022`. The timeout did not reproduce in that run. The test assertions and deadlines were not changed.
-Final hosted results remain pending.
-
+The final hosted run passes all jobs.
 
 ## Native cleanup repair plan
 
@@ -113,8 +112,8 @@ The Linux repair passes all seven adapter integration tests, including both nati
 sandbox modes and failed-startup reaping. The unsandboxed test also disconnects
 native IPC before it requests termination. Three owner tests check denied authority,
 partial-stop recovery, preservation of an existing stop, cancelled callers, and an
-unrelated live owner. Kernel process
-descriptors prevent PID reuse from redirecting a signal. The traversal uses `/proc`
+unrelated live owner. Kernel process descriptors prevent PID reuse from redirecting
+a signal. The traversal uses `/proc`
 parent identities because some supported test kernels omit the optional `children`
 files. All 19 adapter unit tests and 75 session-owner tests pass. The latter
 includes actual managed-agent and process-crash checks; the two child-only test
@@ -124,15 +123,21 @@ outside this proof.
 
 ## Hosted evidence
 
-Implementation commit: `0d578cd63c3a13cd763800d2fb4781188452b304`.
+Verified implementation commit: `00a27fe3d857400bb970ce36ed41b5f949e4b601`.
+The final documentation commit changes this report and the progress record only.
 
-- [macOS job](https://github.com/aditya140/remote-session/actions/runs/41222097362/job/124598646703):
-  all workspace, feature, schema, Clippy, PTY, recording, CLI, TUI, and history checks pass.
-- [Specification workflow](https://github.com/aditya140/remote-session/actions/runs/41222097496):
-  all laws, mutation checks, and Rust comparisons pass.
-- Linux passes. The database job exposes the native cleanup failure above.
-  The deployment job also passes in the
-  [Rust workflow](https://github.com/aditya140/remote-session/actions/runs/41222097362).
+| Check | Result |
+| --- | --- |
+| [Linux](https://github.com/aditya140/remote-session/actions/runs/41223632662/job/124603131386) | Pass. Workspace, features, Clippy, schemas, CLI/TUI/history, foreign-user IPC, and full recording storage. |
+| [macOS](https://github.com/aditya140/remote-session/actions/runs/41223632662/job/124603131309) | Pass. Workspace, features, Clippy, schemas, native PTY, recording, CLI/TUI, and history. |
+| [Database and native integration](https://github.com/aditya140/remote-session/actions/runs/41223632662/job/124603131085) | Pass. PostgreSQL/Redis, enrollment, revocation, recording durability, native Codex, and transaction pooling. |
+| [Development deployment](https://github.com/aditya140/remote-session/actions/runs/41223632662/job/124603131329) | Pass. Image build, monitoring, smoke, baseline, restore, and fault recovery. |
+| [Aggregate CI](https://github.com/aditya140/remote-session/actions/runs/41223632662/job/124606378960) | Pass. Every required Rust workflow job succeeded. |
+| [Specification laws](https://github.com/aditya140/remote-session/actions/runs/41223632599) | Pass. All laws, mutation checks, and Rust comparisons. |
+
+The run preserves the [synchronous acceptance report](https://github.com/aditya140/remote-session/actions/runs/41223632662/artifacts/13051576346)
+and the [specification report](https://github.com/aditya140/remote-session/actions/runs/41223632599/artifacts/13050499767).
+The artifacts have the workflow's 14-day retention period. Job logs also record the results.
 
 These checks do not qualify real enterprise identity, native user services,
 production fault domains, or the pilot workload. Those release gates remain open.
