@@ -464,22 +464,25 @@ fn inherited_terminal_tail_records_the_platform_eof_boundary() {
         // while the background process retains its inherited descriptor.
         wait(|| worker.status_scoped(scope.clone()).unwrap().chunks > 0);
         assert_eq!(worker.status_scoped(scope.clone()).unwrap().gaps, 0);
-        let SpoolItem::Content(batch) = worker.fetch_scoped(scope).unwrap().unwrap() else {
-            panic!("observed EOF needs complete content");
-        };
-        assert_eq!(batch.session, info.id);
-        let raw =
-            zstd::bulk::decompress(&STANDARD.decode(&batch.data).unwrap(), 1024 * 1024).unwrap();
         let mut output = Vec::new();
-        for line in raw
-            .split(|byte| *byte == b'\n')
-            .filter(|line| !line.is_empty())
-        {
-            let record: RecordingRecord = serde_json::from_slice(line).unwrap();
-            record.validate(&batch.stream).unwrap();
-            if let RecordedContent::Output { data, .. } = record.content {
-                output.extend(STANDARD.decode(data).unwrap());
+        while let Some(item) = worker.fetch_scoped(scope.clone()).unwrap() {
+            let SpoolItem::Content(batch) = item else {
+                panic!("observed EOF needs complete content");
+            };
+            assert_eq!(batch.session, info.id);
+            let raw = zstd::bulk::decompress(&STANDARD.decode(&batch.data).unwrap(), 1024 * 1024)
+                .unwrap();
+            for line in raw
+                .split(|byte| *byte == b'\n')
+                .filter(|line| !line.is_empty())
+            {
+                let record: RecordingRecord = serde_json::from_slice(line).unwrap();
+                record.validate(&batch.stream).unwrap();
+                if let RecordedContent::Output { data, .. } = record.content {
+                    output.extend(STANDARD.decode(data).unwrap());
+                }
             }
+            acknowledge(&worker, &scope, &batch);
         }
         assert_eq!(output, b"DONE");
         assert!(
