@@ -39,7 +39,8 @@ jobs:
         toolchain: 1.99.1
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
-        cache-on-failure: true
+        cache-on-failure: false
+        key: deployment-v3
     - run: cargo build --locked --package qgenie-remote
     - run: cargo build --locked --package qgenie-remote-client --example remote_load
     - run: python3 deploy/compose/stack.py init
@@ -101,8 +102,8 @@ jobs:
         components: rustfmt, clippy
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
-        cache-on-failure: true
-        key: ${{ matrix.suite }}-v2
+        cache-on-failure: false
+        key: ${{ matrix.suite }}-v3
     - run: cargo fmt --all -- --check
       if: matrix.suite == 'workspace'
     - run: python3 -m unittest discover -s tests/tools -v
@@ -188,8 +189,8 @@ jobs:
         toolchain: 1.99.1
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
-        cache-on-failure: true
-        key: ${{ matrix.suite }}-v2
+        cache-on-failure: false
+        key: ${{ matrix.suite }}-v3
     - name: Create private synthetic PostgreSQL test binding
       run: |
         python3 - <<'PY'
@@ -264,8 +265,8 @@ jobs:
         toolchain: 1.99.1
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
-        cache-on-failure: true
-        key: recording-v2
+        cache-on-failure: false
+        key: recording-v3
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: '22'

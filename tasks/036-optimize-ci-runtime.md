@@ -63,3 +63,9 @@ the new build context omitted its two compile-time synthetic identity inputs.
 Restore those exact files in the context and source layer, then rerun the full
 suite. The aggregate gate correctly failed. Do not count that run as successful
 deployment evidence.
+
+The superseded warm-up run also exposed a cache-policy issue. With
+`cache-on-failure: true`, cancelled compiles saved incomplete dependency caches.
+GitHub cache entries are immutable, so later exact hits cannot fill those entries.
+Save caches only after successful jobs. Use fresh version-three keys for the final
+profile, then let the full run finish before measuring cache reuse.

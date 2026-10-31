@@ -48,7 +48,8 @@ was removed; the bounded adapter step runs the full adapter suite once.
 
 Development and test builds omit debug symbols to reduce compilation, linking,
 and cache size. Debug assertions and the production release profile remain as
-configured in `Cargo.toml`. Rust jobs retain dependency caches after failure.
+configured in `Cargo.toml`. Only successful jobs save Rust dependency caches. This prevents cancelled or
+failed compiles from creating incomplete immutable cache entries.
 Platform suites and integration groups use separate keys to avoid overwriting different feature artifacts.
 Specification comparisons use an explicit target directory for their temporary
 Cargo project, so the cache retains its dependency artifacts.
