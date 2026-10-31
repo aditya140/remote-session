@@ -81,7 +81,7 @@ impl Runtime {
     ) -> Result<(Vec<SessionInfo>, Option<SessionId>), RemoteError> {
         let ids = self.page_ids(None, after, limit, active_only)?;
         let mut sessions = Vec::new();
-        let mut bytes = 0;
+        let mut bytes = 2; // JSON array brackets; each later record also needs a comma.
         for id in ids {
             let session = self.session(id)?;
             let mut state = lock(&session)?;
@@ -89,7 +89,8 @@ impl Runtime {
             self.recording_warning(&mut state);
             bytes += serde_json::to_vec(&state.info)
                 .map_err(storage_error)?
-                .len();
+                .len()
+                + usize::from(!sessions.is_empty());
             if sessions.len() >= usize::from(limit) || bytes > 512 * 1024 {
                 let last = sessions
                     .last()
@@ -163,11 +164,12 @@ impl Runtime {
     ) -> Result<Vec<wire::Session>, RemoteError> {
         let mut sessions = Vec::new();
         let mut after = None;
-        let mut bytes = 0;
+        let mut bytes = 2; // JSON array brackets; each later record also needs a comma.
         loop {
             let (page, next) = self.remote_page(scope, after, 256, false)?;
             for info in page {
-                bytes += serde_json::to_vec(&info).map_err(storage_error)?.len();
+                bytes += serde_json::to_vec(&info).map_err(storage_error)?.len()
+                    + usize::from(!sessions.is_empty());
                 if sessions.len() >= 1024 || bytes > 512 * 1024 {
                     return Err(RemoteError::rejected(
                         ErrorCode::Overloaded,
@@ -192,10 +194,11 @@ impl Runtime {
     ) -> Result<(Vec<wire::Session>, Option<SessionId>), RemoteError> {
         let ids = self.page_ids(Some(scope), after, limit, active_only)?;
         let mut sessions = Vec::new();
-        let mut bytes = 0;
+        let mut bytes = 2; // JSON array brackets; each later record also needs a comma.
         for id in ids {
             let session = self.remote_session(scope, id)?;
-            bytes += serde_json::to_vec(&session).map_err(storage_error)?.len();
+            bytes += serde_json::to_vec(&session).map_err(storage_error)?.len()
+                + usize::from(!sessions.is_empty());
             if sessions.len() >= usize::from(limit) || bytes > 512 * 1024 {
                 let last = sessions
                     .last()
@@ -233,12 +236,12 @@ mod tests {
         for n in 0..4100 {
             let mut spec = super::super::tests::spec(dir.path(), IdempotencyKey::new());
             if n < 16 {
-                spec.command.push("x".repeat(60_000));
+                spec.command.push(String::new());
             }
             let mut parameters = serde_json::to_value(&spec).unwrap();
             parameters.as_object_mut().unwrap().remove("key");
-            let remote = (n % 2 == 1).then_some(&scope);
-            let info = SessionInfo {
+            let remote = (n >= 16 && n % 2 == 1).then_some(&scope);
+            let mut info = SessionInfo {
                 id: if n < 16 {
                     SessionId::from_bytes((n as u128 + 1).to_be_bytes())
                 } else {
@@ -256,6 +259,15 @@ mod tests {
                 recording_warning: Some("recording tail is uncertain".into()),
                 agent: None,
             };
+            if n < 16 {
+                // Eight records alone fill the budget. Their JSON array also
+                // needs brackets and separators, independent of path length.
+                let padding = 64 * 1024 - serde_json::to_vec(&info).unwrap().len();
+                *spec.command.last_mut().unwrap() = "x".repeat(padding);
+                info.command = spec.command.clone();
+                parameters = serde_json::to_value(&spec).unwrap();
+                parameters.as_object_mut().unwrap().remove("key");
+            }
             let store = lock(&runtime.store).unwrap();
             store
                 .insert(&info, &spec, &fingerprint(&parameters).unwrap(), remote)

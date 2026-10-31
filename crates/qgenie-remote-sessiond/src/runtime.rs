@@ -679,11 +679,12 @@ impl Runtime {
     pub fn list(&self) -> Result<Vec<SessionInfo>, RemoteError> {
         let mut after = None;
         let mut sessions = Vec::new();
-        let mut bytes = 0;
+        let mut bytes = 2; // JSON array brackets; records also need separators.
         loop {
             let (page, next) = self.local_page(after, 256, false)?;
             for info in page {
-                bytes += serde_json::to_vec(&info).map_err(storage_error)?.len();
+                bytes += serde_json::to_vec(&info).map_err(storage_error)?.len()
+                    + usize::from(!sessions.is_empty());
                 if bytes > 512 * 1024 {
                     return Err(RemoteError::rejected(
                         ErrorCode::Overloaded,

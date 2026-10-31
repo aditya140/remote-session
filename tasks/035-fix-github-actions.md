@@ -208,3 +208,24 @@ Repair sequence:
 2. Keep the measured cross-node counter, bounded attempts, and token-affinity
    changes. Preserve the deployment assertion.
 3. Run Python validation and verify the actual four-gateway deployment in CI.
+
+## Inventory byte-budget follow-up
+
+The macOS all-feature owner tests on `18ed4f5` expose a serialized page above the
+512 KiB limit. The inventory code sums each record but omits JSON array brackets
+and separators. Random IDs and platform path lengths can place a page near that
+boundary. The same omission exists in local and remote pages and legacy lists.
+
+Repair sequence:
+
+1. Make the existing large-history fixture place records exactly at the byte
+   boundary. Reproduce the overflow on Linux without depending on path length.
+2. Include array brackets and separators in all four inventory budgets. Preserve
+   pagination cursors, page limits, and the overload result for legacy lists.
+3. Run the owner tests and Clippy. Verify the hosted platform and deployment jobs.
+
+The adjusted large-history fixture reproduces the overflow on the original code.
+With the repair, all 70 non-ignored Linux owner tests pass. Five native tests retain
+their existing separate qualification path. The two crash-helper entry points are
+excluded from direct execution and still run through their parent fixtures.
+Formatting and all-feature owner Clippy pass. Hosted verification follows.

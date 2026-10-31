@@ -46,7 +46,9 @@ macOS matrix, database/native integration, deployment job, aggregate CI, and
 specification workflow all pass on `00a27fe`. A fresh `main` run exposed a
 routing-fixture recovery race, stale TUI startup metadata, and a deployment probe
 that read durable inventory instead of contacting the native owner. Those repairs
-pass local checks. Final hosted verification is in progress.
+pass local checks. A later macOS run exposed omitted JSON array overhead in the
+inventory page budget. Its deterministic regression and the owner suite now pass
+on Linux. Final hosted verification is in progress.
 The changes fix private test permissions,
 macOS portability, presence-cleanup and protocol-recovery races, and native Codex tool
 cleanup across Linux process groups. The task records the plan, regressions, and hosted
