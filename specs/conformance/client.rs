@@ -20,6 +20,7 @@ fn recovery() {
         ErrorCode::FrameTooLarge,
         ErrorCode::Overloaded,
         ErrorCode::IdempotencyConflict,
+        ErrorCode::AmbiguousName,
         ErrorCode::StaleGeneration,
         ErrorCode::AlreadyResolved,
         ErrorCode::HistoryTruncated,
