@@ -60,7 +60,7 @@ jobs:
       - name: Adapter lifecycle
         timeout-minutes: 4
         run: cargo test --package qgenie-remote-adapters --all-features --lib --locked -- --nocapture
-      - run: cargo test --workspace --locked
+      - run: cargo test --workspace --locked --no-fail-fast
       - run: cargo xtask boundaries
       - run: cargo xtask schema --check
       - run: cargo xtask rest-schema --check

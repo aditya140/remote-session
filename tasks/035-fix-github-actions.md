@@ -59,6 +59,11 @@ reads and the CLI API route deny access.
 - The macOS roots fixture compared canonical output with `/var` input paths.
   macOS resolves those paths through `/private/var`. The assertion now compares
   canonical paths, as the filesystem contract requires.
+- The inherited-terminal recording fixture assumed Linux EOF behavior. On macOS,
+  session-leader exit closes the terminal stream despite the inherited descriptor.
+  The fixture will require complete captured output on macOS and retain the durable
+  recovery-loss assertion on Linux. Workspace tests will use `--no-fail-fast` so a
+  failing crate does not hide results from later crates.
 - A later database run missed the offline update after a host disconnected.
   Background presence refresh can replace the bytes that disconnect cleanup uses
   for comparison. Cleanup can also race a refresh already in flight. The repair

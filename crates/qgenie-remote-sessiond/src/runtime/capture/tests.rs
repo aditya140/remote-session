@@ -8,6 +8,7 @@ use qgenie_remote_proto::{
     wire::{CommitReceipt, LossReason, ReceiptDisposition, Timestamp},
 };
 
+#[track_caller]
 fn wait(mut predicate: impl FnMut() -> bool) {
     let until = Instant::now() + Duration::from_secs(6);
     while !predicate() {
@@ -445,7 +446,7 @@ fn failed_recording_initialization_does_not_launch_a_scoped_child_or_block_local
 }
 
 #[test]
-fn inherited_terminal_tail_is_a_durable_gap_before_native_owner_restart() {
+fn inherited_terminal_tail_records_the_platform_eof_boundary() {
     let temp = directory();
     let path = temp.path().canonicalize().unwrap();
     let scope = scope();
@@ -457,12 +458,50 @@ fn inherited_terminal_tail_is_a_durable_gap_before_native_owner_restart() {
     wait(|| runtime.readers_finished());
     assert!(began.elapsed() < Duration::from_secs(2));
     let worker = runtime.recording_worker().unwrap();
-    wait(|| worker.status_scoped(scope.clone()).unwrap().gaps > 0);
-    let SpoolItem::Gap(gap) = worker.fetch_scoped(scope).unwrap().unwrap() else {
-        panic!("unobserved EOF needs loss");
-    };
-    assert!(matches!(gap.reason, LossReason::RecoveryLoss));
-    assert_eq!(gap.session, info.id);
+    #[cfg(target_os = "macos")]
+    {
+        // Darwin reports EOF when the controlling session leader exits, even
+        // while the background process retains its inherited descriptor.
+        wait(|| worker.status_scoped(scope.clone()).unwrap().chunks > 0);
+        assert_eq!(worker.status_scoped(scope.clone()).unwrap().gaps, 0);
+        let SpoolItem::Content(batch) = worker.fetch_scoped(scope).unwrap().unwrap() else {
+            panic!("observed EOF needs complete content");
+        };
+        assert_eq!(batch.session, info.id);
+        let raw =
+            zstd::bulk::decompress(&STANDARD.decode(&batch.data).unwrap(), 1024 * 1024).unwrap();
+        let mut output = Vec::new();
+        for line in raw
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+        {
+            let record: RecordingRecord = serde_json::from_slice(line).unwrap();
+            record.validate(&batch.stream).unwrap();
+            if let RecordedContent::Output { data, .. } = record.content {
+                output.extend(STANDARD.decode(data).unwrap());
+            }
+        }
+        assert_eq!(output, b"DONE");
+        assert!(
+            runtime
+                .list()
+                .unwrap()
+                .iter()
+                .find(|session| session.id == info.id)
+                .unwrap()
+                .recording_warning
+                .is_none()
+        );
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        wait(|| worker.status_scoped(scope.clone()).unwrap().gaps > 0);
+        let SpoolItem::Gap(gap) = worker.fetch_scoped(scope).unwrap().unwrap() else {
+            panic!("unobserved EOF needs loss");
+        };
+        assert!(matches!(gap.reason, LossReason::RecoveryLoss));
+        assert_eq!(gap.session, info.id);
+    }
     runtime.shutdown(false).unwrap();
     drop(worker);
     drop(runtime);
