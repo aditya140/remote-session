@@ -7,7 +7,7 @@ rust-version.workspace = true
 
 [features]
 default = ["local-ipc"]
-elapsed-clock = ["dep:libc"]
+elapsed-clock = ["dep:libc", "dep:mach2"]
 local-ipc = ["dep:tokio", "dep:fs2", "dep:libc", "dep:serde_json"]
 ws = ["dep:tokio", "dep:futures-util", "dep:tokio-tungstenite", "dep:serde_json"]
 client-ws = ["ws", "dep:tokio-rustls", "dep:rustls", "dep:rustls-native-certs", "dep:rustls-pemfile", "dep:url", "dep:base64", "dep:ipnet", "dep:percent-encoding"]
@@ -30,6 +30,9 @@ base64 = { workspace = true, optional = true }
 ipnet = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 percent-encoding = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+mach2 = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

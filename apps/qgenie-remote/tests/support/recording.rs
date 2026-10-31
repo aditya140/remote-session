@@ -26,12 +26,20 @@ use qgenie_remote_sessiond::{
     RedactionRules, SpoolConfig,
 };
 use std::{
+    os::unix::fs::PermissionsExt,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
     time::{SystemTime, UNIX_EPOCH},
 };
+
+fn private_directory() -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap()
+}
 
 async fn lost_chunk_ack(
     State(pending): State<Arc<AtomicBool>>,
@@ -195,7 +203,7 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
         )
         .await;
     let api = GatewayApi::new(&origin, Some(tls.ca.path())).unwrap();
-    let directory = tempfile::tempdir().unwrap();
+    let directory = private_directory();
     let mut identity = Identity::open(
         directory.path(),
         &origin,
@@ -218,7 +226,7 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
         .unwrap();
     let credentials = identity.machine_credentials().unwrap();
     let authentication = api.authenticate_machine(&credentials).await.unwrap();
-    let state = tempfile::tempdir().unwrap();
+    let state = private_directory();
     let native_path = std::fs::canonicalize(state.path()).unwrap();
     let at = now();
     let session = Session {
@@ -490,7 +498,7 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
         .unwrap();
     let mut live = remote_sdk.connect(&tokens.access).await.unwrap();
     let handle = live.handle();
-    let starts = tempfile::tempdir().unwrap();
+    let starts = private_directory();
     let local = qgenie_remote_client::Client::local(&native_path);
     assert!(local.sessions().await.unwrap().is_empty());
     let roots = handle.allowed_roots(binding.machine).await.unwrap();

@@ -50,16 +50,13 @@ fn platform() -> Option<Duration> {
 }
 #[cfg(target_os = "macos")]
 fn platform() -> Option<Duration> {
-    // Available since macOS 10.12; unlike mach_absolute_time this includes sleep.
-    unsafe extern "C" {
-        fn mach_continuous_time() -> u64;
-    }
+    use mach2::mach_time::{mach_continuous_time, mach_timebase_info};
     static FACTOR: std::sync::OnceLock<Option<(u32, u32)>> = std::sync::OnceLock::new();
     let &(numer, denom) = FACTOR
         .get_or_init(|| {
-            let mut info = std::mem::MaybeUninit::<libc::mach_timebase_info>::uninit();
+            let mut info = std::mem::MaybeUninit::<mach_timebase_info>::uninit();
             // SAFETY: the kernel writes a complete timebase into this output pointer.
-            if unsafe { libc::mach_timebase_info(info.as_mut_ptr()) } != 0 {
+            if unsafe { mach_timebase_info(info.as_mut_ptr()) } != 0 {
                 return None;
             }
             // SAFETY: successful mach_timebase_info initialized both fields.
@@ -72,6 +69,7 @@ fn platform() -> Option<Duration> {
         })
         .as_ref()?;
     // SAFETY: this takes no arguments and returns a process-independent kernel tick.
+    // Available since macOS 10.12; unlike mach_absolute_time this includes sleep.
     let ticks = unsafe { mach_continuous_time() };
     let nanos = u128::from(ticks) * u128::from(numer) / u128::from(denom);
     Some(Duration::new(
@@ -87,6 +85,14 @@ fn platform() -> Option<Duration> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    fn native_clock_advances() {
+        let before = now().unwrap();
+        std::thread::sleep(Duration::from_millis(1));
+        assert!(now().unwrap() > before);
+    }
+
     #[test]
     fn failures_and_regression_cannot_revive_old_deadlines() {
         let mut series = Series::default();

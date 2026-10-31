@@ -91,6 +91,8 @@ cargo build --locked --package qgenie-remote
 python3 tests/e2e/local_tui_smoke.py target/debug/qgenie-remote
 ```
 
+See the [CI guide](docs/development/ci.md) for hosted checks and failure diagnosis.
+
 Run `cargo xtask schema` after a public contract change. Commit the generated schema and lockfile. The dependency checker enforces the [component graph](components.md). Create a crate only with implemented behavior, a focused public API, and a README that explains persistence, cancellation, limits, and verification.
 
 The managed workspace provides its tools through `/workspace/.remote-session-tools/env.sh`. Source that file before development commands in this environment.

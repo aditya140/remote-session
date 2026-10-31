@@ -41,6 +41,10 @@ onto one `main` branch. It extends client laws for completion evidence, recovery
 and credential validity. The specification runner compares those decisions with the actual
 SDK and records separate model-proof and implementation-comparison evidence.
 
+[Task 035](035-fix-github-actions.md) tracks the hosted CI repairs. It reproduces the
+recording fixture permissions failure and replaces deprecated macOS clock bindings.
+See the [CI guide](../docs/development/ci.md) for workflow coverage and required results.
+
 ## Completed milestone — core journey repairs
 
 [Task 029](029-stabilize-core-journey.md) records the user-authorized repair plan and its

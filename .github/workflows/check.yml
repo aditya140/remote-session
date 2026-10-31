@@ -1,15 +1,25 @@
 name: Rust checks
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   development-deployment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: 1.99.1
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo build --locked --package qgenie-remote
       - run: cargo build --locked --package qgenie-remote-client --example remote_load
       - run: python3 deploy/compose/stack.py init
@@ -24,17 +34,21 @@ jobs:
         if: always()
         run: python3 deploy/compose/stack.py down
   check:
+    timeout-minutes: 35
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: 1.99.1
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --all -- --check
       - run: python3 -m unittest discover -s tests/tools -v
       - run: cargo check --workspace --all-targets --locked
@@ -58,6 +72,7 @@ jobs:
       - run: cargo clippy --package qgenie-remote-adapters --all-features --all-targets --locked -- -D warnings
       - run: cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings
       - run: cargo test --package qgenie-remote-sessiond --all-features --locked
+      - run: cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings
       - run: cargo build --package qgenie-remote --locked
       - run: python3 tests/e2e/local_tui_smoke.py target/debug/qgenie-remote
       - run: python3 tests/e2e/history_capacity_smoke.py target/debug/qgenie-remote
@@ -66,7 +81,8 @@ jobs:
       - if: runner.os == 'Linux'
         run: bash tests/e2e/recording_disk_full.sh
   postgres:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     services:
       redis:
         image: redis:8-alpine
@@ -85,14 +101,17 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: 1.99.1
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+          package-manager-cache: false
       - name: Install the pinned native Codex fixture
         run: |
           npm install --prefix "$RUNNER_TEMP/qgr-codex" --no-audit --no-fund --ignore-scripts --save-exact @openai/codex@0.159.2
@@ -141,7 +160,7 @@ jobs:
         run: cargo test --package qgenie-remote-adapters --all-features --test codex_native --locked -- --ignored
       - name: Preserve sanitized acceptance result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: synchronous-acceptance
           path: target/validation/synchronous-report.json
@@ -152,3 +171,22 @@ jobs:
           QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
           QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
           QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway
+
+  ci:
+    name: CI
+    if: always()
+    needs: [check, postgres, development-deployment]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = json.loads(os.environ['RESULTS'])
+          for name, job in results.items():
+              print(f"{name}: {job['result']}")
+          sys.exit(any(job['result'] != 'success' for job in results.values()))
+          PY
