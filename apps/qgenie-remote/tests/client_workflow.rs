@@ -528,5 +528,10 @@ async fn malformed_gateway_frames_stop_observation_without_reconnect() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(peer.connections.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        peer.connections.load(Ordering::SeqCst),
+        1,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

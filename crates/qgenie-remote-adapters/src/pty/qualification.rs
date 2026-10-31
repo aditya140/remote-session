@@ -5,8 +5,20 @@ use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 struct Owned(PtyProcess);
 impl Drop for Owned {
     fn drop(&mut self) {
+        eprintln!("PTY cleanup: terminate");
         let _ = self.0.control.terminate();
-        let _ = self.0.child.wait();
+        eprintln!("PTY cleanup: drain and reap");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut bytes = [0; 32768];
+        while self.0.child.try_wait().is_ok_and(|status| status.is_none()) {
+            let _ = self.0.reader.try_read(&mut bytes);
+            if Instant::now() >= deadline {
+                eprintln!("PTY cleanup: child did not exit after termination");
+                break;
+            }
+            thread::sleep(Duration::from_millis(2));
+        }
+        eprintln!("PTY cleanup: complete");
     }
 }
 fn process(command: &str) -> Owned {
@@ -26,7 +38,12 @@ fn until(process: &mut Owned, predicate: impl Fn(&[u8]) -> bool) -> Vec<u8> {
     let mut output = Vec::new();
     let mut bytes = vec![0; qgenie_remote_proto::MAX_PTY_BYTES * 2];
     while !predicate(&output) {
-        assert!(Instant::now() < deadline, "PTY output timed out");
+        assert!(
+            Instant::now() < deadline,
+            "PTY output timed out after {} bytes, tail {:?}",
+            output.len(),
+            String::from_utf8_lossy(&output[output.len().saturating_sub(80)..]),
+        );
         match process.0.reader.try_read(&mut bytes) {
             Ok(0) => panic!("unexpected PTY EOF"),
             Ok(count) => {
