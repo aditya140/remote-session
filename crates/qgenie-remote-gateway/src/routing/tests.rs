@@ -733,7 +733,32 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
             .unwrap();
     assert_eq!(generation, "2");
     let _ = client.close().await;
+    // Expose local registration before the replacement's route hint is ready.
+    // Bound the injected write pause below the broker's two-second budget.
+    let _: () = redis::pipe()
+        .atomic()
+        .cmd("DEL")
+        .arg(super::broker::hint_key(enrolled.machine))
+        .ignore()
+        .cmd("CLIENT")
+        .arg("PAUSE")
+        .arg(750)
+        .arg("WRITE")
+        .ignore()
+        .query_async(&mut control)
+        .await
+        .unwrap();
     let mut client = connect(&server_a, ca.path(), "client", &owner_jwt).await;
+    // ConnectionReady admits a local peer; Redis discovery can still be healing.
+    // Wait for public presence before issuing this one cross-node request.
+    receive!(&mut client, |envelope| match &envelope.message {
+        Message::MachinePage { machines, .. } => machines
+            .iter()
+            .any(|machine| machine.id == enrolled.machine && machine.online),
+        Message::MachineUpdated(machine) => machine.id == enrolled.machine && machine.online,
+        _ => false,
+    })
+    .await;
     let mut attach = Envelope::new(Message::Attach {
         after: Counter(131),
     });
@@ -741,7 +766,12 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     attach.session = Some(session.id);
     let id = attach.id;
     send!(&client, attach).await;
-    receive_host!(&mut replacement, |envelope| envelope.id == id).await;
+    tokio::select! {
+        _ = receive_host!(&mut replacement, |envelope| envelope.id == id) => (),
+        reply = receive!(&mut client, |envelope| envelope.re == Some(id)) => {
+            panic!("attach returned before host dispatch: {:?}", reply.message);
+        }
+    }
     let mut reply = Envelope::new(Message::Head {
         floor: Counter(1),
         head: Counter(131),

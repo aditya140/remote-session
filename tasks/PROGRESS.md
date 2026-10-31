@@ -41,9 +41,11 @@ onto one `main` branch. It extends client laws for completion evidence, recovery
 and credential validity. The specification runner compares those decisions with the actual
 SDK and records separate model-proof and implementation-comparison evidence.
 
-[Task 035](035-fix-github-actions.md) completes the hosted CI repairs. The Linux and
+[Task 035](035-fix-github-actions.md) tracks the hosted CI repairs. The Linux and
 macOS matrix, database/native integration, deployment job, aggregate CI, and
-specification workflow all pass on `00a27fe`. The changes fix private test permissions,
+specification workflow all pass on `00a27fe`. A fresh `main` run exposed a
+routing-fixture recovery race, so final verification is in progress again.
+The changes fix private test permissions,
 macOS portability, presence-cleanup and protocol-recovery races, and native Codex tool
 cleanup across Linux process groups. The task records the plan, regressions, and hosted
 run links. See the [CI guide](../docs/development/ci.md) for workflow coverage and required

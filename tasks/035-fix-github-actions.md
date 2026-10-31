@@ -1,6 +1,6 @@
 # Fix GitHub Actions
 
-Status: Complete.
+Status: In progress.
 
 ## Goal and sequence
 
@@ -92,7 +92,8 @@ another build used the same machine. A separate run passed the session workflow,
 native Codex approval delivery, managed start crash checks, and primary-volume
 loss. The [sanitized result](../docs/validation/ci-recording-2026-10-31.json) records
 all five passing phases under `umask 0022`. The timeout did not reproduce in that run. The test assertions and deadlines were not changed.
-The final hosted run passes all jobs.
+The repair-branch run passes all jobs. A fresh run on `main` exposed another
+intermittent routing-fixture failure, described below.
 
 ## Native cleanup repair plan
 
@@ -124,7 +125,7 @@ outside this proof.
 ## Hosted evidence
 
 Verified implementation commit: `00a27fe3d857400bb970ce36ed41b5f949e4b601`.
-The final documentation commit changes this report and the progress record only.
+Documentation commit `d286917` changes this report and the progress record only.
 
 | Check | Result |
 | --- | --- |
@@ -141,3 +142,26 @@ The artifacts have the workflow's 14-day retention period. Job logs also record 
 
 These checks do not qualify real enterprise identity, native user services,
 production fault domains, or the pilot workload. Those release gates remain open.
+
+## Main-branch recovery follow-up
+
+The fresh `main` run on `d286917` failed while waiting for an attach request at a
+replacement host after Redis publisher loss. Host `ConnectionReady` confirms local
+registration. It precedes route-hint publication, which can recover independently.
+The fixture sent its new cross-node attach before it observed that discovery state.
+
+Repair sequence:
+
+1. Reproduce a delayed route hint after the replacement host registers.
+2. Make the fixture wait for the public online inventory before it sends the one
+   attach request. Preserve the deadline and avoid replaying an uncertain request.
+3. Check the full PostgreSQL/Redis proof and repeat it. Run hosted CI again.
+
+A controlled missing hint and 750 ms Redis write pause reproduces an immediate
+`NotFound` reply before host dispatch. This pause is below the existing two-second
+broker budget. With the public-presence wait, the same full routing proof passes
+in 68.24 seconds. The test sends one attach request and keeps its eight-second
+forwarding deadline. A concurrent client read now reports an early error directly.
+Gateway Clippy also passes. Two fresh runs of the exact CI database command
+pass all 26 tests in 68.72 and 69.03 seconds. Hosted verification of this fixture
+correction remains in progress.
