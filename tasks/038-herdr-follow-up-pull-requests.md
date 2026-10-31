@@ -353,7 +353,7 @@ the CLI documentation check, and the preview compatibility check passed.
 | 5 | [#13](https://github.com/aditya140/remote-session/pull/13) | Generated CLI docs and preview compatibility checks. Released N-2 evidence remains open. |
 | 6 | [#14](https://github.com/aditya140/remote-session/pull/14) | Composed reliability regressions and reproduced spool lock fix. |
 | 7 | [#15](https://github.com/aditya140/remote-session/pull/15) | Research decision and pilot gate. No automatic coordination runtime. |
-| 8 | Owner-upgrade research PR | Research decision and binary qualification gates. No live handoff runtime. |
+| 8 | [#16](https://github.com/aditya140/remote-session/pull/16) | Research decision and binary qualification gates. No live handoff runtime. |
 
 The PRs are stacked in this order. Main is unchanged. Each issue has a design
 record before implementation and an evidence record afterward. Hosted checks
