@@ -854,6 +854,54 @@
         "body": {
           "type": "object",
           "properties": {
+            "change": {
+              "$ref": "#/$defs/SessionMetadataChange"
+            }
+          },
+          "required": [
+            "change"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "session.metadata.update"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "session.resolve"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
             "sessions": {
               "type": "array",
               "items": {
@@ -2779,6 +2827,7 @@
         "frame_too_large",
         "overloaded",
         "idempotency_conflict",
+        "ambiguous_name",
         "stale_generation",
         "already_resolved",
         "history_truncated",
@@ -3513,6 +3562,9 @@
         "machine": {
           "$ref": "#/$defs/MachineId"
         },
+        "metadata": {
+          "$ref": "#/$defs/SessionMetadata"
+        },
         "origin": {
           "$ref": "#/$defs/Origin"
         },
@@ -3614,6 +3666,82 @@
               "const": "steer"
             }
           },
+          "required": [
+            "kind",
+            "data"
+          ]
+        }
+      ]
+    },
+    "SessionMetadata": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "SessionMetadataChange": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "const": "rename"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "key"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "const": "label"
+            }
+          },
+          "additionalProperties": false,
           "required": [
             "kind",
             "data"

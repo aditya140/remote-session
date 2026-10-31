@@ -8,6 +8,7 @@ mod edge;
 mod hub;
 mod inventory;
 mod message;
+mod metadata;
 mod metrics;
 mod pending;
 mod route;

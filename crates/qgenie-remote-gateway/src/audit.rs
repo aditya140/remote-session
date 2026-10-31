@@ -15,6 +15,7 @@ pub enum AuditAction {
     SessionTerminationRequested,
     MachineKeyRecovered,
     MachineMetadataChanged,
+    SessionMetadataChanged,
     MachineRevoked,
     UserRevoked,
     GlobalRevoked,

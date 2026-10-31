@@ -251,3 +251,46 @@ fn input_acknowledgments_decode_legacy_and_receipt_shapes() {
     let decoded: Message = serde_json::from_value(receipt).unwrap();
     assert!(matches!(decoded, Message::InputAck { turn: Some(turn), .. } if turn == "native-turn"));
 }
+
+#[test]
+fn session_metadata_is_bounded_and_rejects_unknown_fields() {
+    use qgenie_remote_proto::wire::{SessionMetadata, SessionMetadataChange};
+    let mut metadata = SessionMetadata::default();
+    assert!(metadata.is_empty());
+    for name in ["", " name", "name\n", &"x".repeat(129)] {
+        assert!(
+            metadata
+                .apply(&SessionMetadataChange::Rename(Some(name.into())))
+                .is_err()
+        );
+    }
+    metadata
+        .apply(&SessionMetadataChange::Rename(Some("review-api".into())))
+        .unwrap();
+    for index in 0..16 {
+        metadata
+            .apply(&SessionMetadataChange::Label {
+                key: format!("key{index}"),
+                value: Some("value".into()),
+            })
+            .unwrap();
+    }
+    assert!(
+        metadata
+            .apply(&SessionMetadataChange::Label {
+                key: "extra".into(),
+                value: Some("value".into())
+            })
+            .is_err()
+    );
+    assert!(metadata.matches("REVIEW"));
+    assert!(metadata.matches("KEY15"));
+    metadata
+        .apply(&SessionMetadataChange::Label {
+            key: "key0".into(),
+            value: None,
+        })
+        .unwrap();
+    assert_eq!(metadata.labels.len(), 15);
+    assert!(serde_json::from_str::<SessionMetadata>(r#"{"role":"administrator"}"#).is_err());
+}

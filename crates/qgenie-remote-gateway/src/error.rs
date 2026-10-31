@@ -25,6 +25,8 @@ pub enum Error {
     Draining,
     #[error("identity conflicts with existing enrollment")]
     Conflict,
+    #[error("session name is ambiguous; use a stable session ID")]
+    AmbiguousName,
     #[error("another controller holds the session; confirm takeover")]
     ControlHeld,
     #[error("controller proposal or generation is stale")]
@@ -45,6 +47,7 @@ impl IntoResponse for Error {
             Self::ControlHeld => (StatusCode::CONFLICT, "control_held"),
             Self::StaleGeneration => (StatusCode::CONFLICT, "stale_generation"),
             Self::Conflict => (StatusCode::CONFLICT, "identity_conflict"),
+            Self::AmbiguousName => (StatusCode::CONFLICT, "ambiguous_name"),
             Self::NotFound => (StatusCode::NOT_FOUND, "not_found"),
             Self::HistoryTruncated => (StatusCode::CONFLICT, "history_truncated"),
             Self::Overloaded => (StatusCode::TOO_MANY_REQUESTS, "overloaded"),
@@ -63,6 +66,7 @@ impl IntoResponse for Error {
             Self::ControlHeld => qgenie_remote_proto::ErrorCode::ControlHeld,
             Self::StaleGeneration => qgenie_remote_proto::ErrorCode::StaleGeneration,
             Self::Conflict => qgenie_remote_proto::ErrorCode::IdempotencyConflict,
+            Self::AmbiguousName => qgenie_remote_proto::ErrorCode::AmbiguousName,
             Self::NotFound => qgenie_remote_proto::ErrorCode::NotFound,
             Self::HistoryTruncated => qgenie_remote_proto::ErrorCode::HistoryTruncated,
             Self::Overloaded => qgenie_remote_proto::ErrorCode::Overloaded,

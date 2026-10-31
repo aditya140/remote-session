@@ -311,6 +311,7 @@ fn response(request: &Envelope, message: Message) -> Envelope {
 }
 fn session(machine: MachineId) -> Session {
     Session {
+        metadata: Default::default(),
         id: SessionId::new(),
         machine,
         owner: UserId::new(),
@@ -1354,4 +1355,53 @@ async fn explicit_token_refresh_does_not_restore_uncertain_input_or_resend_its_b
             .unwrap(),
         0
     );
+}
+
+#[tokio::test]
+async fn session_metadata_old_peer_refuses_before_sending() {
+    let mut fixture = fixture(move |mut connection| async move {
+        assert!(
+            connection.recv().await.is_none(),
+            "metadata must not reach an old peer"
+        );
+    })
+    .await;
+    let client = fixture.api.connect(&token()).await.unwrap();
+    let machine = MachineId::new();
+    let session = SessionId::new();
+    for error in [
+        client
+            .handle()
+            .resolve_session_name(machine, "review-api")
+            .await
+            .unwrap_err(),
+        client
+            .handle()
+            .update_session_metadata(
+                machine,
+                session,
+                SessionMetadataChange::Rename(Some("review-api".into())),
+            )
+            .await
+            .unwrap_err(),
+    ] {
+        assert_eq!(error.code, ErrorCode::UnsupportedCapability);
+        assert!(matches!(error.outcome, OperationOutcome::NotSent));
+    }
+    let original = session_fixture_without_metadata(machine, session);
+    let decoded: Session = serde_json::from_value(original).unwrap();
+    assert!(decoded.metadata.is_empty());
+    assert_eq!(decoded.id, session);
+    client.close().await;
+    tokio::time::timeout(Duration::from_secs(2), &mut fixture.task)
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+fn session_fixture_without_metadata(machine: MachineId, id: SessionId) -> serde_json::Value {
+    let mut value = serde_json::to_value(session(machine)).unwrap();
+    value["id"] = serde_json::json!(id);
+    value.as_object_mut().unwrap().remove("metadata");
+    value
 }

@@ -141,6 +141,7 @@ impl Runtime {
         self.recording_warning(&mut state);
         let info = &state.info;
         Ok(wire::Session {
+            metadata: Default::default(),
             id: info.id,
             machine: info.machine,
             owner: scope.owner,

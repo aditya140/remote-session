@@ -196,25 +196,37 @@ pub(super) async fn prove(
     .unwrap();
     let mut launched = Vec::new();
     for index in 0..2 {
-        let session = handle
-            .start(
+        let session = if index == 0 {
+            profile_launch(
+                &sdk,
+                token,
+                ca,
                 starts.path(),
-                binding.owner,
                 binding.machine,
-                Launch {
-                    key: IdempotencyKey::new(),
-                    kind: LaunchKind::Agent {
-                        agent: "codex".into(),
-                        prompt: Some("Run the controlled public approval fixture.".into()),
-                        native_resume_id: None,
-                    },
-                    cwd: root_path.to_str().unwrap().into(),
-                    rows: 24,
-                    cols: 80,
-                },
+                root_path.to_str().unwrap(),
             )
             .await
-            .unwrap();
+        } else {
+            handle
+                .start(
+                    starts.path(),
+                    binding.owner,
+                    binding.machine,
+                    Launch {
+                        key: IdempotencyKey::new(),
+                        kind: LaunchKind::Agent {
+                            agent: "codex".into(),
+                            prompt: Some("Run the controlled public approval fixture.".into()),
+                            native_resume_id: None,
+                        },
+                        cwd: root_path.to_str().unwrap().into(),
+                        rows: 24,
+                        cols: 80,
+                    },
+                )
+                .await
+                .unwrap()
+        };
         if index == 0 {
             observation = Some(
                 first
@@ -331,6 +343,46 @@ pub(super) async fn prove(
         assert_eq!(count, 1);
         launched.push((session.id, state.request.id));
     }
+    let named = metadata_cli(
+        &sdk,
+        token,
+        ca,
+        starts.path(),
+        &[
+            "name-session",
+            &binding.machine.to_string(),
+            &launched[0].0.to_string(),
+            "review-api",
+        ],
+    )
+    .await;
+    assert_eq!(named.id, launched[0].0);
+    let labeled = metadata_cli(
+        &sdk,
+        token,
+        ca,
+        starts.path(),
+        &[
+            "label-session",
+            &binding.machine.to_string(),
+            &named.id.to_string(),
+            "team",
+            "api",
+        ],
+    )
+    .await;
+    assert_eq!(
+        labeled.metadata.labels.get("team").map(String::as_str),
+        Some("api")
+    );
+    assert_eq!(
+        handle
+            .resolve_session_name(binding.machine, "review-api")
+            .await
+            .unwrap()
+            .id,
+        named.id
+    );
     let controllers: i64 =
         sqlx::query_scalar("SELECT count(*) FROM qgr.control_leases WHERE machine=$1")
             .bind(binding.machine.to_string())
@@ -570,4 +622,100 @@ async fn await_application(handle: &LiveHandle, id: ApprovalId) {
     })
     .await
     .unwrap();
+}
+
+async fn profile_launch(
+    sdk: &qgenie_remote_client::GatewayClient,
+    token: &qgenie_remote_proto::rest::AccessToken,
+    ca: &std::path::Path,
+    state: &std::path::Path,
+    machine: qgenie_remote_proto::MachineId,
+    cwd: &str,
+) -> qgenie_remote_proto::wire::Session {
+    let token_file = private(token.as_str().as_bytes());
+    let command = || {
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"));
+        command
+            .arg("--state-dir")
+            .arg(state)
+            .args(["remote", "--gateway"])
+            .arg(sdk.origin())
+            .arg("--token-file")
+            .arg(token_file.path())
+            .arg("--ca-bundle")
+            .arg(ca)
+            .arg("profile")
+            .kill_on_drop(true);
+        command
+    };
+    let saved = command()
+        .args(["save", "approval-task"])
+        .arg(machine.to_string())
+        .args([
+            "--cwd",
+            cwd,
+            "--agent",
+            "codex",
+            "--task",
+            "Run the controlled public approval fixture.",
+        ])
+        .output()
+        .await
+        .unwrap();
+    assert!(
+        saved.status.success(),
+        "{}",
+        String::from_utf8_lossy(&saved.stderr)
+    );
+    let key = qgenie_remote_proto::IdempotencyKey::new();
+    let started = command()
+        .args(["run", "approval-task", "--key"])
+        .arg(key.to_string())
+        .output()
+        .await
+        .unwrap();
+    assert!(
+        started.status.success(),
+        "{}",
+        String::from_utf8_lossy(&started.stderr)
+    );
+    let result: serde_json::Value = serde_json::from_slice(&started.stdout).unwrap();
+    assert_eq!(result["key"], key.to_string());
+    let session: qgenie_remote_proto::wire::Session =
+        serde_json::from_value(result["session"].clone()).unwrap();
+    let live = sdk.connect(token).await.unwrap();
+    let (_, reconciled) = live.handle().lookup_start(machine, key).await.unwrap();
+    assert_eq!(reconciled, Some(session.id));
+    live.close().await;
+    session
+}
+
+async fn metadata_cli(
+    sdk: &qgenie_remote_client::GatewayClient,
+    token: &qgenie_remote_proto::rest::AccessToken,
+    ca: &std::path::Path,
+    state: &std::path::Path,
+    args: &[&str],
+) -> qgenie_remote_proto::wire::Session {
+    let token_file = private(token.as_str().as_bytes());
+    let output = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"))
+        .arg("--state-dir")
+        .arg(state)
+        .args(["remote", "--gateway"])
+        .arg(sdk.origin())
+        .arg("--token-file")
+        .arg(token_file.path())
+        .arg("--ca-bundle")
+        .arg(ca)
+        .args(args)
+        .kill_on_drop(true)
+        .output()
+        .await
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
 }

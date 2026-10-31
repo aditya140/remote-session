@@ -71,6 +71,7 @@ impl Peer {
         }
         Self {
             session: Session {
+                metadata: Default::default(),
                 id: SessionId::new(),
                 machine,
                 owner: UserId::new(),

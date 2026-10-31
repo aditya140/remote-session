@@ -210,6 +210,7 @@ impl Store {
             return Err(Error::Invalid);
         }
         let mut metadata = session.clone();
+        metadata.metadata = Default::default();
         match &mut metadata.kind {
             LaunchKind::Agent { prompt, .. } => *prompt = None,
             LaunchKind::Pty { command } => command.truncate(1),
@@ -262,9 +263,9 @@ impl Store {
             return Err(Error::Invalid);
         }
         let sql = if active_only {
-            "SELECT body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id>$3 AND state IN ('accepted','launching','running','idle') ORDER BY id LIMIT $4"
+            "SELECT body || jsonb_build_object('metadata',metadata) AS body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id>$3 AND state IN ('accepted','launching','running','idle') ORDER BY id LIMIT $4"
         } else {
-            "SELECT body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id>$3 ORDER BY id LIMIT $4"
+            "SELECT body || jsonb_build_object('metadata',metadata) AS body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id>$3 ORDER BY id LIMIT $4"
         };
         let rows = sqlx::query(sql)
             .bind(owner.to_string())
@@ -299,7 +300,7 @@ impl Store {
         id: qgenie_remote_proto::SessionId,
     ) -> Result<Session, Error> {
         let row =
-            sqlx::query("SELECT body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id=$3")
+            sqlx::query("SELECT body || jsonb_build_object('metadata',metadata) AS body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id=$3")
                 .bind(owner.to_string())
                 .bind(machine.to_string())
                 .bind(id.to_string())
@@ -315,7 +316,7 @@ impl Store {
         machine: MachineId,
     ) -> Result<Vec<Session>, Error> {
         let rows = sqlx::query(
-            "SELECT CASE WHEN bytes<=524288 AND total<=1024 THEN body ELSE NULL END AS body FROM (SELECT id,body,sum(octet_length(body::text)) OVER () AS bytes,count(*) OVER () AS total FROM qgr.sessions WHERE owner=$1 AND machine=$2) bounded ORDER BY id LIMIT 1025",
+            "SELECT CASE WHEN bytes<=524288 AND total<=1024 THEN body ELSE NULL END AS body FROM (SELECT id,body || jsonb_build_object('metadata',metadata) AS body,sum(octet_length((body || jsonb_build_object('metadata',metadata))::text)) OVER () AS bytes,count(*) OVER () AS total FROM qgr.sessions WHERE owner=$1 AND machine=$2) bounded ORDER BY id LIMIT 1025",
         )
         .bind(owner.to_string())
         .bind(machine.to_string())

@@ -273,6 +273,7 @@ async fn actual_synchronous_receipts_survive_primary_volume_loss() {
         .unwrap();
     let created = timestamp();
     let session = Session {
+        metadata: Default::default(),
         id: SessionId::new(),
         machine: actor.machine,
         owner: owner.user,

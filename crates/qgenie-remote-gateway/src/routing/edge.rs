@@ -127,6 +127,7 @@ async fn hello(
         "auth-refresh-v1",
         "machine-pages-v1",
         "session-pages-v1",
+        "session-metadata-v1",
         "host-session-pages-v1",
         "root-discovery-v1",
         "host-dispatch-v1",

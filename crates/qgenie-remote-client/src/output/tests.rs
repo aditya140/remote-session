@@ -49,6 +49,7 @@ fn pushed_session_metadata_discovers_a_tail_without_releasing_unverified_output(
     let mut output = OutputCursor::checkpointed(machine, session);
     output.attachment(snapshot(10, 10)).unwrap();
     let state = Session {
+        metadata: Default::default(),
         id: session,
         machine,
         owner: UserId::new(),

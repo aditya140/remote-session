@@ -35,6 +35,11 @@ pub(crate) struct Args {
 enum Action {
     /// Save connection settings, then use `remote` to sign in and open the TUI.
     Setup,
+    /// Manage local launch profiles without saving credentials.
+    Profile {
+        #[command(subcommand)]
+        action: super::remote_profiles::Action,
+    },
     #[command(flatten)]
     Operation(super::remote_cli::Action),
 }
@@ -254,7 +259,19 @@ impl Login {
     }
 }
 
-pub(crate) async fn run(args: Args, state: &Path) -> Result<()> {
+pub(crate) async fn run(mut args: Args, state: &Path) -> Result<()> {
+    if matches!(&args.command, Some(Action::Profile { .. })) {
+        let Some(Action::Profile { action }) = args.command.take() else {
+            unreachable!()
+        };
+        let Some(prepared) =
+            super::remote_profiles::prepare(action, state, args.gateway.as_deref())?
+        else {
+            return Ok(());
+        };
+        args.gateway = Some(prepared.gateway);
+        args.command = Some(Action::Operation(prepared.action));
+    }
     let profile = load_profile(&args, state)?;
     if matches!(args.command, Some(Action::Setup)) {
         ensure!(
@@ -317,7 +334,9 @@ pub(crate) async fn run(args: Args, state: &Path) -> Result<()> {
             );
             tokio::select! { result = view => result, result = super::host::shutdown_signal() => result }
         }
-        Some(Action::Setup) => unreachable!("setup returns before authentication"),
+        Some(Action::Setup) | Some(Action::Profile { .. }) => {
+            unreachable!("local settings return before authentication")
+        }
     }
 }
 

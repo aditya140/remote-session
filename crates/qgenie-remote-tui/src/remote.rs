@@ -81,6 +81,7 @@ impl App {
         query.is_empty()
             || session.id.to_string().contains(query)
             || session.cwd.to_lowercase().contains(query)
+            || session.metadata.matches(query)
             || format!("{:?}", session.state)
                 .to_lowercase()
                 .contains(query)
@@ -302,9 +303,27 @@ impl App {
                     .map(|index| {
                         let s = &self.sessions[*index];
                         ListItem::new(format!(
-                            "{:?} · {}{}{}",
+                            "{} · {:?} · {}{}{}{}",
+                            clean(s.metadata.name.as_deref().unwrap_or(&s.id.to_string())),
                             s.state,
                             clean(&s.cwd),
+                            if s.metadata.labels.is_empty() {
+                                String::new()
+                            } else {
+                                format!(
+                                    " · {}",
+                                    s.metadata
+                                        .labels
+                                        .iter()
+                                        .map(|(key, value)| format!(
+                                            "{}={}",
+                                            clean(key),
+                                            clean(value)
+                                        ))
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                )
+                            },
                             if self.approvals.pending(s.id) > 0 {
                                 format!(" · {} approval(s) pending", self.approvals.pending(s.id))
                             } else {

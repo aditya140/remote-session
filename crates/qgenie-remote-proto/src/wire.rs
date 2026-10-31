@@ -134,6 +134,8 @@ types! {
         #[serde(rename="session.list.paged")] SessionPage { sessions:Vec<Session>,next:Option<SessionId> },
         #[serde(rename="session.get")] SessionGet { session:SessionId },
         #[serde(rename="session.found")] SessionFound(Session),
+        #[serde(rename="session.metadata.update")] SessionMetadataUpdate { change: SessionMetadataChange },
+        #[serde(rename="session.resolve")] SessionResolve { name: String },
         #[serde(rename="session.updates")] SessionUpdates { sessions: Vec<Session> },
         #[serde(rename="session.snapshot_list")] Sessions { sessions: Vec<Session> },
         #[serde(rename="session.start")] Start(Launch),
@@ -221,12 +223,22 @@ types! {
     pub enum Origin { Managed,External }
     pub struct Session {
         pub id: SessionId,pub machine: MachineId,pub owner: UserId,pub kind: LaunchKind,
+        #[serde(default,skip_serializing_if="SessionMetadata::is_empty")]
+        pub metadata: SessionMetadata,
         pub cwd: String,pub origin: Origin,pub state: SessionState,pub created_at: Timestamp,
         /// Original native observation, never gateway projection/upload time.
         #[serde(default,skip_serializing_if="Option::is_none")]
         pub ended_at: Option<Timestamp>,
         pub head: Counter,pub capabilities: Capabilities,pub recording_warning: Option<String>,
     }
+    #[derive(Default,PartialEq,Eq)]
+    #[serde(deny_unknown_fields)]
+    pub struct SessionMetadata {
+        #[serde(default)] pub name: Option<String>,
+        #[serde(default)] pub labels: BTreeMap<String,String>,
+    }
+    #[serde(tag="kind",content="data",rename_all="snake_case",deny_unknown_fields)]
+    pub enum SessionMetadataChange { Rename(Option<String>), Label { key: String,value: Option<String> } }
     pub struct Launch {
         pub key: IdempotencyKey,pub kind: LaunchKind,pub cwd: String,
         pub rows: u16,pub cols: u16,
@@ -382,6 +394,7 @@ impl Envelope {
                 | Message::LeaseRevoked { .. }
                 | Message::Input { .. }
                 | Message::InputAck { .. }
+                | Message::SessionMetadataUpdate { .. }
                 | Message::Resize { .. }
                 | Message::Interrupt { .. }
                 | Message::Terminate { .. }
@@ -517,6 +530,19 @@ impl Envelope {
                     }) =>
             {
                 return Err(invalid("invalid allowed roots"));
+            }
+            Message::SessionMetadataUpdate { change } => {
+                if self.machine.is_none() || self.re.is_some() {
+                    return Err(invalid("invalid session metadata target"));
+                }
+                let mut metadata = SessionMetadata::default();
+                metadata.apply(change)?;
+            }
+            Message::SessionResolve { name } => {
+                if self.machine.is_none() || self.session.is_some() || self.re.is_some() {
+                    return Err(invalid("invalid session name lookup target"));
+                }
+                SessionMetadata::validate_name(name)?;
             }
             Message::SessionListPage { limit, .. } if !(1..=256).contains(limit) => {
                 return Err(invalid("invalid session page limit"));
@@ -979,4 +1005,63 @@ pub fn decode_base64(data: &str, limit: usize) -> Result<Vec<u8>, RemoteError> {
 }
 fn invalid(message: &str) -> RemoteError {
     RemoteError::rejected(ErrorCode::InvalidFrame, message)
+}
+
+impl SessionMetadata {
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none() && self.labels.is_empty()
+    }
+    pub fn validate_name(name: &str) -> Result<(), RemoteError> {
+        if name.is_empty()
+            || name.len() > 128
+            || name.trim() != name
+            || name.chars().any(char::is_control)
+        {
+            return Err(invalid(
+                "session name must be 1..=128 bytes without edge whitespace or controls",
+            ));
+        }
+        Ok(())
+    }
+    pub fn apply(&mut self, change: &SessionMetadataChange) -> Result<(), RemoteError> {
+        match change {
+            SessionMetadataChange::Rename(name) => {
+                if let Some(name) = name {
+                    Self::validate_name(name)?;
+                }
+                self.name = name.clone();
+            }
+            SessionMetadataChange::Label { key, value } => {
+                if key.is_empty()
+                    || key.len() > 64
+                    || !key
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || b"_.-".contains(&byte))
+                    || value.as_ref().is_some_and(|value| {
+                        value.len() > 128 || value.chars().any(char::is_control)
+                    })
+                {
+                    return Err(invalid("invalid session label"));
+                }
+                if let Some(value) = value {
+                    if self.labels.len() >= 16 && !self.labels.contains_key(key) {
+                        return Err(invalid("at most 16 session labels"));
+                    }
+                    self.labels.insert(key.clone(), value.clone());
+                } else {
+                    self.labels.remove(key);
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn matches(&self, query: &str) -> bool {
+        let query = query.to_lowercase();
+        self.name
+            .as_ref()
+            .is_some_and(|name| name.to_lowercase().contains(&query))
+            || self.labels.iter().any(|(key, value)| {
+                key.to_lowercase().contains(&query) || value.to_lowercase().contains(&query)
+            })
+    }
 }
