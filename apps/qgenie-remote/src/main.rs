@@ -21,6 +21,7 @@ mod remote_access;
 mod remote_cli;
 mod remote_observe;
 mod remote_profiles;
+mod remote_wait;
 #[cfg(test)]
 #[path = "../tests/support/identity.rs"]
 #[allow(dead_code)]

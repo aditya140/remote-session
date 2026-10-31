@@ -169,3 +169,43 @@ work inbox, displays scanned sessions, selects an entry, and reads its protected
 history. Existing native approval, controlled prompt, start recovery, and durable
 recording proofs also passed. The local report is
 `target/validation/issue-3-native.json`. No production qualification is claimed.
+
+## Issue 4 design
+
+- Add `wait-output` for a bounded literal after an explicit event cursor. Parse
+  retained PTY events from zero to establish escape parser state, but discard
+  text at or before the selected boundary. Never match checkpoint screen text.
+- Reuse the bounded VTE parser and output cursor. Keep parser and match state
+  through reconnects. Report gaps, missing parser history, and resource limits.
+  Limit literals to 512 bytes and total decoded output to 8 MiB.
+- Add `wait-many` over 1 to 16 explicit machine/session/turn or exit targets.
+  Reject duplicates. Poll at most two targets concurrently and visit all pending
+  targets in each round. Reuse typed outcomes and approval summaries.
+- Define any as the first resolved outcome, including failure or attention.
+  Define all as all resolved outcomes. Preserve exact per-target outcomes when
+  another target times out or the user cancels. Unresolved any targets remain null.
+- Give each new command one cancellation handler. Emit one final result. Do not
+  acquire control, submit prompts, start sessions, approve work, or terminate it.
+- Test old text, terminal controls, Unicode and chunk boundaries, gaps, bounded
+  memory, fast completion, mixed outcomes, reconnects, and cancellation.
+
+### Issue 4 implementation and evidence
+
+The CLI now supports fresh literal output waits and bounded explicit any/all
+waits. The client preserves parser state through reconnects. It reports gaps and
+resource limits instead of claiming a match from a checkpoint. Each command owns
+its cancellation handler and leaves native work running.
+
+The workspace suite passed 238 tests with 19 environment-gated tests ignored.
+This run used two test threads. An earlier default-parallel run exposed a spool
+lock release race during concurrent process creation. Issue 6 will add a focused
+regression and fix. The CLI suite passed 15 tests, then the added checkpoint-only
+regression passed independently. Workspace and managed application Clippy passed.
+The law check passed 115 laws, rejected 32 mutations, and compared 22,712 Rust
+cases. The generated comparison harness now uses the workspace dependency patches.
+
+The complete Linux deployment proof passed all five phases in 137 seconds.
+The real CLI matched native PTY output without acquiring control or stopping the
+session. The fixture now accounts for both intentional observer attachments.
+The local report is `target/validation/issue-4-native.json`. External release
+gates remain unrun.

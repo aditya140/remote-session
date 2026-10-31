@@ -19,6 +19,7 @@ url.workspace = true
 serde.workspace = true
 sha2.workspace = true
 zstd.workspace = true
+vte.workspace = true
 
 [dev-dependencies]
 libc.workspace = true

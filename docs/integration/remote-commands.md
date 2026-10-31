@@ -321,3 +321,6 @@ Use [launch profiles and session metadata](launch-profiles.md) to save shell or 
 launch choices, assign session names and labels, and find sessions by a scoped name.
 
 Press `w` in the remote TUI for the [cross-machine work inbox](work-inbox.md).
+
+Use [fresh output and multiple target waits](observation-waits.md) for explicit
+read-only observation conditions.

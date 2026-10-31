@@ -305,6 +305,7 @@ pub(crate) async fn run(mut args: Args, state: &Path) -> Result<()> {
     let config = profile.gateway_config();
     match args.command {
         Some(Action::Operation(command)) => {
+            let owns_cancellation = matches!(&command, super::remote_cli::Action::WaitSet(_));
             let wait_session = command.wait_session();
             let work = super::remote_cli::run_authenticated(
                 config,
@@ -312,6 +313,9 @@ pub(crate) async fn run(mut args: Args, state: &Path) -> Result<()> {
                 state,
                 command,
             );
+            if owns_cancellation {
+                return work.await;
+            }
             tokio::select! {
                 result = work => result,
                 result = super::host::shutdown_signal() => {
