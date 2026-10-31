@@ -598,6 +598,7 @@ impl Runtime {
             session_capabilities(&state, self.can_resume_history())
         };
         let session = wire::Session {
+            metadata: Default::default(),
             id: info.id,
             machine: info.machine,
             owner: context.scope.owner,

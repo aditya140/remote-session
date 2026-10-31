@@ -389,6 +389,7 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     let online=receive!(&mut client,|envelope| matches!(&envelope.message,Message::MachineUpdated(machine) if machine.id==enrolled.machine && machine.online)).await;
     assert!(online.machine == Some(enrolled.machine));
     let session = Session {
+        metadata: Default::default(),
         id: SessionId::new(),
         machine: enrolled.machine,
         owner,
@@ -410,6 +411,21 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     inventory.machine = Some(enrolled.machine);
     send!(&host, inventory).await;
     receive!(&mut client,|envelope| matches!(&envelope.message,Message::MachineUpdated(machine) if machine.id==enrolled.machine && machine.sessions==1)).await;
+    let metadata_actor = service.authenticate_machine(&token.token).await.unwrap();
+    let metadata_generation: String =
+        sqlx::query_scalar("SELECT generation::text FROM qgr.machine_routes WHERE machine=$1")
+            .bind(enrolled.machine.to_string())
+            .fetch_one(admin)
+            .await
+            .unwrap();
+    super::metadata::tests::contract(
+        &store,
+        &metadata_actor,
+        Counter(metadata_generation.parse().unwrap()),
+        &session,
+        admin,
+    )
+    .await;
     // The host's node has no client subscription yet. Its first client must not
     // receive owner-wide session events while waiting for Redis subscription.
     let publish = async {

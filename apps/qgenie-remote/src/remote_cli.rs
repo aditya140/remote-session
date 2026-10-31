@@ -14,6 +14,30 @@ pub(crate) enum Action {
     #[command(flatten)]
     Observe(super::remote_observe::Action),
     Machines,
+    /// Resolve an exact name within this gateway owner and machine. Reject duplicates.
+    FindSession {
+        machine: MachineId,
+        name: String,
+    },
+    NameSession {
+        machine: MachineId,
+        session: SessionId,
+        #[arg(required_unless_present = "clear", conflicts_with = "clear")]
+        name: Option<String>,
+        #[arg(long)]
+        clear: bool,
+    },
+    LabelSession {
+        machine: MachineId,
+        session: SessionId,
+        key: String,
+        value: String,
+    },
+    RemoveSessionLabel {
+        machine: MachineId,
+        session: SessionId,
+        key: String,
+    },
     Rename {
         machine: MachineId,
         name: String,
@@ -55,6 +79,9 @@ pub(crate) enum Action {
         after: Option<SessionId>,
         #[arg(long)]
         active: bool,
+        /// Match session ID, directory, name, or label text across the listed pages.
+        #[arg(long)]
+        filter: Option<String>,
     },
     Roots {
         machine: MachineId,
@@ -81,6 +108,9 @@ pub(crate) enum Action {
         /// Resume a confirmed ended thread in a new owned session.
         #[arg(long, requires = "agent")]
         resume_id: Option<String>,
+        /// Initial agent task. This text is not a permission boundary.
+        #[arg(long, requires = "agent")]
+        task: Option<String>,
         #[arg(last = true, conflicts_with = "agent")]
         command: Vec<String>,
     },
@@ -246,12 +276,16 @@ pub(crate) async fn run_authenticated(
             print!("[");
             match &action {
                 Action::Sessions {
-                    machine, active, ..
+                    machine,
+                    active,
+                    filter,
+                    ..
                 } => {
                     let mut after = None;
                     loop {
-                        let (sessions, next) =
+                        let (mut sessions, next) =
                             handle.session_page(*machine, after, 64, *active).await?;
+                        filter_sessions(&mut sessions, filter.as_deref());
                         write_items(&sessions, &mut first)?;
                         after = next;
                         if after.is_none() {
@@ -298,13 +332,17 @@ pub(crate) async fn run_authenticated(
         Ok(match action {
             Action::Observe(_) => unreachable!("observation dispatch returns before mutations"),
             Action::Machines|Action::Rename{..}|Action::Label{..}|Action::RemoveLabel{..}|Action::Revoke{..}|Action::HistoryStreams{..}|Action::History{..}=>unreachable!(),
-            Action::Sessions{machine,after,active,..}=>{let(sessions,next)=handle.session_page(machine,after,64,active).await?;json!({"sessions":sessions,"next":next})},
+            Action::Sessions{machine,after,active,filter,..}=>{let(mut sessions,next)=handle.session_page(machine,after,64,active).await?;filter_sessions(&mut sessions,filter.as_deref());json!({"sessions":sessions,"next":next})},
+            Action::FindSession{machine,name}=>json!(handle.resolve_session_name(machine,&name).await?),
+            Action::NameSession{machine,session,name,..}=>json!(handle.update_session_metadata(machine,session,qgenie_remote_proto::wire::SessionMetadataChange::Rename(name)).await?),
+            Action::LabelSession{machine,session,key,value}=>json!(handle.update_session_metadata(machine,session,qgenie_remote_proto::wire::SessionMetadataChange::Label{key,value:Some(value)}).await?),
+            Action::RemoveSessionLabel{machine,session,key}=>json!(handle.update_session_metadata(machine,session,qgenie_remote_proto::wire::SessionMetadataChange::Label{key,value:None}).await?),
             Action::Roots{machine}=>json!({"roots":handle.allowed_roots(machine).await?}),
             Action::Browse{machine,path,after}=>{let(entries,next)=handle.browse(machine,path,after,128).await?;json!({"entries":entries,"next":next})},
-            Action::Run{machine,cwd,key,rows,cols,command,agent,resume_id}=>{
+            Action::Run{machine,cwd,key,rows,cols,command,agent,resume_id,task}=>{
                 let owner=api.machines(&token).await?.into_iter().find(|m|m.id==machine).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"machine absent from current owner inventory"))?.owner;
                 let key=key.unwrap_or_default();eprintln!("Original start identity: {key}");
-                let kind=agent.map(|agent|LaunchKind::Agent{agent,prompt:None,native_resume_id:resume_id}).unwrap_or_else(||LaunchKind::Pty{command:if command.is_empty(){vec!["/bin/sh".into()]}else{command}});
+                let kind=agent.map(|agent|LaunchKind::Agent{agent,prompt:task,native_resume_id:resume_id}).unwrap_or_else(||LaunchKind::Pty{command:if command.is_empty(){vec!["/bin/sh".into()]}else{command}});
                 let session=handle.start(state,owner,machine,Launch{key,kind,cwd,rows,cols}).await?;
                 json!({"key":key,"session":session})
             },
@@ -370,5 +408,16 @@ async fn draining<T>(
             result = &mut work => return result,
             event = live.next(), if connected => if event.is_none() { connected = false; }
         }
+    }
+}
+
+fn filter_sessions(sessions: &mut Vec<qgenie_remote_proto::wire::Session>, filter: Option<&str>) {
+    if let Some(filter) = filter {
+        let filter = filter.to_lowercase();
+        sessions.retain(|session| {
+            session.id.to_string().contains(&filter)
+                || session.cwd.to_lowercase().contains(&filter)
+                || session.metadata.matches(&filter)
+        });
     }
 }

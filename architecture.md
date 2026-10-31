@@ -118,6 +118,12 @@ flowchart LR
 
 **Core idea:** the gateway authenticates connections, authorizes each message, and moves frames between clients and hosts. It does not run agents or keep session buffers. Hosts are the source of truth for session content, including output replay. Postgres is the source of truth for identity, machines, and session metadata. Transcripts are also written to Postgres for history and audit (§4.4); that copy is never used for live replay. This keeps the gateway stateless, so it scales horizontally and survives restarts without losing sessions.
 
+Session names and labels have one durable authority: the gateway-owned metadata
+column in PostgreSQL. Native host projections cannot replace that column. Names
+are scoped aliases; session IDs identify native lifetimes and recordings. Client
+launch profiles only save choices and reuse the existing authorized start path.
+
+
 ## 2. Key decisions
 
 | # | Decision | Choice | Main alternative |

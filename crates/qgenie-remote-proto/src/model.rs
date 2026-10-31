@@ -150,7 +150,7 @@ wire! {
     #[derive(PartialEq,Eq)]
     pub enum ErrorCode {
         Unauthenticated, Forbidden, AccessStale, UnsupportedVersion, UnsupportedCapability,
-        InvalidFrame, FrameTooLarge, Overloaded, IdempotencyConflict, StaleGeneration,
+        InvalidFrame, FrameTooLarge, Overloaded, IdempotencyConflict, AmbiguousName, StaleGeneration,
         AlreadyResolved, HistoryTruncated, CapacityExhausted, NotFound, Internal, ControlHeld,
     }
     pub struct RemoteError {

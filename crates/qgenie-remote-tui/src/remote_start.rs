@@ -23,7 +23,7 @@ enum Update {
     Roots(Vec<String>),
     Identities(Vec<RemoteStartIdentity>, Option<IdempotencyKey>),
     Directory(String, Vec<DirectoryEntry>, Option<String>, bool),
-    Started(Session),
+    Started(Box<Session>),
     Status(StartStage, Option<SessionId>),
 }
 struct Picker {
@@ -259,7 +259,7 @@ pub(crate) async fn run(
                                     let launch=Launch{key:picker.key,kind,cwd:picker.path.clone(),rows:size.height.saturating_sub(8).clamp(1,128),cols:size.width.saturating_sub(2).clamp(1,256)};
                                     picker.submitted=true;picker.message="Persisting start identity before submission. This view never automatically retries a launch.".into();
                                     let handle=handle.clone();let state=state.to_owned();let owner=machine.owner;let machine=machine.id;
-                                    jobs.spawn(async move {Ok(Update::Started(handle.start(state,owner,machine,launch).await?))});
+                                    jobs.spawn(async move {Ok(Update::Started(Box::new(handle.start(state,owner,machine,launch).await?)))});
                                 },
                                 _=>{},
                             }}
@@ -282,10 +282,10 @@ pub(crate) async fn run(
                     picker.choosing_root=false;picker.path=path;picker.loaded=Some(picker.path.clone());picker.next=next;picker.editing=false;
                     picker.message=if picker.resume.is_some(){"Ctrl-N resumes history in a new session. Input starts in observe mode."}else{"Ctrl-N creates a new terminal in this directory. Input starts in observe mode."}.into();
                 },
-                Some(Ok(Ok(Update::Started(session))))=>{result=Some(session);break;},
+                Some(Ok(Ok(Update::Started(session))))=>{result=Some(*session);break;},
                 Some(Ok(Ok(Update::Status(stage,id))))=>{
                     picker.message=format!("Original start: {stage:?}{}; no launch was resent.",id.map(|id|format!(" · {id}")).unwrap_or_default());
-                    if let Some(id)=id {let handle=handle.clone();let machine=machine.id;jobs.spawn(async move {let session=handle.session(machine,id).await?;Ok(Update::Started(session))});}
+                    if let Some(id)=id {let handle=handle.clone();let machine=machine.id;jobs.spawn(async move {let session=handle.session(machine,id).await?;Ok(Update::Started(Box::new(session)))});}
                 },
                 Some(Ok(Ok(Update::Identities(..))))=>{},
                 Some(Ok(Err(error)))=>{picker.message=if picker.submitted {format!("{:?} ({:?}): {}. Original identity retained; l looks it up.",error.code,error.outcome,error.message)}else{format!("{:?}: {}. Edit the path with p or retry browsing.",error.code,error.message)};},
@@ -352,8 +352,8 @@ pub(crate) async fn recover(
             },
             update=jobs.join_next(),if !jobs.is_empty()=>match update {
                 Some(Ok(Ok(Update::Identities(records,next))))=>{next_page=next;selected=0;identities=records;message=format!("{} identities for this gateway, owner and machine.",identities.len());},
-                Some(Ok(Ok(Update::Status(stage,session))))=>{message=format!("Original start: {stage:?}; no launch resent.");if let Some(session)=session {let handle=handle.clone();jobs.spawn(async move {let session=handle.session(id,session).await?;if session.owner!=owner{return Err(RemoteError::rejected(ErrorCode::Forbidden,"session owner changed"));}Ok(Update::Started(session))});}},
-                Some(Ok(Ok(Update::Started(session))))=>{result=Some(session);break;},
+                Some(Ok(Ok(Update::Status(stage,session))))=>{message=format!("Original start: {stage:?}; no launch resent.");if let Some(session)=session {let handle=handle.clone();jobs.spawn(async move {let session=handle.session(id,session).await?;if session.owner!=owner{return Err(RemoteError::rejected(ErrorCode::Forbidden,"session owner changed"));}Ok(Update::Started(Box::new(session)))});}},
+                Some(Ok(Ok(Update::Started(session))))=>{result=Some(*session);break;},
                 Some(Ok(Err(error)))=>message=format!("{:?}: {}",error.code,error.message),
                 _=>message="Journal lookup stopped; no launch resent.".into(),
             }

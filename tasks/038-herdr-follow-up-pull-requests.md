@@ -88,3 +88,45 @@ Local Linux checks completed:
 
 The composed report is local at `target/validation/issue-1-native.json`. Native
 platform evidence is Linux only. Hosted CI remains a separate delivery check.
+
+## Issue 2 design
+
+- Save at most 64 private local launch profiles. Each profile binds an HTTPS
+  gateway origin and stable machine ID to a directory and shell argv or agent
+  task. Reject unknown fields. Do not store authentication settings in a profile.
+- Run a profile through the existing start journal and launch path. Print the
+  original start key. Recheck current ownership, allowed roots, and agent support.
+  A profile is a convenience setting, not a permission boundary.
+- Keep session names and labels in one PostgreSQL metadata column. Native host
+  projections cannot overwrite it. Use bounded, audited owner mutations. Keep
+  session IDs, launch keys, recordings, and native process state unchanged.
+- Resolve names by exact gateway/owner/machine scope. Reject duplicate names.
+  Add CLI management and filtering. Show and filter metadata in the TUI.
+- Negotiate metadata mutations. Default missing metadata to empty for old records
+  and clients. Add the PostgreSQL migration and update the generated schema.
+- Test profile persistence, invalid imports and scope mismatch, existing launch
+  recovery, metadata authorization and persistence, ambiguous names, host updates,
+  and CLI/TUI presentation. Keep all database tests separate from the local demo.
+
+### Issue 2 implementation and evidence
+
+Profiles now use private local storage and the existing native start identity.
+Names and labels use one audited PostgreSQL column. Host projections cannot
+replace this metadata. CLI and TUI listing and filters include the metadata.
+
+The isolated gateway suite passed all 26 selected tests. It checks concurrent
+label updates, owner and machine scope, ambiguous names, host projection updates,
+and unchanged session identity. The real CLI profile tests passed. They check
+file permissions, strict profile fields, invalid input, scope mismatch, and
+explicit replacement. The client test checks old-peer refusal before any frame
+is sent and reads a session record without the new metadata field.
+
+The full workspace suite, workspace Clippy, managed application Clippy,
+formatting, and all three schema freshness checks passed. The composed report
+at `target/validation/issue-2-native.json` passed all five phases. It includes a
+real profile launch, reconciliation by the original launch key, and CLI metadata
+changes read through the SDK. The composed run took 160 seconds on this Linux
+workspace. It does not establish production or native macOS qualification.
+
+PostgreSQL schema 17 requires the documented migration procedure. The original
+local development deployment and its native demo session remain unchanged.

@@ -17,6 +17,7 @@ mod remote_replay;
 pub use output::{OutputCursor, OutputItem, OutputUpdate, ReadPlan};
 pub use remote_replay::{RemoteAttachment, RemoteReplay, RemoteSnapshot};
 mod remote_start;
+mod session_metadata;
 mod start_journal;
 use base64::{Engine, engine::general_purpose::STANDARD};
 pub use gateway::{GatewayClient, GatewayConfig};

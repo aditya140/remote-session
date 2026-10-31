@@ -92,6 +92,11 @@ pub(super) enum Body {
         owner: UserId,
         machine: MachineId,
     },
+    SessionMetadataChanged {
+        owner: UserId,
+        machine: MachineId,
+        session: SessionId,
+    },
     ApprovalChanged {
         owner: UserId,
         machine: MachineId,

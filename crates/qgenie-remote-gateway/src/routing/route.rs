@@ -33,6 +33,7 @@ pub(super) fn error_frame(re: Option<MessageId>, error: Error, unknown: bool) ->
         Error::Overloaded => ErrorCode::Overloaded,
         Error::Invalid => ErrorCode::InvalidFrame,
         Error::Conflict => ErrorCode::IdempotencyConflict,
+        Error::AmbiguousName => ErrorCode::AmbiguousName,
         _ => ErrorCode::AccessStale,
     };
     let mut envelope = Envelope::new(Message::Error(RemoteError {
@@ -129,6 +130,8 @@ impl Hub {
             Message::SessionList
             | Message::SessionListPage { .. }
             | Message::SessionGet { .. }
+            | Message::SessionResolve { .. }
+            | Message::SessionMetadataUpdate { .. }
             | Message::Start(_)
             | Message::LeaseRequest { .. }
             | Message::LeaseRenew { .. }
@@ -184,6 +187,34 @@ impl Hub {
                 .await?;
         }
         let page_reply = match &envelope.message {
+            Message::SessionMetadataUpdate { change } => {
+                let session = envelope.session.ok_or(Error::Invalid)?;
+                let updated = self
+                    .gateway
+                    .store
+                    .update_session_metadata(actor.owner, machine, session, change, id)
+                    .await;
+                let updated = match updated {
+                    Ok(updated) => updated,
+                    Err(error @ (Error::Database | Error::Draining)) => {
+                        let Frame::Text(mut reply) = error_frame(Some(id), error, true) else {
+                            unreachable!()
+                        };
+                        reply.machine = Some(machine);
+                        reply.session = Some(session);
+                        return self.client_send(client, Frame::Text(reply), Priority::Control);
+                    }
+                    Err(error) => return Err(error),
+                };
+                self.metadata_changed(actor.owner, machine, session).await;
+                Some(Message::SessionFound(updated))
+            }
+            Message::SessionResolve { name } => Some(Message::SessionFound(
+                self.gateway
+                    .store
+                    .resolve_session_name(actor.owner, machine, name)
+                    .await?,
+            )),
             Message::SessionListPage {
                 after,
                 limit,
@@ -208,6 +239,7 @@ impl Hub {
             let mut reply = Envelope::new(body);
             reply.re = Some(id);
             reply.machine = Some(machine);
+            reply.session = envelope.session;
             return self.client_send(client, Frame::Text(Box::new(reply)), Priority::Event);
         }
         if matches!(envelope.message, Message::SessionList) {
@@ -1009,6 +1041,13 @@ impl Hub {
             | Message::Error(_) => Priority::Control,
             _ => Priority::Event,
         };
+        let mut frame = frame;
+        if let Frame::Text(envelope) = &mut frame {
+            self.gateway
+                .store
+                .decorate_session_metadata(owner, machine, &mut envelope.message)
+                .await?;
+        }
         self.client_send(client, frame, priority)
     }
     pub(super) async fn fanout(
@@ -1022,7 +1061,13 @@ impl Hub {
             .store
             .route_access(owner, machine, session)
             .await?;
-        let frame = data.frame()?;
+        let mut frame = data.frame()?;
+        if let Frame::Text(envelope) = &mut frame {
+            self.gateway
+                .store
+                .decorate_session_metadata(owner, machine, &mut envelope.message)
+                .await?;
+        }
         let owner_wide = matches!(&frame,Frame::Text(envelope) if matches!(envelope.message,Message::Sessions{..}|Message::SessionUpdates{..}|Message::ApprovalRequested(_)|Message::ApprovalCommitted(_)|Message::ApprovalApplication{..}|Message::ApprovalCancelled{..}));
         let partial = matches!(&frame, Frame::Text(envelope) if matches!(envelope.message, Message::SessionUpdates {..}));
         let priority = if matches!(frame, Frame::Binary(_)) {
@@ -1053,6 +1098,7 @@ impl Hub {
             Body::Request { .. } | Body::Response { .. } => node_channel(&self.node),
             Body::Event { owner, .. }
             | Body::ApprovalChanged { owner, .. }
+            | Body::SessionMetadataChanged { owner, .. }
             | Body::Changed { owner, .. }
             | Body::Resync { owner, .. } => user_channel(*owner),
             Body::Hint { .. } => return Err(Error::Invalid),
@@ -1061,6 +1107,16 @@ impl Hub {
             return Err(Error::Forbidden);
         }
         match packet.body {
+            Body::SessionMetadataChanged {
+                owner,
+                machine,
+                session,
+            } => {
+                if packet.source == self.node {
+                    return Ok(());
+                }
+                self.metadata_emit(owner, machine, session).await
+            }
             Body::ApprovalChanged {
                 owner,
                 machine,

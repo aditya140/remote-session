@@ -314,3 +314,8 @@ Ctrl+C or SIGTERM emits `cancelled` during a wait. Cancellation or timeout close
 client observation and preserves native execution. If cancellation occurs before a
 prompt receipt arrives, submission remains uncertain. Do not repeat the prompt. Temporary
 connection loss can repeat reads only. Recovery never repeats a mutation or restores control.
+
+## Saved launches and session names
+
+Use [launch profiles and session metadata](launch-profiles.md) to save shell or agent
+launch choices, assign session names and labels, and find sessions by a scoped name.

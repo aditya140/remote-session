@@ -386,6 +386,7 @@
         "frame_too_large",
         "overloaded",
         "idempotency_conflict",
+        "ambiguous_name",
         "stale_generation",
         "already_resolved",
         "history_truncated",

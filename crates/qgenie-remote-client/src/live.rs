@@ -37,6 +37,7 @@ pub struct LiveHandle {
     pub(crate) origin: String,
     pub(crate) controls: bool,
     pub(crate) pages: bool,
+    pub(crate) metadata: bool,
     pub(crate) roots: bool,
     pub(crate) replays: bool,
     pub(crate) session_changes: bool,
@@ -177,6 +178,7 @@ impl GatewayClient {
             optional: [
                 "session-control-v1".into(),
                 "session-pages-v1".into(),
+                "session-metadata-v1".into(),
                 "root-discovery-v1".into(),
                 "session-replay-v1".into(),
                 "session-changes-v1".into(),
@@ -229,6 +231,7 @@ impl GatewayClient {
                         welcome.capabilities.contains("durable-approvals-v1"),
                         welcome.capabilities.contains("session-changes-v1"),
                         welcome.capabilities.contains("session-pages-v1"),
+                        welcome.capabilities.contains("session-metadata-v1"),
                         welcome.capabilities.contains("root-discovery-v1"),
                     )),
                     _ => Err(protocol()),
@@ -253,6 +256,7 @@ impl GatewayClient {
             approvals,
             session_changes,
             pages,
+            metadata,
             roots,
         ) = id;
         let (commands, receive) = mpsc::channel(64);
@@ -264,6 +268,7 @@ impl GatewayClient {
             origin: self.config.origin.clone(),
             controls,
             pages,
+            metadata,
             roots,
             replays,
             session_changes,
@@ -383,6 +388,7 @@ impl LiveHandle {
                 Message::SessionList
                     | Message::SessionListPage { .. }
                     | Message::SessionGet { .. }
+                    | Message::SessionResolve { .. }
                     | Message::HostGenerationQuery
                     | Message::StartLookup { .. }
                     | Message::FsList { .. }

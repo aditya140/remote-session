@@ -58,6 +58,7 @@ pub(crate) async fn database_contract(store: Store, admin: &sqlx::PgPool) {
         host_connection: connection,
     };
     let session = Session {
+        metadata: Default::default(),
         id: scope.session,
         machine: actor.machine,
         owner,
