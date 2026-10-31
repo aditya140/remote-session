@@ -57,6 +57,9 @@ jobs:
       - run: python3 -m unittest discover -s tests/tools -v
       - run: cargo check --workspace --all-targets --locked
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Adapter lifecycle
+        timeout-minutes: 4
+        run: cargo test --package qgenie-remote-adapters --all-features --lib --locked -- --nocapture
       - run: cargo test --workspace --locked
       - run: cargo xtask boundaries
       - run: cargo xtask schema --check

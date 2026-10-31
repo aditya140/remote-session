@@ -50,6 +50,9 @@ reads and the CLI API route deny access.
   can reject the foreign peer before that write. The fixture accepts that disconnect
   and retains the independent server-side and client-side permission assertions.
   Its Docker harness now uses the local daemon explicitly and builds with `--locked`.
+- The macOS workspace test stalled in the PTY output-burst test. The workflow now
+  runs adapter lifecycle tests first with a four-minute limit. Phase output will
+  identify the blocked native operation. Investigation remains in progress.
 - Workflow actions use verified commit pins and Node 24 runtimes. Jobs use fixed
   runner images, timeouts, read-only tokens, and independent matrix results.
   Superseded runs cancel. Dependency caches survive test failures. The `CI` job

@@ -58,10 +58,13 @@ fn interrupt_keeps_the_owned_shell_usable_until_explicit_termination() {
 }
 #[test]
 fn output_burst_is_lossless_bounded_and_does_not_block_resize() {
+    eprintln!("PTY burst: spawn");
     let mut child = process(
         "stty -echo; awk 'BEGIN { for(i=0;i<16384;i++) printf \"0123456789abcdef0123456789abcdef\"; printf \"BURST_DONE\" }'; read -r value; printf AFTER_BURST",
     );
+    eprintln!("PTY burst: resize");
     child.0.control.resize(40, 120).unwrap();
+    eprintln!("PTY burst: drain output");
     let output = until(&mut child, |bytes| bytes.ends_with(b"BURST_DONE"));
     assert_eq!(output.len(), 16384 * 32 + b"BURST_DONE".len());
     assert!(
@@ -71,9 +74,12 @@ fn output_burst_is_lossless_bounded_and_does_not_block_resize() {
             .iter()
             .all(|chunk| chunk == b"0123456789abcdef0123456789abcdef")
     );
+    eprintln!("PTY burst: continue input");
     child.0.control.input(b"continue\n").unwrap();
     until(&mut child, |bytes| bytes.ends_with(b"AFTER_BURST"));
+    eprintln!("PTY burst: wait for exit");
     assert!(child.0.child.wait().unwrap().success());
+    eprintln!("PTY burst: complete");
 }
 #[test]
 fn dropping_the_output_observer_preserves_control_and_native_execution() {
