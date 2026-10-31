@@ -46,16 +46,21 @@ was removed; the bounded adapter step runs the full adapter suite once.
 
 ## Caches
 
-Rust jobs retain dependency caches after failure. Platform suites and integration
-groups use separate keys to avoid overwriting different feature artifacts.
-Specification comparisons also cache their Rust dependencies.
+Development and test builds omit debug symbols to reduce compilation, linking,
+and cache size. Debug assertions and the production release profile remain as
+configured in `Cargo.toml`. Rust jobs retain dependency caches after failure.
+Platform suites and integration groups use separate keys to avoid overwriting different feature artifacts.
+Specification comparisons use an explicit target directory for their temporary
+Cargo project, so the cache retains its dependency artifacts.
 
 The deployment uses Buildx with GitHub cache exports for both images. Pinned
 cargo-chef `0.1.78` separates dependency compilation from application sources.
 The dependency layer includes real vendored crates, registry data, and compiler
 artifacts. It does not rely on mutable cache mounts surviving a runner. The build
-context includes only build inputs. Runtime images retain the pinned base images,
-UID/GID 10001, CA trust, and separate gateway/fixture-identity contents.
+context includes only build inputs. One shared build stage compiles both binaries
+with the same package set as the dependency layer. Each runtime image receives
+only its own binary. Runtime images retain the pinned base images, UID/GID 10001,
+CA trust, and separate gateway/fixture-identity contents.
 
 The first run populates new caches. Later runs can reuse them. Cargo.lock,
 toolchain, vendored source, or dependency recipe changes require rebuilding the

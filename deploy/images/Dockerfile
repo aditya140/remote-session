@@ -31,28 +31,27 @@ COPY crates crates
 COPY apps apps
 COPY xtask xtask
 COPY tests/fixtures/identity tests/fixtures/identity
+COPY conformance/identity conformance/identity
 
-FROM source AS gateway-build
+# Match the cooked package set and compile shared crates only once.
+FROM source AS binaries
 RUN --mount=type=secret,id=ca_bundle \
     if [ -f /run/secrets/ca_bundle ]; then export CARGO_HTTP_CAINFO=/run/secrets/ca_bundle; fi; \
-    cargo build --release --locked -p qgenie-remote-gateway && \
-    mkdir -p /out && cp target/release/qgenie-remote-gateway /out/gateway
-
-FROM source AS fixture-build
-RUN --mount=type=secret,id=ca_bundle \
-    if [ -f /run/secrets/ca_bundle ]; then export CARGO_HTTP_CAINFO=/run/secrets/ca_bundle; fi; \
-    cargo build --release --locked -p qgenie-remote-fixture-identity && \
-    mkdir -p /out && cp target/release/qgenie-remote-fixture-identity /out/fixture-identity
+    cargo build --release --locked \
+        -p qgenie-remote-gateway -p qgenie-remote-fixture-identity && \
+    mkdir -p /out && \
+    cp target/release/qgenie-remote-gateway /out/gateway && \
+    cp target/release/qgenie-remote-fixture-identity /out/fixture-identity
 
 # Explicit development-only image. The production image contains no fixture.
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3 AS fixture-identity
-COPY --from=fixture-build /out/fixture-identity /app/fixture-identity
+COPY --from=binaries /out/fixture-identity /app/fixture-identity
 USER 10001:10001
 ENTRYPOINT ["/app/fixture-identity"]
 
 # Default target is the production gateway; fixture identity is always explicit.
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3 AS gateway
-COPY --from=gateway-build /out/gateway /app/gateway
+COPY --from=binaries /out/gateway /app/gateway
 USER 10001:10001
 EXPOSE 8080 9091
 ENTRYPOINT ["/app/gateway"]

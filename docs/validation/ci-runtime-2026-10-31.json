@@ -1,0 +1,868 @@
+{
+  "measured_at": "2026-10-31",
+  "repository": "aditya140/remote-session",
+  "method": "GitHub Actions run creation to final job completion, including queue and cache work. Each run is one sample, not a guaranteed duration.",
+  "notes": [
+    "Baseline uses the previous successful main revision, with uncached Docker builds and existing Cargo caches.",
+    "The initial run creates new job/cache scopes. Every Rust/native/specification suite passed, but the fixture image failed because its two synthetic identity include files were excluded from the build context. The aggregate gate failed correctly. Gateway dependencies and image layers were exported successfully.",
+    "The follow-up restores the two exact fixture inputs, shares application compilation between the two images, removes CI dev/test debug symbols while keeping debug assertions and the release profile unchanged, and persists the temporary Rust specification harness target.",
+    "Final warm-cache and documentation-only measurements are pending."
+  ],
+  "runs": [
+    {
+      "phase": "baseline",
+      "run_id": 41229220164,
+      "url": "https://github.com/aditya140/remote-session/actions/runs/41229220164",
+      "commit": "99574eef2f6c66fbc7f265d4e2c152e72705d123",
+      "workflow": "Rust checks",
+      "conclusion": "success",
+      "created_at": "2026-10-31T18:23:56Z",
+      "completed_at": "2026-10-31T18:39:30.000Z",
+      "elapsed_seconds": 934,
+      "jobs": [
+        {
+          "id": 124619682352,
+          "name": "postgres",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:23:59Z",
+          "completed_at": "2026-10-31T18:36:16Z",
+          "duration_seconds": 737,
+          "steps": [
+            {
+              "name": "Initialize containers",
+              "conclusion": "success",
+              "duration_seconds": 15
+            },
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Install the pinned native Codex fixture",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Run cargo build --package qgenie-remote-gateway --locked",
+              "conclusion": "success",
+              "duration_seconds": 28
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-gateway --lib --locked -- --include-ignored --skip transcripts::durability::",
+              "conclusion": "success",
+              "duration_seconds": 97
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote --test host_enrollment --locked scoped_pkce_device_enrollment_lost_ack_credentials_and_unenrollment -- --ignored",
+              "conclusion": "success",
+              "duration_seconds": 161
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote --test host_enrollment --locked actual_connector_enforces_roots_refreshes_in_place_and_survives_replacement -- --ignored",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote --test host_enrollment --locked actual_native_connector_activates_original_nonces_across_gateways_and_survives_revocation -- --ignored",
+              "conclusion": "success",
+              "duration_seconds": 27
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-host --lib --locked -- --include-ignored",
+              "conclusion": "success",
+              "duration_seconds": 55
+            },
+            {
+              "name": "Install transaction-pooling test dependency",
+              "conclusion": "success",
+              "duration_seconds": 15
+            },
+            {
+              "name": "Synchronous receipts and primary-volume loss",
+              "conclusion": "success",
+              "duration_seconds": 203
+            },
+            {
+              "name": "Native Codex adapter contract",
+              "conclusion": "success",
+              "duration_seconds": 16
+            },
+            {
+              "name": "Run python3 tests/e2e/pgbouncer_recordings.py",
+              "conclusion": "success",
+              "duration_seconds": 72
+            }
+          ]
+        },
+        {
+          "id": 124619682432,
+          "name": "development-deployment",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:23:59Z",
+          "completed_at": "2026-10-31T18:39:24Z",
+          "duration_seconds": 925,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 23
+            },
+            {
+              "name": "Run cargo build --locked --package qgenie-remote",
+              "conclusion": "success",
+              "duration_seconds": 32
+            },
+            {
+              "name": "Run cargo build --locked --package qgenie-remote-client --example remote_load",
+              "conclusion": "success",
+              "duration_seconds": 11
+            },
+            {
+              "name": "Run python3 deploy/compose/stack.py build",
+              "conclusion": "success",
+              "duration_seconds": 714
+            },
+            {
+              "name": "Run python3 deploy/compose/stack.py up",
+              "conclusion": "success",
+              "duration_seconds": 34
+            },
+            {
+              "name": "Run python3 deploy/compose/stack.py monitor-smoke",
+              "conclusion": "success",
+              "duration_seconds": 20
+            },
+            {
+              "name": "Run python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote smoke",
+              "conclusion": "success",
+              "duration_seconds": 38
+            },
+            {
+              "name": "Run python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote --load-bin target/debug/examples/remote_load baseline",
+              "conclusion": "success",
+              "duration_seconds": 13
+            },
+            {
+              "name": "Run python3 deploy/compose/stack.py fault-smoke",
+              "conclusion": "success",
+              "duration_seconds": 17
+            }
+          ]
+        },
+        {
+          "id": 124619682466,
+          "name": "check (macos-15)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:23:58Z",
+          "completed_at": "2026-10-31T18:29:41Z",
+          "duration_seconds": 343,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Run cargo check --workspace --all-targets --locked",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Adapter lifecycle",
+              "conclusion": "success",
+              "duration_seconds": 11
+            },
+            {
+              "name": "Run cargo test --workspace --locked --no-fail-fast",
+              "conclusion": "success",
+              "duration_seconds": 150
+            },
+            {
+              "name": "Run cargo xtask boundaries",
+              "conclusion": "success",
+              "duration_seconds": 5
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-transport --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 71
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-adapters --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-sessiond --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 17
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 6
+            },
+            {
+              "name": "Run cargo build --package qgenie-remote --locked",
+              "conclusion": "success",
+              "duration_seconds": 6
+            }
+          ]
+        },
+        {
+          "id": 124619682492,
+          "name": "check (ubuntu-24.04)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:23:59Z",
+          "completed_at": "2026-10-31T18:35:15Z",
+          "duration_seconds": 676,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 20
+            },
+            {
+              "name": "Run cargo check --workspace --all-targets --locked",
+              "conclusion": "success",
+              "duration_seconds": 28
+            },
+            {
+              "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 27
+            },
+            {
+              "name": "Adapter lifecycle",
+              "conclusion": "success",
+              "duration_seconds": 11
+            },
+            {
+              "name": "Run cargo test --workspace --locked --no-fail-fast",
+              "conclusion": "success",
+              "duration_seconds": 266
+            },
+            {
+              "name": "Run cargo xtask boundaries",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-transport --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 80
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-adapters --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 15
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-sessiond --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 50
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 15
+            },
+            {
+              "name": "Run cargo build --package qgenie-remote --locked",
+              "conclusion": "success",
+              "duration_seconds": 72
+            },
+            {
+              "name": "Run bash tests/e2e/foreign_uid_ipc.sh",
+              "conclusion": "success",
+              "duration_seconds": 19
+            },
+            {
+              "name": "Run bash tests/e2e/recording_disk_full.sh",
+              "conclusion": "success",
+              "duration_seconds": 9
+            }
+          ]
+        },
+        {
+          "id": 124623447134,
+          "name": "CI",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:39:27Z",
+          "completed_at": "2026-10-31T18:39:30Z",
+          "duration_seconds": 3,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "phase": "baseline",
+      "run_id": 41229220118,
+      "url": "https://github.com/aditya140/remote-session/actions/runs/41229220118",
+      "commit": "99574eef2f6c66fbc7f265d4e2c152e72705d123",
+      "workflow": "Specification laws",
+      "conclusion": "success",
+      "created_at": "2026-10-31T18:23:56Z",
+      "completed_at": "2026-10-31T18:26:43.000Z",
+      "elapsed_seconds": 167,
+      "jobs": [
+        {
+          "id": 124619682137,
+          "name": "laws",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:23:58Z",
+          "completed_at": "2026-10-31T18:26:43Z",
+          "duration_seconds": 165,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Install pinned Lean and Bend",
+              "conclusion": "success",
+              "duration_seconds": 19
+            },
+            {
+              "name": "Run cargo fetch --locked",
+              "conclusion": "success",
+              "duration_seconds": 6
+            },
+            {
+              "name": "Check laws, mutations, and Rust conformance",
+              "conclusion": "success",
+              "duration_seconds": 121
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "initial_cache_warmup",
+      "run_id": 41231182650,
+      "url": "https://github.com/aditya140/remote-session/actions/runs/41231182650",
+      "commit": "2f0feb5d7ff8bb169b507c4b931f5215afef881e",
+      "workflow": "Rust checks",
+      "conclusion": "failure",
+      "created_at": "2026-10-31T18:48:23Z",
+      "completed_at": "2026-10-31T19:06:47.000Z",
+      "elapsed_seconds": 1104,
+      "jobs": [
+        {
+          "id": 124625553414,
+          "name": "changes",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:25Z",
+          "completed_at": "2026-10-31T18:48:30Z",
+          "duration_seconds": 5,
+          "steps": []
+        },
+        {
+          "id": 124625581084,
+          "name": "development-deployment",
+          "conclusion": "failure",
+          "started_at": "2026-10-31T18:48:33Z",
+          "completed_at": "2026-10-31T19:06:39Z",
+          "duration_seconds": 1086,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo build --locked --package qgenie-remote",
+              "conclusion": "success",
+              "duration_seconds": 31
+            },
+            {
+              "name": "Run cargo build --locked --package qgenie-remote-client --example remote_load",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Set up cached image builder",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Build gateway image",
+              "conclusion": "success",
+              "duration_seconds": 922
+            },
+            {
+              "name": "Build fixture-identity image",
+              "conclusion": "failure",
+              "duration_seconds": 80
+            },
+            {
+              "name": "Post Build fixture-identity image",
+              "conclusion": "success",
+              "duration_seconds": 2
+            },
+            {
+              "name": "Post Build gateway image",
+              "conclusion": "success",
+              "duration_seconds": 2
+            },
+            {
+              "name": "Post Set up cached image builder",
+              "conclusion": "success",
+              "duration_seconds": 3
+            }
+          ]
+        },
+        {
+          "id": 124625581111,
+          "name": "postgres (gateway)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:37Z",
+          "completed_at": "2026-10-31T18:53:34Z",
+          "duration_seconds": 297,
+          "steps": [
+            {
+              "name": "Initialize containers",
+              "conclusion": "success",
+              "duration_seconds": 17
+            },
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 8
+            },
+            {
+              "name": "Run cargo build --package qgenie-remote-gateway --locked",
+              "conclusion": "success",
+              "duration_seconds": 92
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-gateway --lib --locked -- --include-ignored --skip transcripts::durability::",
+              "conclusion": "success",
+              "duration_seconds": 88
+            },
+            {
+              "name": "Install transaction-pooling test dependency",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Run python3 tests/e2e/pgbouncer_recordings.py",
+              "conclusion": "success",
+              "duration_seconds": 67
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 7
+            }
+          ]
+        },
+        {
+          "id": 124625581133,
+          "name": "check (ubuntu-24.04, features)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:33Z",
+          "completed_at": "2026-10-31T18:54:48Z",
+          "duration_seconds": 375,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-proto --no-default-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-transport --no-default-features --features client-ws --locked",
+              "conclusion": "success",
+              "duration_seconds": 22
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-transport --no-default-features --features server-ws --locked",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote-transport --all-targets --all-features --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 5
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-transport --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 100
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-host --no-default-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Adapter lifecycle and contracts",
+              "conclusion": "success",
+              "duration_seconds": 31
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote-adapters --all-features --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 17
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-sessiond --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 52
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 74
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 11
+            }
+          ]
+        },
+        {
+          "id": 124625581175,
+          "name": "check (ubuntu-24.04, workspace)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:32Z",
+          "completed_at": "2026-10-31T18:56:43Z",
+          "duration_seconds": 491,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 8
+            },
+            {
+              "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 80
+            },
+            {
+              "name": "Run cargo test --workspace --locked --no-fail-fast",
+              "conclusion": "success",
+              "duration_seconds": 265
+            },
+            {
+              "name": "Run cargo xtask boundaries",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo build --package qgenie-remote --locked",
+              "conclusion": "success",
+              "duration_seconds": 42
+            },
+            {
+              "name": "Run bash tests/e2e/foreign_uid_ipc.sh",
+              "conclusion": "success",
+              "duration_seconds": 28
+            },
+            {
+              "name": "Run bash tests/e2e/recording_disk_full.sh",
+              "conclusion": "success",
+              "duration_seconds": 29
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 15
+            }
+          ]
+        },
+        {
+          "id": 124625581179,
+          "name": "check (macos-15, features)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:32Z",
+          "completed_at": "2026-10-31T18:51:47Z",
+          "duration_seconds": 195,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 6
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-proto --no-default-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-transport --no-default-features --features client-ws --locked",
+              "conclusion": "success",
+              "duration_seconds": 8
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-transport --no-default-features --features server-ws --locked",
+              "conclusion": "success",
+              "duration_seconds": 6
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-transport --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 78
+            },
+            {
+              "name": "Run cargo check --package qgenie-remote-host --no-default-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 5
+            },
+            {
+              "name": "Adapter lifecycle and contracts",
+              "conclusion": "success",
+              "duration_seconds": 12
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 5
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-sessiond --all-features --locked",
+              "conclusion": "success",
+              "duration_seconds": 20
+            },
+            {
+              "name": "Run cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 20
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 10
+            }
+          ]
+        },
+        {
+          "id": 124625581191,
+          "name": "check (macos-15, workspace)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:32Z",
+          "completed_at": "2026-10-31T18:52:43Z",
+          "duration_seconds": 251,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 6
+            },
+            {
+              "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings",
+              "conclusion": "success",
+              "duration_seconds": 31
+            },
+            {
+              "name": "Run cargo test --workspace --locked --no-fail-fast",
+              "conclusion": "success",
+              "duration_seconds": 160
+            },
+            {
+              "name": "Run cargo xtask boundaries",
+              "conclusion": "success",
+              "duration_seconds": 8
+            },
+            {
+              "name": "Run cargo build --package qgenie-remote --locked",
+              "conclusion": "success",
+              "duration_seconds": 15
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 20
+            }
+          ]
+        },
+        {
+          "id": 124625581202,
+          "name": "recording",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:33Z",
+          "completed_at": "2026-10-31T18:57:07Z",
+          "duration_seconds": 514,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 10
+            },
+            {
+              "name": "Install the pinned native Codex fixture",
+              "conclusion": "success",
+              "duration_seconds": 7
+            },
+            {
+              "name": "Synchronous receipts and primary-volume loss",
+              "conclusion": "success",
+              "duration_seconds": 455
+            },
+            {
+              "name": "Native Codex adapter contract",
+              "conclusion": "success",
+              "duration_seconds": 15
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 18
+            }
+          ]
+        },
+        {
+          "id": 124625581277,
+          "name": "postgres (enrollment)",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:32Z",
+          "completed_at": "2026-10-31T18:54:10Z",
+          "duration_seconds": 338,
+          "steps": [
+            {
+              "name": "Initialize containers",
+              "conclusion": "success",
+              "duration_seconds": 14
+            },
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote --test host_enrollment --locked scoped_pkce_device_enrollment_lost_ack_credentials_and_unenrollment -- --ignored",
+              "conclusion": "success",
+              "duration_seconds": 200
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote --test host_enrollment --locked actual_connector_enforces_roots_refreshes_in_place_and_survives_replacement -- --ignored",
+              "conclusion": "success",
+              "duration_seconds": 11
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote --test host_enrollment --locked actual_native_connector_activates_original_nonces_across_gateways_and_survives_revocation -- --ignored",
+              "conclusion": "success",
+              "duration_seconds": 26
+            },
+            {
+              "name": "Run cargo test --package qgenie-remote-host --lib --locked -- --include-ignored",
+              "conclusion": "success",
+              "duration_seconds": 57
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 14
+            }
+          ]
+        },
+        {
+          "id": 124629826700,
+          "name": "CI",
+          "conclusion": "failure",
+          "started_at": "2026-10-31T19:06:42Z",
+          "completed_at": "2026-10-31T19:06:47Z",
+          "duration_seconds": 5,
+          "steps": [
+            {
+              "name": "Require the selected jobs to pass",
+              "conclusion": "failure",
+              "duration_seconds": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "initial_cache_warmup",
+      "run_id": 41231182648,
+      "url": "https://github.com/aditya140/remote-session/actions/runs/41231182648",
+      "commit": "2f0feb5d7ff8bb169b507c4b931f5215afef881e",
+      "workflow": "Specification laws",
+      "conclusion": "success",
+      "created_at": "2026-10-31T18:48:23Z",
+      "completed_at": "2026-10-31T18:51:22.000Z",
+      "elapsed_seconds": 179,
+      "jobs": [
+        {
+          "id": 124625553410,
+          "name": "laws",
+          "conclusion": "success",
+          "started_at": "2026-10-31T18:48:26Z",
+          "completed_at": "2026-10-31T18:51:22Z",
+          "duration_seconds": 176,
+          "steps": [
+            {
+              "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+              "conclusion": "success",
+              "duration_seconds": 9
+            },
+            {
+              "name": "Install pinned Lean and Bend",
+              "conclusion": "success",
+              "duration_seconds": 19
+            },
+            {
+              "name": "Check laws, mutations, and Rust conformance",
+              "conclusion": "success",
+              "duration_seconds": 124
+            },
+            {
+              "name": "Post Run Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+              "conclusion": "success",
+              "duration_seconds": 6
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

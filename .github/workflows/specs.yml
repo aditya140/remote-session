@@ -12,6 +12,8 @@ jobs:
   laws:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target/spec-conformance
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -44,7 +46,8 @@ jobs:
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
         cache-on-failure: true
-        key: specifications-v1
+        key: specifications-v2
+        workspaces: . -> target/spec-conformance
       if: steps.scope.outputs.code == 'true'
     - name: Install pinned Lean and Bend
       env:

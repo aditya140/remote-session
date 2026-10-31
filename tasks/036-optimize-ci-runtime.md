@@ -40,3 +40,26 @@ request diffs, multiple commits, code-to-document renames, document deletion,
 unavailable bases, manual/empty-diff full runs, and failed/cancelled/skipped gate
 results. Actionlint passes. Docker Buildx checks the revised image definition
 without warnings. Full image compilation and runtime validation follow in CI.
+
+The specification harness creates a temporary Cargo project. Its target directory
+must be set explicitly to `target/spec-conformance`; caching the root workspace's
+default target alone does not preserve those compiler outputs. The workflow sets
+that directory and caches it under its own key.
+
+Development and test artifacts currently include full debug information. The next
+full run will disable those symbols in CI to reduce compilation, linking, and
+cache size. Keep debug assertions enabled and leave the production release
+profile unchanged. Validate the changed CI profile with the full suite, then measure a run
+that reuses its caches. Keep cold-cache and warm-cache evidence separate.
+
+Use one shared application-build stage for the gateway and fixture binaries. Cook
+and build the same package set so Cargo can reuse the dependency feature set.
+Compile shared application crates once. Continue to copy only the selected binary
+into each separate runtime image. Validate both images with the deployment suite.
+
+The first hosted run passed all Rust, native, and specification suites. The
+gateway image compiled and exported its cache. The fixture image failed because
+the new build context omitted its two compile-time synthetic identity inputs.
+Restore those exact files in the context and source layer, then rerun the full
+suite. The aggregate gate correctly failed. Do not count that run as successful
+deployment evidence.

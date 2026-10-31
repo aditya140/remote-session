@@ -18,6 +18,10 @@
 !tests/fixtures/
 !tests/fixtures/identity/
 !tests/fixtures/identity/**
+!conformance/
+!conformance/identity/
+!conformance/identity/synthetic-rsa-private.pem
+!conformance/identity/synthetic-jwks.json
 !deploy/
 !deploy/images/
 !deploy/images/Dockerfile
