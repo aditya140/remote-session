@@ -158,7 +158,10 @@ def exercise(stack, binary, load_binary=None):
             stack.wait(lambda: observed(b"AFTER_ROLL"), "new controlled input after explicit reconnect")
             cross = 0
             for _ in range(8):
-                remote("sessions", machine)
+                # Session lists come from durable gateway metadata. Reconcile is
+                # read-only but reaches sessiond, so it can prove actual routing.
+                if remote("reconcile", machine, key)["session"] != session:
+                    raise RuntimeError("cross-node lookup returned a different native session")
                 cross = sum(int(line.split()[1]) for node in range(1, 5) for line in stack.call("exec", "-T", "edge", "wget", "-Y", "off", "-qO-", f"http://gateway-{node}:9091/metrics", capture=True, timeout=8).decode().splitlines() if line.startswith("qgr_cross_node_requests_sent_total "))
                 if cross:
                     break
