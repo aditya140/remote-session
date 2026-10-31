@@ -1,0 +1,37 @@
+{
+  "format": "qgr-synchronous-acceptance-v1",
+  "status": "passed",
+  "environment": {
+    "system": "Linux",
+    "arch": "x86_64"
+  },
+  "mode": "composed",
+  "phases": {
+    "synchronous_pair": "passed",
+    "public_session_pipeline": "passed",
+    "managed_codex": "passed",
+    "managed_start_boundaries": "passed",
+    "primary_volume_loss": "passed"
+  },
+  "release_gates": {
+    "real_entra": "not_run",
+    "macos_services": "not_run",
+    "linux_user_manager": "not_run",
+    "beta_scale": "not_run",
+    "production_fault_domains": "not_run"
+  },
+  "docker_version": "28.4.0",
+  "postgres_version": "17.11",
+  "gateway_observations": {
+    "qgr_approval_choice_attempts_total": 4.0,
+    "qgr_native_approval_delivery_attempt_seconds_count": 5.0,
+    "qgr_native_approval_delivery_attempt_seconds_sum": 0.043315,
+    "qgr_replay_requests_total": 173.0,
+    "qgr_transport_bytes_in_total": 907830.0,
+    "qgr_transport_bytes_out_total": 1486676.0,
+    "qgr_transport_connections_total": 23.0
+  },
+  "approval_latency_definition": "Native delivery attempt through received/persisted result or error; includes fault-injected attempts, excludes claim SQL and retry scheduling. Aggregate count/sum, not a release latency distribution.",
+  "managed_codex_pin": "0.159.2",
+  "elapsed_ms": 211097
+}

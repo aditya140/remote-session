@@ -326,7 +326,16 @@ pub(crate) async fn run(args: Args, state: &Path) -> Result<()> {
             user.status.success(),
             "cannot determine the current OS user"
         );
-        let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname")?
+        let mut hostname = [0u8; 256];
+        // SAFETY: the writable buffer has the length supplied to gethostname.
+        // Check for a terminator below because some systems truncate without one.
+        if unsafe { libc::gethostname(hostname.as_mut_ptr().cast(), hostname.len()) } != 0 {
+            return Err(std::io::Error::last_os_error()).context("cannot read the hostname");
+        }
+        let hostname = std::ffi::CStr::from_bytes_until_nul(&hostname)
+            .context("hostname exceeds the supported length")?
+            .to_str()
+            .context("hostname must be UTF-8")?
             .trim()
             .to_owned();
         let cwd = std::env::current_dir()?;

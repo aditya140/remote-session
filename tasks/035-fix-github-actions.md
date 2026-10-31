@@ -38,6 +38,9 @@ reads and the CLI API route deny access.
 - The first hosted rerun passes macOS Clippy and then exposes the same fixture
   defect in saved setup. Inspection also found it in client start-journal and
   native approval tests. Those fixtures now use explicit private permissions.
+- The next macOS run exposed a Linux-only hostname read in `host setup`.
+  Setup now calls `gethostname` and checks the returned bytes. It no longer needs
+  the Linux `/proc` filesystem to create a host configuration.
 - Workflow actions use verified commit pins and Node 24 runtimes. Jobs use fixed
   runner images, timeouts, read-only tokens, and independent matrix results.
   Superseded runs cancel. Dependency caches survive test failures. The `CI` job
@@ -48,6 +51,7 @@ reads and the CLI API route deny access.
 
 The first local recording rerun reached a later correlated-response timeout while
 another build used the same machine. A separate run passed the session workflow,
-native Codex approval delivery, and managed start crash checks. The timeout has
-not reproduced in that run. The test assertions and deadlines were not changed.
+native Codex approval delivery, managed start crash checks, and primary-volume
+loss. The [sanitized result](../docs/validation/ci-recording-2026-10-31.json) records
+all five passing phases under `umask 0022`. The timeout did not reproduce in that run. The test assertions and deadlines were not changed.
 Final hosted results remain pending.
