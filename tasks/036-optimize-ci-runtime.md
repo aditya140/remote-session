@@ -69,3 +69,22 @@ The superseded warm-up run also exposed a cache-policy issue. With
 GitHub cache entries are immutable, so later exact hits cannot fill those entries.
 Save caches only after successful jobs. Use fresh version-three keys for the final
 profile, then let the full run finish before measuring cache reuse.
+
+The local Docker context export passes. It contains the fixture source and both
+synthetic identity inputs. It excludes Git metadata, target outputs, documentation,
+unrelated test fixtures, and Compose files. Parent-directory exceptions were
+removed because Docker also applies those exceptions to their children.
+
+## Hosted validation
+
+The full suite passes on `ba89a66`: [Rust checks and deployment](https://github.com/aditya140/remote-session/actions/runs/41232902764)
+and [specification laws](https://github.com/aditya140/remote-session/actions/runs/41232902753).
+Docker restores the chef and dependency layers, then compiles both application
+binaries in 370 seconds. The fixture image reuses that build. All startup,
+monitoring, native smoke, baseline, restore, and fault checks pass.
+
+The [measurement snapshot](../docs/validation/ci-runtime-2026-10-31.json) records
+baseline and warm-up job and step times. The next full run measures reuse of the
+completed caches. Its only changes are this evidence and the measurement snapshot.
+The JSON report deliberately selects the full suite. A later Markdown-only push
+will verify the documentation path and record the final comparison here.
