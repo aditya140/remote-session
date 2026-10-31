@@ -30,6 +30,15 @@ MUTATIONS = {
     "protocol": ("[InputTag{}, Number{s}, Number{n}, Number{h}, Number{c}]", "[InputTag{}, Number{s}, Number{n}, Number{h}]"),
     "client": ("C.eq(current_target, target)", "True{}"),
     "privacy": ("case History{content, held, count}: content", "case History{content, held, count}: count"),
+    "control/lease-expiry": ("Bool.and(lease_live,", "Bool.and(True{},"),
+    "control/holder": ("C.eq(holder, who)", "True{}"),
+    "control/host-generation": ("C.eq(current_host, host)", "True{}"),
+    "control/controller-generation": ("C.eq(current_generation, generation)", "True{}"),
+    "control/eligible-activation": ("case True{} True{}: proposed", "case True{} True{}: current"),
+    "access/revocation": ("case g0 _: g0", "case Grant{d, c, r} TokenRefresh{}: Grant{d, c, False{}}\n    case g0 _: g0"),
+    "access/failed-clock": ("case g0 _: g0", "case Grant{d, c, r} RedisHint{}: Grant{d, True{}, r}\n    case g0 _: g0"),
+    "capabilities/gateway": ("Bool.and(gateway,", "Bool.and(True{},"),
+    "recording/durability": ("case True{} True{} True{}: Reclaimed{}", "case True{} True{} _: Reclaimed{}"),
 }
 
 
@@ -71,6 +80,8 @@ def main():
     actual = sorted(p.parent.name for p in ROOT.glob("*/PROOF.bend"))
     if actual != PIN["domains"]:
         raise RuntimeError("Proof directories differ from the pinned domain manifest.")
+    if {name.split("/")[0] for name in MUTATIONS} != set(actual):
+        raise RuntimeError("Mutation domains differ from the pinned domain manifest.")
     if checked(["git", "rev-parse", "HEAD"], source, env) != PIN["bend_commit"]:
         raise RuntimeError("Bend checkout does not match the pinned commit.")
     if checked(["git", "status", "--porcelain"], source, env):
@@ -105,25 +116,25 @@ def main():
             report["laws"][domain] = {"status": "passed", "count": count}
             print(f"PASS {domain}: {count} laws ({args.mode})", flush=True)
         if args.mutations:
-            for domain in actual:
-                copy = cwd / ("mutation-" + domain)
+            for regression, (old, new) in MUTATIONS.items():
+                domain = regression.split("/")[0]
+                copy = cwd / ("mutation-" + regression.replace("/", "-"))
                 copy.mkdir()
                 shutil.copy2(ROOT / "Common.bend", copy / "Common.bend")
                 shutil.copytree(ROOT / domain, copy / domain)
                 model = copy / domain / "Model.bend"
-                old, new = MUTATIONS[domain]
                 text = model.read_text()
                 # Protocol's pattern occurs in encode and decode. Change encode only.
-                expected = 2 if domain == "protocol" else 1
+                expected = 2 if regression == "protocol" else 1
                 if text.count(old) != expected:
-                    raise RuntimeError(f"{domain}: mutation anchor changed")
+                    raise RuntimeError(f"{regression}: mutation anchor changed")
                 model.write_text(text.replace(old, new, 1))
                 result = run(command + [str(copy / domain / "PROOF.bend"), flag], cwd, env)
                 if (result.returncode != 1 or "SOME PROOFS FAIL" not in result.stdout
                         or "Location: Laws." not in result.stdout):
-                    raise RuntimeError(f"{domain}: expected a law failure, got:\n{result.stdout}")
-                report["mutations"][domain] = "rejected_by_law"
-                print(f"PASS {domain}: regression rejected", flush=True)
+                    raise RuntimeError(f"{regression}: expected a law failure, got:\n{result.stdout}")
+                report["mutations"][regression] = "rejected_by_law"
+                print(f"PASS {regression}: regression rejected", flush=True)
         if args.compare_rust:
             implementation_paths = [
                 "Cargo.lock", "rust-toolchain.toml",

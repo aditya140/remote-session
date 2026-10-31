@@ -80,9 +80,11 @@ and lease/access validity facts. Admission compares all identities and validity 
 Reconnect clears activation. Activation requires a newer numeric controller generation
 and explicit confirmation. A separate helper exposes that decision as Boolean guards.
 
-The laws cover inactive and expired-access denial, eligible-holder success, ignored
-stale activation, equal-generation takeover denial, confirmation, reconnect, and no
-automatic resend of uncertain input. A proposed lease represents a validated activation
+The laws cover inactive, expired-lease, and expired-access denial. Separate inequality
+laws reject a wrong holder, host generation, or controller generation. Positive laws
+permit the eligible holder and apply a confirmed newer proposal. The other laws cover
+ignored stale activation, equal-generation takeover denial, confirmation, reconnect,
+and no automatic resend of uncertain input. A proposed lease represents a validated activation
 proposal; validation and persistence are external obligations. This model does not yet
 encode PostgreSQL proposal/sessiond acknowledgment/gateway confirmation as three states.
 
@@ -109,6 +111,8 @@ A grant starts with an already established deadline in a single local clock doma
 Access requires a healthy clock, no revocation, and a time strictly before that deadline.
 Delay, retry, token refresh, directory success, and Redis hints cannot move the deadline.
 Revocation and clock failure remove authority. A trace law preserves the original deadline.
+Two more trace laws preserve revocation and clock failure through every finite event
+sequence. A new grant requires separate fresh authority; retry cannot restore this grant.
 
 Creating a new grant from a primary read and sessiond nonce is outside this model.
 The implementation must establish the ten-second maximum and directory budget before
@@ -139,7 +143,8 @@ Entry: [recording/LAWS.bend](recording/LAWS.bend).
 
 A chunk starts retained. Identity, digest, and capture time remain unchanged on upload
 retry. A reclaimable receipt requires matching identity, matching recovery epoch,
-and durable acceptance. Capacity pressure distinguishes a committed gap from uncertain
+and durable acceptance. A law rejects even a matching receipt without durable acceptance.
+Capacity pressure distinguishes a committed gap from uncertain
 loss when metadata cannot be persisted. Storage events never request process termination.
 
 Receipt validation and gap durability are trusted facts supplied by storage owners.
@@ -180,7 +185,7 @@ Entry: [capabilities/LAWS.bend](capabilities/LAWS.bend).
 
 One capability is available only at the intersection of client, gateway, host, and
 adapter support. A missing required capability rejects negotiation. Laws include
-successful agreement and missing-participant denials.
+successful agreement and separate denials for each missing participant, including the gateway.
 
 This model applies per capability. It assumes the flags describe verified support.
 Version ordering, full capability sets, and downgrade policy remain governed by ADR 0004

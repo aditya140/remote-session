@@ -2,6 +2,12 @@ import Base
 import ./Model.bend as M
 import ../Common.bend as C
 
+# CAP-001: The gateway must also support the capability.
+law missing_gateway_denies:
+  for h: Bool
+  for a: Bool
+  {M.enabled(True{}, False{}, h, a) == False{} : Bool}
+
 # CAP-001
 law missing_client_denies:
   for g: Bool

@@ -108,7 +108,9 @@ and deadlines. A policy proof does not prove the fact collector correct.
 Each modeled domain contains `Model.bend`, `LAWS.bend`, and `PROOF.bend`.
 [toolchain.json](toolchain.json) pins Bend, Bun, and Lean.
 [check.py](check.py) checks all declared proof entry points and optional regression
-mutations. It can also compare authorization with Rust. CI integration is not enabled.
+mutations. It can also compare authorization with Rust. The
+[specification workflow](../.github/workflows/specs.yml) runs kernel checks, regression
+mutations, and the Rust comparison for changes to specifications and product crates.
 Use [models.md](models.md) to identify each theorem's scope and remaining obligations.
 
 Review requirement and law changes explicitly. Do not weaken a law solely to make a

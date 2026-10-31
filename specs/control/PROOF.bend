@@ -3,6 +3,28 @@ import ./Model.bend as M
 import ../Common.bend as C
 import ./LAWS.bend as Laws
 
+def Laws.expired_lease_denied(h, host, gen, access, who, rh, rg): {==}
+
+def and_false(a: Bool, b: Bool, no: {a == False{} : Bool}) -> {Bool.and(a, b) == False{} : Bool}:
+  %Equal.sym(Bool, a, False{}, no) : {Bool.and(_, b) == False{} : Bool}
+  {==}
+
+def and_right_false(a: Bool, b: Bool, no: {b == False{} : Bool}) -> {Bool.and(a, b) == False{} : Bool}:
+  match a:
+    case True{}: no
+    case False{}: {==}
+
+def Laws.wrong_holder_denied(holder, who, host, gen, different):
+  and_false(C.eq(holder, who), Bool.and(C.eq(host, host), C.eq(gen, gen)), different)
+
+def Laws.wrong_host_denied(holder, host, requested, gen, different):
+  and_right_false(C.eq(holder, holder), Bool.and(C.eq(host, requested), C.eq(gen, gen)), and_false(C.eq(host, requested), C.eq(gen, gen), different))
+
+def Laws.wrong_controller_generation_denied(holder, host, gen, requested, different):
+  and_right_false(C.eq(holder, holder), Bool.and(C.eq(host, host), C.eq(gen, requested)), and_right_false(C.eq(host, host), C.eq(gen, requested), different))
+
+def Laws.eligible_activation_applied(current, proposed): {==}
+
 def Laws.unactivated_denied(h, host, gen, live, access, who, rh, rg): {==}
 
 def Laws.expired_access_denied(h, host, gen, who, rh, rg): {==}

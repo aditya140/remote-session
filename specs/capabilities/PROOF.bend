@@ -3,6 +3,8 @@ import ./Model.bend as M
 import ../Common.bend as C
 import ./LAWS.bend as Laws
 
+def Laws.missing_gateway_denies(h, a): {==}
+
 def Laws.missing_client_denies(g, h, a): {==}
 
 def Laws.missing_host_denies(a): {==}

@@ -29,6 +29,14 @@ def deadline(g: Grant) -> Nat:
   match g:
     case Grant{d, c, r}: d
 
+def revoked(g: Grant) -> Bool:
+  match g:
+    case Grant{d, c, r}: r
+
+def clock_ok(g: Grant) -> Bool:
+  match g:
+    case Grant{d, c, r}: c
+
 def replay(es: List<&2, RenewalEvent>, g: Grant) -> Grant:
   match es:
     case Nil{}: g

@@ -3,6 +3,8 @@ import ./Model.bend as M
 import ../Common.bend as C
 import ./LAWS.bend as Laws
 
+def Laws.non_durable_receipt_retained(): {==}
+
 def Laws.retry_immutable(c): {==}
 
 def Laws.wrong_epoch_retained(i, d):

@@ -62,3 +62,44 @@ law same_generation_cannot_takeover:
   for +current: Nat
   for proposed: Nat
   {M.activate(M.Lease{current, 1n, g, True{}, True{}, True{}}, M.Lease{proposed, 1n, g, True{}, True{}, True{}}, True{}) == M.Lease{current, 1n, g, True{}, True{}, True{}} : M.Lease}
+
+# CONTROL-001: Each admission guard must independently reject invalid authority.
+law expired_lease_denied:
+  for h: Nat
+  for host: Nat
+  for gen: Nat
+  for access: Bool
+  for who: Nat
+  for rh: Nat
+  for rg: Nat
+  {M.admitted(M.Lease{h, host, gen, True{}, False{}, access}, who, rh, rg) == False{} : Bool}
+
+law wrong_holder_denied:
+  for +holder: Nat
+  for +who: Nat
+  for +host: Nat
+  for +gen: Nat
+  for different: {C.eq(holder, who) == False{} : Bool}
+  {M.admitted(M.Lease{holder, host, gen, True{}, True{}, True{}}, who, host, gen) == False{} : Bool}
+
+law wrong_host_denied:
+  for +holder: Nat
+  for +host: Nat
+  for +requested: Nat
+  for +gen: Nat
+  for different: {C.eq(host, requested) == False{} : Bool}
+  {M.admitted(M.Lease{holder, host, gen, True{}, True{}, True{}}, holder, requested, gen) == False{} : Bool}
+
+law wrong_controller_generation_denied:
+  for +holder: Nat
+  for +host: Nat
+  for +gen: Nat
+  for +requested: Nat
+  for different: {C.eq(gen, requested) == False{} : Bool}
+  {M.admitted(M.Lease{holder, host, gen, True{}, True{}, True{}}, holder, host, requested) == False{} : Bool}
+
+# CONTROL-003: A valid confirmed proposal must be able to advance.
+law eligible_activation_applied:
+  for current: M.Lease
+  for +proposed: M.Lease
+  {M.activation(True{}, True{}, current, proposed) == proposed : M.Lease}

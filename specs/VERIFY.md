@@ -41,10 +41,15 @@ The default mode requires both Bend's checker and its independent kernel to acce
 every proof. Use `--mode standard` only for a standard-checker result when Lean is
 unavailable. The report records that weaker mode explicitly.
 
-The mutation checks make fourteen temporary copies. Each copy introduces one regression
+The mutation checks make twenty-three temporary copies. Each copy introduces one regression
 in a model and retains its original laws and proofs. A check passes only when a named
 law rejects the change. Syntax errors and unavailable tools do not count as rejection.
 The command does not edit the repository's models.
+
+The control regressions cover activation, lease expiry, each identity comparison,
+and successful confirmed activation. Additional regressions try to restore revoked
+or clock-invalid grants, bypass gateway capability support, and reclaim a chunk
+without a durable receipt. The laws must reject each change.
 
 ## Compare authorization with Rust
 
@@ -64,6 +69,18 @@ current `qgenie-remote-policy` crate. It starts with the product lockfile and ru
 offline. The harness invokes the real policy function. The comparison also checks
 the independent permission predicate, rejection outcomes, and retryability.
 Build products remain outside the repository.
+
+## Continuous verification
+
+The [specification workflow](../.github/workflows/specs.yml) runs on relevant pushes,
+pull requests, and manual dispatch. It reads the tool versions from `toolchain.json`.
+It checks the Lean archive against `lean_linux_sha256` before extraction. It fetches
+locked Cargo dependencies, then runs the kernel, mutations, and Rust comparison.
+A successful job uploads a fresh `spec-verification` artifact for that commit.
+
+The workflow does not use the committed report as a test result. Repository branch
+protection is separate configuration; this workflow file does not make its job a
+required merge check. Kernel checks remain separate from native and deployment tests.
 
 ## Interpret the result
 

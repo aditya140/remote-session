@@ -2,6 +2,10 @@ import Base
 import ./Model.bend as M
 import ../Common.bend as C
 
+# RECORD receipt: Matching identity and epoch do not establish durable storage.
+law non_durable_receipt_retained:
+  {M.receipt(True{}, True{}, False{}) == M.Retained{} : M.Storage}
+
 # RECORD-001
 law retry_immutable:
   for +c: M.Chunk
