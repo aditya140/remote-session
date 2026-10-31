@@ -1,0 +1,13 @@
+{
+  "bend_repository": "https://github.com/bendlang/bend.git",
+  "bend_commit": "9e8d7b7958ebb3bb72464dfb6b6b5f06949fbcad",
+  "bend_version": "2.0.39",
+  "bun_version": "1.4.4",
+  "lean_version": "4.34.0",
+  "lean_linux_sha256": "caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b",
+  "domains": [
+    "access", "approval", "authorization", "bounds", "capabilities", "client",
+    "control", "lifetime", "privacy", "protocol", "recording", "replay",
+    "retention", "start"
+  ]
+}

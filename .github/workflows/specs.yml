@@ -1,0 +1,77 @@
+name: Specification laws
+on:
+  push:
+    paths:
+      - 'specs/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/specs.yml'
+  pull_request:
+    paths:
+      - 'specs/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/specs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  laws:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned toolchain
+        id: pins
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          pins = json.loads(Path('specs/toolchain.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for name in ('bun_version', 'lean_version', 'lean_linux_sha256',
+                           'bend_repository', 'bend_commit'):
+                  print(f'{name}={pins[name]}', file=output)
+          PY
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ steps.pins.outputs.bun_version }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - name: Install pinned Lean and Bend
+        env:
+          LEAN_VERSION: ${{ steps.pins.outputs.lean_version }}
+          LEAN_SHA256: ${{ steps.pins.outputs.lean_linux_sha256 }}
+          BEND_REPOSITORY: ${{ steps.pins.outputs.bend_repository }}
+          BEND_COMMIT: ${{ steps.pins.outputs.bend_commit }}
+        run: |
+          archive="$RUNNER_TEMP/lean.tar.zst"
+          curl --fail --location --retry 3 \
+            "https://github.com/leanprover/lean4/releases/download/v$LEAN_VERSION/lean-$LEAN_VERSION-linux.tar.zst" \
+            --output "$archive"
+          echo "$LEAN_SHA256  $archive" | sha256sum --check --strict
+          tar --zstd -xf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lean-$LEAN_VERSION-linux/bin" >> "$GITHUB_PATH"
+          git init "$RUNNER_TEMP/qgr-bend"
+          git -C "$RUNNER_TEMP/qgr-bend" remote add origin "$BEND_REPOSITORY"
+          git -C "$RUNNER_TEMP/qgr-bend" fetch --depth 1 origin "$BEND_COMMIT"
+          git -C "$RUNNER_TEMP/qgr-bend" checkout --detach FETCH_HEAD
+      - run: cargo fetch --locked
+      - name: Check laws, mutations, and Rust authorization
+        run: >-
+          python3 specs/check.py --bend-source "$RUNNER_TEMP/qgr-bend"
+          --mutations --compare-rust --report "$RUNNER_TEMP/spec-verification.json"
+      - name: Preserve successful verification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-verification
+          path: ${{ runner.temp }}/spec-verification.json
+          if-no-files-found: error
+          retention-days: 14
