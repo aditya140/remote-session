@@ -290,3 +290,26 @@ GitHub later reported new workflow jobs as failed before any steps ran. Those
 jobs have no available logs. The connector cannot read check annotations, and the
 CLI could not read the run. The underlying hosted-start failure remains unknown.
 These hosted failures are not reported as green local or hosted evidence.
+
+## Issue 7 design
+
+- Inspect Herdr parent, child, note, and wait contracts at the pinned revision.
+- Compare proposed pilot tasks with the implemented receipt, profile, inbox, and
+  wait workflow. Separate source evidence from missing developer usage evidence.
+- Define independent session identity, association, provenance, authorization,
+  cancellation, and termination. Propose bounds and recovery acceptance tests.
+- Record a no-go decision for a runtime engine until a measured pilot supports
+  the extra state. Keep the issue open for its stated entry condition.
+
+### Issue 7 research result
+
+The [coordination decision](../docs/integration/agent-task-coordination.md)
+records a no-go for automatic delegation now. It includes three proposed pilot
+workflows, exact identities and message provenance, explicit action authority,
+proposed capacity bounds, and failure acceptance tests. Parent shutdown cannot
+terminate durable children. Agent text cannot approve or grant control.
+
+The referenced Herdr source was inspected at its pinned revision. It was not
+executed. Developer pilot evidence was not supplied. The usage gate remains open;
+no orchestration runtime or new crate was added. Relative documentation links and
+the current CLI documentation check are the applicable checks for this PR.
