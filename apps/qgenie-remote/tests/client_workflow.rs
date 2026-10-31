@@ -30,6 +30,13 @@ struct Peer {
     after: Arc<Mutex<Vec<Counter>>>,
     reconnect: bool,
     ui: bool,
+    submission: bool,
+    receipt_cap: bool,
+    returned_turn: Option<String>,
+    drop_ack: bool,
+    wait_disconnect: bool,
+    inputs: Arc<AtomicUsize>,
+    releases: Arc<AtomicUsize>,
     protocol_error: bool,
     leases: Arc<AtomicUsize>,
     drop_connection: Arc<tokio::sync::Notify>,
@@ -86,6 +93,13 @@ impl Peer {
             after: Default::default(),
             reconnect,
             ui: false,
+            submission: false,
+            receipt_cap: false,
+            returned_turn: Some("wanted".into()),
+            drop_ack: false,
+            wait_disconnect: false,
+            inputs: Default::default(),
+            releases: Default::default(),
             protocol_error: false,
             leases: Default::default(),
             drop_connection: Default::default(),
@@ -114,7 +128,8 @@ async fn endpoint(State(peer): State<Peer>, upgrade: WebSocketUpgrade) -> axum::
         let Some(Ok(WsMessage::Text(text)))=socket.recv().await else {panic!("hello expected")};
         let hello:Envelope=serde_json::from_str(&text).unwrap();
         let Message::Hello(hello)=hello.message else {panic!("hello expected")};
-        let available=["routing-v1","machine-pages-v1","auth-refresh-v1","session-pages-v1","session-changes-v1","session-replay-v1","agent-events-v1","approval-status-v1","session-control-v1","durable-approvals-v1"].into_iter().map(String::from).collect();
+        let mut available: std::collections::BTreeSet<String>=["routing-v1","machine-pages-v1","auth-refresh-v1","session-pages-v1","session-changes-v1","session-replay-v1","agent-events-v1","approval-status-v1","session-control-v1","durable-approvals-v1"].into_iter().map(String::from).collect();
+        if peer.receipt_cap { available.insert("prompt-receipts-v1".into()); }
         send(&mut socket,Envelope::new(Message::Welcome(negotiate(&hello,&[Version{major:1,minor:0}],&available).unwrap()))).await;
         let client_id=ClientId::new();
         send(&mut socket,Envelope::new(Message::ConnectionReady{client:client_id,host_generation:None,activated:false})).await;
@@ -152,7 +167,19 @@ async fn endpoint(State(peer): State<Peer>, upgrade: WebSocketUpgrade) -> axum::
             let request:Envelope=serde_json::from_str(&text).unwrap();
             match &request.message {
                 Message::SessionListPage{..} if peer.ui=>send(&mut socket,reply(&request,Message::SessionPage{sessions:vec![peer.session.clone()],next:None})).await,
-                Message::LeaseRequest{takeover:false} if peer.ui=>{peer.leases.fetch_add(1,Ordering::SeqCst);send(&mut socket,reply(&request,Message::LeaseGranted(ControlLease{holder:client_id,host_generation:Counter(1),generation:Counter(1),expires_at:Timestamp::from_unix_millis(4102444800000).unwrap(),last_input:Counter(0)}))).await;},
+                Message::LeaseRequest{takeover:false} if peer.ui || peer.submission=>{peer.leases.fetch_add(1,Ordering::SeqCst);send(&mut socket,reply(&request,Message::LeaseGranted(ControlLease{holder:client_id,host_generation:Counter(1),generation:Counter(1),expires_at:Timestamp::from_unix_millis(4102444800000).unwrap(),last_input:Counter(0)}))).await;},
+                Message::Input{authority,input_seq,input:SessionInput::PromptReceipt(text)} if peer.submission=>{
+                    assert_eq!(text,"submit once");
+                    assert_eq!(peer.inputs.fetch_add(1,Ordering::SeqCst),0,"input repeated");
+                    if peer.drop_ack {let _=socket.close().await;return;}
+                    send(&mut socket,reply(&request,Message::InputAck{generation:authority.controller.unwrap(),input_seq:*input_seq,outcome:ApplicationOutcome::Applied,turn:peer.returned_turn.clone()})).await;
+                },
+                Message::LeaseRelease{generation} if peer.submission=>{
+                    peer.releases.fetch_add(1,Ordering::SeqCst);
+                    send(&mut socket,reply(&request,Message::LeaseRevoked{generation:*generation,reason:"released".into()})).await;
+                },
+                Message::SessionGet{..} if peer.submission && peer.releases.load(Ordering::SeqCst)==0=>panic!("wait kept control"),
+                Message::SessionGet{..} if peer.wait_disconnect && connection==1=>{let _=socket.close().await;return;},
                 Message::SessionGet{session}=>{assert_eq!(*session,peer.session.id);send(&mut socket,reply(&request,Message::SessionFound(peer.session.clone()))).await;},
                 Message::ApprovalIndex{..}=>send(&mut socket,reply(&request,Message::ApprovalPage{states:Vec::new(),next:None})).await,
                 Message::Attach{after} if peer.reconnect=>{
@@ -568,4 +595,179 @@ async fn malformed_gateway_frames_stop_observation_without_reconnect() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[tokio::test]
+async fn send_wait_uses_receipt_after_release_even_when_other_turn_is_active() {
+    let tls = identity::Tls::new();
+    let mut peer = Peer::new(false);
+    peer.submission = true;
+    peer.receipt_cap = true;
+    peer.wait_disconnect = true;
+    peer.agent
+        .push(SequencedEvent {
+            seq: Counter(4),
+            at: Timestamp::from_unix_millis(2).unwrap(),
+            event: AgentEvent::TurnStarted {
+                turn: "unrelated".into(),
+            },
+        })
+        .unwrap();
+    let server = tls
+        .bind()
+        .await
+        .serve(
+            Router::new()
+                .route("/v1/connect/client", get(endpoint))
+                .with_state(peer.clone()),
+        )
+        .await;
+    let result = cli(
+        &server,
+        &tls,
+        &peer,
+        &[
+            "send",
+            "submit once",
+            "--prompt",
+            "--wait",
+            "--timeout",
+            "2",
+        ],
+    )
+    .await;
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let values: Vec<Value> = serde_json::Deserializer::from_slice(&result.stdout)
+        .into_iter()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0]["turn"], "wanted");
+    assert_eq!(values[0]["control_released"], true);
+    assert_eq!(values[1]["outcome"], "completed");
+    assert_eq!(peer.inputs.load(Ordering::SeqCst), 1);
+    assert_eq!(peer.leases.load(Ordering::SeqCst), 1);
+    assert_eq!(peer.releases.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn unsupported_missing_and_lost_receipts_never_resubmit_or_wait() {
+    for (supported, missing, lost) in [
+        (false, false, false),
+        (true, true, false),
+        (true, false, true),
+    ] {
+        let tls = identity::Tls::new();
+        let mut peer = Peer::new(false);
+        peer.submission = true;
+        peer.receipt_cap = supported;
+        if missing {
+            peer.returned_turn = None;
+        }
+        peer.drop_ack = lost;
+        let server = tls
+            .bind()
+            .await
+            .serve(
+                Router::new()
+                    .route("/v1/connect/client", get(endpoint))
+                    .with_state(peer.clone()),
+            )
+            .await;
+        let result = cli(
+            &server,
+            &tls,
+            &peer,
+            &[
+                "send",
+                "submit once",
+                "--prompt",
+                "--wait",
+                "--timeout",
+                "1",
+            ],
+        )
+        .await;
+        assert!(!result.status.success());
+        let value: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(
+            value["error"]["outcome"],
+            if supported { "unknown" } else { "not_sent" }
+        );
+        assert_eq!(peer.inputs.load(Ordering::SeqCst), usize::from(supported));
+        assert_eq!(
+            peer.connections.load(Ordering::SeqCst),
+            1,
+            "mutation restarted or wait guessed a turn"
+        );
+        assert!(peer.after.lock().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn cancelling_exact_wait_emits_result_and_leaves_native_work_alone() {
+    let tls = identity::Tls::new();
+    let peer = Peer::new(false);
+    let server = tls
+        .bind()
+        .await
+        .serve(
+            Router::new()
+                .route("/v1/connect/client", get(endpoint))
+                .with_state(peer.clone()),
+        )
+        .await;
+    let token = identity::private(b"synthetic-client-workflow-token");
+    let root = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
+    let child = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"))
+        .arg("--state-dir")
+        .arg(root.path())
+        .args(["remote", "--gateway"])
+        .arg(&server.origin)
+        .arg("--ca-bundle")
+        .arg(tls.ca.path())
+        .arg("--token-file")
+        .arg(token.path())
+        .arg("wait")
+        .arg(peer.session.machine.to_string())
+        .arg(peer.session.id.to_string())
+        .args(["--turn", "not-complete", "--timeout", "30"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while peer.after.lock().unwrap().is_empty() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(
+        tokio::process::Command::new("kill")
+            .arg("-TERM")
+            .arg(child.id().unwrap().to_string())
+            .status()
+            .await
+            .unwrap()
+            .success()
+    );
+    let result = tokio::time::timeout(Duration::from_secs(3), child.wait_with_output())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(result.status.success());
+    let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(result["outcome"], "cancelled");
+    assert_eq!(result["native_sessions"], "retained");
+    assert_eq!(peer.leases.load(Ordering::SeqCst), 0);
+    assert_eq!(peer.inputs.load(Ordering::SeqCst), 0);
 }

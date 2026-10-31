@@ -109,6 +109,11 @@ pub(crate) enum Action {
         enter: bool,
         #[arg(long,conflicts_with_all=["steer","enter"])]
         prompt: bool,
+        /// Observe this prompt's exact native turn after releasing control.
+        #[arg(long, requires = "prompt")]
+        wait: bool,
+        #[arg(long, requires = "wait", default_value_t = 300, value_parser=clap::value_parser!(u16).range(1..=3600))]
+        timeout: u16,
         #[arg(long,conflicts_with_all=["prompt","enter"])]
         steer: bool,
         #[arg(long)]
@@ -274,6 +279,7 @@ pub(crate) async fn run_authenticated(
         live.close().await;
         return result;
     }
+    let mut wait_target = None;
     let result:Result<Value,RemoteError>=draining(&mut live, async {
         Ok(match action {
             Action::Observe(_) => unreachable!("observation dispatch returns before mutations"),
@@ -290,13 +296,15 @@ pub(crate) async fn run_authenticated(
             },
             Action::Reconcile{machine,key}=>{let (stage,session)=handle.lookup_start(machine,key).await?;json!({"key":key,"stage":stage,"session":session})},
             Action::Starts{machine,after,..}=>{let owner=api.machines(&token).await?.into_iter().find(|m|m.id==machine).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"machine absent from current owner inventory"))?.owner;{let(identities,next)=handle.start_identities_page(state,owner,machine,after,64).await?;json!({"identities":identities,"next":next})}},
-            Action::Send{machine,session,text,stdin,enter,takeover,prompt,steer}=>{
+            Action::Send{machine,session,text,stdin,enter,takeover,prompt,steer,wait,timeout}=>{
                 let mut bytes=if stdin {tokio::task::spawn_blocking(|| {use std::io::Read;let mut bytes=Vec::new();std::io::stdin().lock().take(32769).read_to_end(&mut bytes).map(|_|bytes)}).await.map_err(|_|RemoteError::rejected(ErrorCode::Internal,"stdin reader failed before input"))?.map_err(|_|RemoteError::rejected(ErrorCode::Internal,"stdin read failed before input"))?}else{text.unwrap_or_default().into_bytes()};
                 if enter{bytes.push(b'\r');}
                 if bytes.is_empty()||bytes.len()>32768 {bytes.fill(0);return Err(RemoteError{code:ErrorCode::InvalidFrame,outcome:OperationOutcome::NotSent,message:"input must contain 1..32768 bytes including the optional Enter".into(),retryable:false});}
                 if (prompt||steer) && (std::str::from_utf8(&bytes).is_err() || bytes.contains(&0)) {bytes.fill(0);return Err(RemoteError{code:ErrorCode::InvalidFrame,outcome:OperationOutcome::NotSent,message:"agent text must be UTF-8 without NUL".into(),retryable:false});}
                 let mut controller=match handle.take_control(machine,session,takeover).await {Ok(control)=>control,Err(error)=>{bytes.fill(0);return Err(error)}};
-                let result=if steer {controller.steer(std::str::from_utf8(&bytes).unwrap()).await}else if prompt {controller.prompt(std::str::from_utf8(&bytes).unwrap()).await}else{controller.input(&bytes).await};bytes.fill(0);let _=controller.release().await;result?;json!({"input":"acknowledged"})
+                let result=if steer {controller.steer(std::str::from_utf8(&bytes).unwrap()).await.map(|_|None)}else if prompt {controller.prompt_receipt(std::str::from_utf8(&bytes).unwrap()).await.map(Some)}else{controller.input(&bytes).await.map(|_|None)};bytes.fill(0);let release=controller.release().await;let turn=result?;
+                if wait && let Some(turn)=&turn { wait_target=Some(super::remote_observe::Action::Wait{machine,session,turn:Some(turn.clone()),exit:false,timeout}); }
+                json!({"input":"acknowledged","machine":machine,"session":session,"turn":turn,"control_released":release.is_ok()})
             },
             Action::Interrupt{machine,session,takeover}=>{let controller=handle.take_control(machine,session,takeover).await?;let result=controller.interrupt().await;let _=controller.release().await;result?;json!({"interrupt":"requested"})},
             Action::Terminate{machine,session,yes,external_confirmed}=>{handle.terminate_current(machine,session,yes,external_confirmed).await?;json!({"termination":"requested"})},
@@ -307,7 +315,11 @@ pub(crate) async fn run_authenticated(
         })
     }).await;
     live.close().await;
-    finish(result)
+    finish(result)?;
+    if let Some(wait) = wait_target {
+        super::remote_observe::run(api, credentials, wait).await?;
+    }
+    Ok(())
 }
 fn finish(result: Result<Value, RemoteError>) -> Result<()> {
     match result {

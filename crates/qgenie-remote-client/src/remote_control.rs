@@ -172,9 +172,28 @@ impl RemoteController {
         }
         self.send_input(wire::SessionInput::Pty(STANDARD.encode(bytes)))
             .await
+            .map(|_| ())
     }
     pub async fn prompt(&mut self, text: &str) -> Result<(), RemoteError> {
         self.agent_input(text, false).await
+    }
+    /// Submit once and return the native turn/start response ID. Never infer it from events.
+    pub async fn prompt_receipt(&mut self, text: &str) -> Result<String, RemoteError> {
+        if !self.handle.prompt_receipts || !self.handle.agents {
+            return Err(refused(
+                ErrorCode::UnsupportedCapability,
+                "gateway did not negotiate prompt-receipts-v1",
+            ));
+        }
+        if text.is_empty() || text.len() > 32768 || text.contains('\0') {
+            return Err(refused(
+                ErrorCode::FrameTooLarge,
+                "agent input must contain 1..=32768 bytes",
+            ));
+        }
+        self.send_input(wire::SessionInput::PromptReceipt(text.into()))
+            .await?
+            .ok_or_else(|| RemoteError::unknown("prompt receipt missing; do not resubmit"))
     }
     pub async fn steer(&mut self, text: &str) -> Result<(), RemoteError> {
         self.agent_input(text, true).await
@@ -198,14 +217,19 @@ impl RemoteController {
             wire::SessionInput::Prompt(text.into())
         })
         .await
+        .map(|_| ())
     }
-    async fn send_input(&mut self, input: wire::SessionInput) -> Result<(), RemoteError> {
+    async fn send_input(
+        &mut self,
+        input: wire::SessionInput,
+    ) -> Result<Option<String>, RemoteError> {
         if self.uncertain {
             return Err(refused(
                 ErrorCode::Internal,
                 "previous input is uncertain; release and reacquire control explicitly",
             ));
         }
+        let receipt_required = matches!(input, wire::SessionInput::PromptReceipt(_));
         // Poison before the first await, including cancellation and lost replies.
         self.uncertain = true;
         let reply = self
@@ -225,13 +249,20 @@ impl RemoteController {
                 generation,
                 input_seq,
                 outcome: ApplicationOutcome::Applied | ApplicationOutcome::AlreadyApplied,
-            } if generation == self.lease.generation && input_seq == self.next => {
+                turn,
+            } if generation == self.lease.generation
+                && input_seq == self.next
+                && (!receipt_required
+                    || turn.as_ref().is_some_and(|turn| {
+                        !turn.is_empty() && turn.len() <= 512 && !turn.chars().any(char::is_control)
+                    })) =>
+            {
                 self.lease.last_input = input_seq;
                 self.next = Counter(self.next.0.checked_add(1).ok_or_else(|| {
                     refused(ErrorCode::CapacityExhausted, "input sequence exhausted")
                 })?);
                 self.uncertain = false;
-                Ok(())
+                Ok(turn)
             }
             _ => Err(RemoteError::unknown(
                 "native input application is uncertain; bytes were not retried",

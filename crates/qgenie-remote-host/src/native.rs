@@ -178,6 +178,7 @@ impl NativeClient {
                 &["native-authority-v1"],
                 &[
                     "native-agent-v1",
+                    "native-prompt-receipts-v1",
                     "native-approvals-v1",
                     "native-changes-v1",
                 ],
@@ -689,7 +690,7 @@ impl NativeClient {
         controller: bool,
     ) -> Result<DispatchFrame, Error> {
         let start = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Start(_)));
-        let agent = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Start(qgenie_remote_proto::wire::Launch{kind:qgenie_remote_proto::wire::LaunchKind::Agent{..},..})|Message::Input{input:qgenie_remote_proto::wire::SessionInput::Prompt(_)|qgenie_remote_proto::wire::SessionInput::Steer(_),..}));
+        let agent = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Start(qgenie_remote_proto::wire::Launch{kind:qgenie_remote_proto::wire::LaunchKind::Agent{..},..})|Message::Input{input:qgenie_remote_proto::wire::SessionInput::Prompt(_)|qgenie_remote_proto::wire::SessionInput::PromptReceipt(_)|qgenie_remote_proto::wire::SessionInput::Steer(_),..}));
         let agent = agent || matches!(request, DispatchFrame::AgentInventory { .. });
         let approval = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::ApprovalList|Message::ApprovalCommitted(_)));
         let effect = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Input{..}|Message::Resize{..}|Message::Interrupt{..}|Message::Terminate{..}));
@@ -756,6 +757,7 @@ impl NativeClient {
             };
             let mut required = required.to_vec();
             if matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::SessionListPage{..}|Message::SessionGet{..})) {required.push("native-pages-v1");}
+            if matches!(&request, DispatchFrame::Remote {message,..} if matches!(message.message, Message::Input { input: qgenie_remote_proto::wire::SessionInput::PromptReceipt(_), .. })) { required.push("native-prompt-receipts-v1"); }
             if agent {
                 required.push("native-agent-v1");
             }

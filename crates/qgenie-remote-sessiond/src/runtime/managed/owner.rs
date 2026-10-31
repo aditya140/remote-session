@@ -85,11 +85,11 @@ impl Runtime {
                         let request = native.handle().authorized(command.authorization.clone());
                         tokio::spawn(async move {
                             let result = match command.action {
-                                ActionRequest::Terminate => control.terminate(command.authorization).await.map(|_| ApplicationOutcome::Applied),
-                                ActionRequest::Prompt { thread, text } => request.prompt(&thread, &text).await.map(|_| ApplicationOutcome::Applied),
-                                ActionRequest::Steer { thread, turn, text } => request.steer(&thread, &turn, &text).await.map(|_| ApplicationOutcome::Applied),
-                                ActionRequest::Interrupt { thread, turn } => request.interrupt(&thread, &turn).await.map(|_| ApplicationOutcome::Applied),
-                                ActionRequest::Answer { approval, decision } => request.answer(&approval, decision).await,
+                                ActionRequest::Terminate => control.terminate(command.authorization).await.map(|_| InputReceipt { outcome: ApplicationOutcome::Applied, turn: None }),
+                                ActionRequest::Prompt { thread, text } => request.prompt(&thread, &text).await.map(|turn| InputReceipt { outcome: ApplicationOutcome::Applied, turn: Some(turn) }),
+                                ActionRequest::Steer { thread, turn, text } => request.steer(&thread, &turn, &text).await.map(|_| InputReceipt { outcome: ApplicationOutcome::Applied, turn: None }),
+                                ActionRequest::Interrupt { thread, turn } => request.interrupt(&thread, &turn).await.map(|_| InputReceipt { outcome: ApplicationOutcome::Applied, turn: None }),
+                                ActionRequest::Answer { approval, decision } => request.answer(&approval, decision).await.map(|outcome| InputReceipt { outcome, turn: None }),
                             }.map_err(native_error);
                             let _ = command.reply.send(result);
                         });

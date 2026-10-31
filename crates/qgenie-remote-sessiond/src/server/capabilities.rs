@@ -21,7 +21,11 @@ pub(super) fn offered(managed: bool) -> Vec<&'static str> {
         "native-pages-v1",
     ];
     if managed {
-        capabilities.extend(["native-agent-v1", "native-approvals-v1"]);
+        capabilities.extend([
+            "native-agent-v1",
+            "native-approvals-v1",
+            "native-prompt-receipts-v1",
+        ]);
     }
     capabilities
 }
@@ -93,7 +97,15 @@ pub(super) fn check(
             }
             Message::Input { input, .. } => {
                 require(&["native-effects-v1", "native-controller-v1"])?;
-                if matches!(input, SessionInput::Prompt(_) | SessionInput::Steer(_)) {
+                if matches!(input, SessionInput::PromptReceipt(_)) {
+                    require(&["native-prompt-receipts-v1"])?;
+                }
+                if matches!(
+                    input,
+                    SessionInput::Prompt(_)
+                        | SessionInput::PromptReceipt(_)
+                        | SessionInput::Steer(_)
+                ) {
                     require(&["native-agent-v1"])?;
                 }
                 Ok(())

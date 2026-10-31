@@ -27,7 +27,7 @@ impl Store {
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
         )?;
         let version: u32 = connection.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        anyhow::ensure!(version <= 7, "unsupported session schema");
+        anyhow::ensure!(version <= 8, "unsupported session schema");
         if version == 0 {
             connection.execute_batch(include_str!("../migrations/0001_sessions.sql"))?;
         }
@@ -48,6 +48,9 @@ impl Store {
         }
         if version < 7 {
             connection.execute_batch(include_str!("../migrations/0007_session_pages.sql"))?;
+        }
+        if version < 8 {
+            connection.execute_batch(include_str!("../migrations/0008_prompt_receipts.sql"))?;
         }
         // SQLite WAL/SHM inherit the private DB permissions in the private state directory.
         Ok(Self {
@@ -498,17 +501,11 @@ impl Store {
         seq: Counter,
         digest: &str,
     ) -> Result<Option<ApplicationOutcome>> {
-        let found: Option<(String,String)>=self.connection.query_row("SELECT digest,outcome FROM input_ack WHERE session_id=?1 AND generation=?2 AND seq=?3",params![id.to_string(),generation.0.to_be_bytes().as_slice(),seq.0.to_be_bytes().as_slice()],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-        found
-            .map(|(existing, outcome)| {
-                anyhow::ensure!(
-                    existing == digest,
-                    "input sequence conflicts with earlier bytes"
-                );
-                Ok(serde_json::from_str(&outcome)?)
-            })
-            .transpose()
+        Ok(self
+            .input_receipt(id, generation, seq, digest)?
+            .map(|receipt| receipt.outcome))
     }
+
     pub fn input_record(
         &self,
         id: SessionId,
@@ -517,7 +514,50 @@ impl Store {
         digest: &str,
         outcome: ApplicationOutcome,
     ) -> Result<()> {
-        self.connection.execute("INSERT INTO input_ack VALUES(?1,?2,?3,?4,?5) ON CONFLICT(session_id,generation,seq) DO UPDATE SET outcome=excluded.outcome",params![id.to_string(),generation.0.to_be_bytes().as_slice(),seq.0.to_be_bytes().as_slice(),digest,serde_json::to_string(&outcome)?])?;
+        self.record_input_receipt(
+            id,
+            generation,
+            seq,
+            digest,
+            wire::InputReceipt {
+                outcome,
+                turn: None,
+            },
+        )
+    }
+    pub fn input_receipt(
+        &self,
+        id: SessionId,
+        generation: Counter,
+        seq: Counter,
+        digest: &str,
+    ) -> Result<Option<wire::InputReceipt>> {
+        let found: Option<(String, String, Option<String>)> = self.connection.query_row(
+            "SELECT digest,outcome,turn FROM input_ack WHERE session_id=?1 AND generation=?2 AND seq=?3",
+            params![id.to_string(), generation.0.to_be_bytes().as_slice(), seq.0.to_be_bytes().as_slice()],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional()?;
+        found
+            .map(|(existing, outcome, turn)| {
+                anyhow::ensure!(
+                    existing == digest,
+                    "input sequence conflicts with earlier bytes"
+                );
+                Ok(wire::InputReceipt {
+                    outcome: serde_json::from_str(&outcome)?,
+                    turn,
+                })
+            })
+            .transpose()
+    }
+    pub fn record_input_receipt(
+        &self,
+        id: SessionId,
+        generation: Counter,
+        seq: Counter,
+        digest: &str,
+        receipt: wire::InputReceipt,
+    ) -> Result<()> {
+        self.connection.execute("INSERT INTO input_ack(session_id,generation,seq,digest,outcome,turn) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(session_id,generation,seq) DO UPDATE SET outcome=excluded.outcome,turn=excluded.turn",params![id.to_string(),generation.0.to_be_bytes().as_slice(),seq.0.to_be_bytes().as_slice(),digest,serde_json::to_string(&receipt.outcome)?,receipt.turn])?;
         self.connection.execute("DELETE FROM input_ack WHERE session_id=?1 AND (generation<>?2 OR seq NOT IN (SELECT seq FROM input_ack WHERE session_id=?1 AND generation=?2 ORDER BY seq DESC LIMIT 128))",params![id.to_string(),generation.0.to_be_bytes().as_slice()])?;
         Ok(())
     }
@@ -630,8 +670,49 @@ mod managed_identity_tests {
                 },
             )
             .unwrap();
+        store
+            .input_record(
+                info.id,
+                Counter(1),
+                Counter(1),
+                "unknown-digest",
+                ApplicationOutcome::OutcomeUnknown,
+            )
+            .unwrap();
+        store
+            .record_input_receipt(
+                info.id,
+                Counter(1),
+                Counter(2),
+                "receipt-digest",
+                wire::InputReceipt {
+                    outcome: ApplicationOutcome::Applied,
+                    turn: Some("exact-native-turn".into()),
+                },
+            )
+            .unwrap();
         drop(store);
         let store = Store::open(&path, 64, 65536).unwrap();
+        let unknown = store
+            .input_receipt(info.id, Counter(1), Counter(1), "unknown-digest")
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            unknown.outcome,
+            ApplicationOutcome::OutcomeUnknown
+        ));
+        assert!(unknown.turn.is_none());
+        let receipt = store
+            .input_receipt(info.id, Counter(1), Counter(2), "receipt-digest")
+            .unwrap()
+            .unwrap();
+        assert!(matches!(receipt.outcome, ApplicationOutcome::Applied));
+        assert_eq!(receipt.turn.as_deref(), Some("exact-native-turn"));
+        assert!(
+            store
+                .input_receipt(info.id, Counter(1), Counter(2), "different-digest")
+                .is_err()
+        );
         let rows = store.load(machine).unwrap();
         assert_eq!(rows.len(), 2);
         let recovered = rows.iter().find(|row| row.info.id == info.id).unwrap();

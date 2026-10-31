@@ -1365,6 +1365,12 @@
             },
             "outcome": {
               "$ref": "#/$defs/ApplicationOutcome"
+            },
+            "turn": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "required": [
@@ -3574,6 +3580,22 @@
             "kind": {
               "type": "string",
               "const": "prompt"
+            }
+          },
+          "required": [
+            "kind",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "prompt_receipt"
             }
           },
           "required": [

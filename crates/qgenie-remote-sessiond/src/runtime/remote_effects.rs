@@ -76,7 +76,9 @@ impl Runtime {
         if matches!(
             &message.message,
             Message::Input {
-                input: wire::SessionInput::Prompt(_) | wire::SessionInput::Steer(_),
+                input: wire::SessionInput::Prompt(_)
+                    | wire::SessionInput::PromptReceipt(_)
+                    | wire::SessionInput::Steer(_),
                 ..
             }
         ) || (matches!(message.message, Message::Interrupt { .. })
@@ -156,6 +158,7 @@ impl Runtime {
         })?;
         let body = match reply {
             Reply::InputAck { input_seq, outcome } => Message::InputAck {
+                turn: None,
                 generation,
                 input_seq,
                 outcome,
