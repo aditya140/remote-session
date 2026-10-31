@@ -130,3 +130,42 @@ workspace. It does not establish production or native macOS qualification.
 
 PostgreSQL schema 17 requires the documented migration procedure. The original
 local development deployment and its native demo session remain unchanged.
+
+## Issue 3 design
+
+- Add a work inbox to the existing TUI. Read the current owner machine inventory,
+  session pages, typed agent checkpoints, and approval summary. Add no new server
+  index, lifecycle authority, or wire operation.
+- Read at most 16 sessions or 16 machines per page. Continue by stable machine
+  and session IDs. Run one native read at a time. Bound each checkpoint and page.
+- Keep lifetime, typed task activity, approvals, recording warnings, and freshness
+  separate. Failed turns remain actionable in running native processes. Partial
+  scans and unavailable activity cannot establish that no work needs attention.
+- Keep completion acknowledgments in the open gateway TUI instance. Scope each
+  key to owner, machine, session, and exact successful turn. Limit the set to
+  4096 keys. Preserve it through navigation and reconnects. Clear it on TUI exit.
+  It cannot suppress failures, approvals, recording warnings, or unknown state.
+- Use the existing approval view and session/history navigation. Each page owns
+  a separate observation connection. Cancellation closes owned reads and never
+  terminates native work or repeats a mutation.
+- Test multiple machines and pages, failed turns in live processes, scoped
+  completion acknowledgment, incomplete approval coverage, and interrupted reads.
+
+### Issue 3 implementation and evidence
+
+The TUI work inbox now scans owner sessions across machines and pages. It keeps
+process state, typed task outcome, approvals, recording warnings, and observation
+coverage separate. Session/history and approval navigation reuse the existing
+views. Completion acknowledgments remain local to the open gateway TUI.
+
+All 41 client tests and all six TUI tests passed. The new WSS tests cover two
+machines and multiple pages, a failed turn in a running process, incomplete
+approval coverage, exact and scoped completion acknowledgments, duplicate
+acknowledgments, and connection loss. The new focused tests took 0.22 seconds.
+Workspace Clippy, formatting, and the Python syntax check passed.
+
+The five-phase Linux deployment proof passed. The real keyboard test opens the
+work inbox, displays scanned sessions, selects an entry, and reads its protected
+history. Existing native approval, controlled prompt, start recovery, and durable
+recording proofs also passed. The local report is
+`target/validation/issue-3-native.json`. No production qualification is claimed.

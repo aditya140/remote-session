@@ -4,6 +4,7 @@ mod display;
 mod remote;
 mod remote_agent;
 mod remote_read;
+mod remote_work;
 pub use remote_read::render_remote_snapshot;
 mod remote_approvals;
 mod remote_badge;

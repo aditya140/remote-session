@@ -319,3 +319,5 @@ connection loss can repeat reads only. Recovery never repeats a mutation or rest
 
 Use [launch profiles and session metadata](launch-profiles.md) to save shell or agent
 launch choices, assign session names and labels, and find sessions by a scoped name.
+
+Press `w` in the remote TUI for the [cross-machine work inbox](work-inbox.md).
