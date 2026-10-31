@@ -195,6 +195,16 @@ async fn actual_native_spawn_rechecks_authority_after_version_probe() {
 #[tokio::test]
 #[ignore = "requires actual pinned QGR_CODEX_BINARY; native process-tree qualification"]
 async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descendant_running() {
+    owned_tool_cleanup(true).await;
+}
+
+#[tokio::test]
+#[ignore = "requires actual pinned QGR_CODEX_BINARY; sandboxed native process-tree qualification"]
+async fn actual_owned_codex_termination_also_cleans_sandboxed_tools() {
+    owned_tool_cleanup(false).await;
+}
+
+async fn owned_tool_cleanup(unsandboxed: bool) {
     struct ReleaseTool(PathBuf);
     impl Drop for ReleaseTool {
         fn drop(&mut self) {
@@ -230,7 +240,14 @@ async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descenda
         assert!(length < 2 * 1024 * 1024);
         let mut request = vec![0; length];
         stream.read_exact(&mut request).await.unwrap();
-        let item = json!({"type":"function_call","id":"fc_tree","call_id":"call_tree","name":"exec_command","arguments":json!({"cmd":"(printf ready > tool_live; while [ ! -e release_tool ]; do sleep 0.01; done; printf escaped > escaped_descendant) & wait","max_output_chars":1000}).to_string()});
+        let mut arguments = json!({"cmd":"(printf ready > tool_live; while [ ! -e release_tool ]; do sleep 0.01; done; printf escaped > escaped_descendant) & wait","max_output_chars":1000});
+        if unsandboxed {
+            // Exercise the approved tool's own session even on machines where
+            // the ordinary sandbox happens to contain its descendants.
+            arguments["sandbox_permissions"] = json!("require_escalated");
+            arguments["justification"] = json!("Controlled process ownership regression");
+        }
+        let item = json!({"type":"function_call","id":"fc_tree","call_id":"call_tree","name":"exec_command","arguments":arguments.to_string()});
         let events = [
             json!({"type":"response.created","response":{"id":"tree"}}),
             json!({"type":"response.output_item.added","output_index":0,"item":item}),
@@ -275,6 +292,10 @@ async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descenda
     // The descendant must wait for our explicit post-termination release instead.
     tokio::time::sleep(Duration::from_millis(1200)).await;
     assert!(!root.join("escaped_descendant").exists());
+    if unsandboxed {
+        // Process ownership must still work after native protocol closure.
+        adapter.disconnect().await.unwrap();
+    }
     adapter
         .process_control()
         .terminate(Arc::new(Current))

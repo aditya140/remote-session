@@ -15,9 +15,20 @@ On Linux, the socket peer PID must also equal the launched child PID. Set
 forks another process and fails this check. For npm's Linux x64 package, the native path
 is `node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex`.
 A wrapper that uses `exec` preserves the child PID and remains supported. Explicit
-cleanup signals the private process group before reaping its leader. The actual-native
-regression checks launcher rejection, descendant cleanup, and an accepted `exec` wrapper.
-These checks establish Linux behavior only.
+Linux cleanup retains kernel process descriptors (`pidfd`) and stops each parent
+before discovering its children through `/proc`. It terminates descendants before
+the app-server, including tools that create a separate process group. The traversal
+allows two seconds, at most 1,024 processes, and at most 1,024 threads per process.
+A failed attempt resumes only processes that it stopped. Each stop or termination
+signal checks the original authorization. An incomplete local shutdown still reaps
+its child and reports a cleanup failure. This requires Linux pidfd support and
+visibility of the managed user's processes in `/proc`.
+
+Actual-native regressions check launcher rejection, an accepted `exec` wrapper,
+and sandboxed and approved unsandboxed tools. They also check termination after
+native IPC disconnection. These checks establish Linux behavior only. They do not
+establish cleanup of privileged tools, processes already reparented before the
+request, or arbitrary external daemons.
 
 ## Proven capabilities and limits
 
@@ -79,7 +90,7 @@ Sessiond binds original access/controller/policy fences and composes the owned s
 runtime, journal, capture and public approval delivery described below.
 
 `CodexProcessControl` is a separate cloneable handle with a four-request queue. It checks
-the supplied original effect authorization immediately around the owned child's OS kill;
+the supplied original effect authorization immediately before each stop or termination signal;
 a denied request retains the owner and cannot trigger its local cleanup path. Losing a
 request's acknowledgment stays uncertain. Explicit local owner shutdown/drop still reaps
 its child independently of cancellation. Actual pinned tests reject an expired termination,

@@ -19,6 +19,8 @@ The `Rust checks` workflow has three groups:
 
 The `CI` job requires all three groups to succeed. A failed, skipped, or cancelled
 dependency fails this result. A matrix failure does not cancel the other platform.
+Workspace tests use `--no-fail-fast`, so a failed crate does not hide later crate
+results. The adapter lifecycle step has a separate four-minute timeout.
 The separate `Specification laws` workflow checks proofs, mutations, and Rust
 conformance. Both workflows run without path filters, so documentation changes
 also receive final results.
@@ -26,6 +28,7 @@ also receive final results.
 For branch protection, require `CI` and `laws`. This document does not configure
 repository rules. The workflow keeps each detailed job visible for diagnosis.
 Hosted macOS tests do not qualify launchd or native credential-store integration.
+See [task 035](../../tasks/035-fix-github-actions.md) for the repairs and hosted evidence.
 
 ## Diagnose a failure
 

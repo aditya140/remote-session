@@ -66,6 +66,20 @@ fn stop_owned_group(child: &mut Child) -> std::io::Result<()> {
         Err(error)
     }
 }
+async fn stop_owned_process(
+    child: &mut Child,
+    effect: &mut impl FnMut(&mut dyn FnMut() -> std::io::Result<usize>) -> std::io::Result<usize>,
+) -> std::io::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(pid) = child.id() {
+            super::process_tree::stop(pid, effect).await?;
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    effect(&mut || stop_owned_group(child).map(|_| 0)).map(|_| ())
+}
 impl ProcessOwner {
     pub fn start(mut child: Child, directory: Option<std::fs::File>) -> Result<Self, CodexError> {
         let pid = child.id().ok_or(CodexError::Process)?;
@@ -84,17 +98,26 @@ impl ProcessOwner {
                 tokio::select! {
                     result = child.wait() => break result,
                     _ = &mut stopping => {
-                        let _ = stop_owned_group(&mut child);
-                        let _ = child.start_kill();
+                        let cleanup = stop_owned_process(&mut child, &mut |effect| effect()).await;
+                        if cleanup.is_err() {
+                            // Local owner shutdown must still reap its child if
+                            // the OS refuses complete descendant cleanup. Report
+                            // that failure instead of claiming a successful stop.
+                            let _ = stop_owned_group(&mut child);
+                            let _ = child.start_kill();
+                        }
                         // Retain ownership through reap, even if the caller goes away.
-                        break child.wait().await;
+                        let reaped = child.wait().await;
+                        break cleanup.and(reaped);
                     },
                     Some(request) = commands.recv() => {
                         let mut attempted = false;
-                        let result = request.authorization.perform(&mut || {
-                            attempted = true;
-                            stop_owned_group(&mut child).map(|_| 0)
-                        });
+                        let result = stop_owned_process(&mut child, &mut |effect| {
+                            request.authorization.perform(&mut || {
+                                attempted = true;
+                                effect()
+                            })
+                        }).await;
                         match result {
                             Ok(_) => {
                                 let _ = request.reply.send(Ok(()));
@@ -187,3 +210,7 @@ impl Drop for ProcessOwner {
         self.stop.take();
     }
 }
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "owner_tests.rs"]
+mod tests;

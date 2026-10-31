@@ -5,6 +5,8 @@ pub use authorization::NativeEffectAuthorization;
 mod endpoint;
 mod normalize;
 mod owner;
+#[cfg(target_os = "linux")]
+mod process_tree;
 use crate::LaunchEnvironment;
 pub use owner::{CodexExit, CodexProcessControl};
 use qgenie_remote_proto::{

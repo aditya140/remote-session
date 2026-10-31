@@ -42,7 +42,11 @@ and credential validity. The specification runner compares those decisions with 
 SDK and records separate model-proof and implementation-comparison evidence.
 
 [Task 035](035-fix-github-actions.md) tracks the hosted CI repairs. It reproduces the
-recording fixture permissions failure and replaces deprecated macOS clock bindings.
+recording fixture permissions failure, fixes macOS portability and native test assumptions,
+and repairs presence-cleanup and protocol-recovery races. The Linux and macOS matrix, deployment job, and
+specification workflow pass. A database-job failure exposed native Codex tool cleanup
+across process groups. Its Linux repair passes local native regression checks; the
+complete hosted rerun remains pending.
 See the [CI guide](../docs/development/ci.md) for workflow coverage and required results.
 
 ## Completed milestone — core journey repairs

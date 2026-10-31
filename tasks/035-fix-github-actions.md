@@ -23,8 +23,7 @@ failed on `c14917a`. The macOS Clippy job rejected deprecated `libc` Mach time b
 The PostgreSQL job failed in the recording fixture while opening a private identity.
 The Linux matrix job was cancelled by fail-fast. The deployment job passed.
 The separate [specification run](https://github.com/aditya140/remote-session/actions/runs/41214716393)
-also passed. Actions job reads work through the connector even though commit-status
-reads and the CLI API route deny access.
+also passed.
 
 ## Changes and local evidence
 
@@ -44,8 +43,11 @@ reads and the CLI API route deny access.
 - The native Codex test used a one-second timer to detect an escaped tool.
   A deliberate runner delay reproduced a false failure: the marker already existed
   before termination. The fixture now releases the tool only after termination.
-  It also tests a delay longer than the old timer. All five native Codex checks pass
-  locally with the same binary hash as the npm fixture used by GitHub.
+  It also tests a delay longer than the old timer. The ordinary sandboxed case
+  passes locally with the same binary hash as the npm fixture used by GitHub.
+  Hosted CI still found a real escape. An explicitly approved unsandboxed tool
+  reproduces it locally because the tool starts a separate process group.
+  Two native shutdown signals also leave that descendant running.
 - The foreign-user IPC proof assumed that its first write would succeed. The server
   can reject the foreign peer before that write. The fixture accepts that disconnect
   and retains the independent server-side and client-side permission assertions.
@@ -61,8 +63,8 @@ reads and the CLI API route deny access.
   canonical paths, as the filesystem contract requires.
 - The inherited-terminal recording fixture assumed Linux EOF behavior. On macOS,
   session-leader exit closes the terminal stream despite the inherited descriptor.
-  The fixture will require complete captured output on macOS and retain the durable
-  recovery-loss assertion on Linux. Workspace tests will use `--no-fail-fast` so a
+  The fixture requires complete captured output on macOS and retains the durable
+  recovery-loss assertion on Linux. Workspace tests use `--no-fail-fast` so a
   failing crate does not hide results from later crates.
 - A later database run missed the offline update after a host disconnected.
   Background presence refresh can replace the bytes that disconnect cleanup uses
@@ -91,3 +93,46 @@ native Codex approval delivery, managed start crash checks, and primary-volume
 loss. The [sanitized result](../docs/validation/ci-recording-2026-10-31.json) records
 all five passing phases under `umask 0022`. The timeout did not reproduce in that run. The test assertions and deadlines were not changed.
 Final hosted results remain pending.
+
+
+## Native cleanup repair plan
+
+1. Keep the approved unsandboxed tool as a regression. Release its marker gate
+   only after termination. Check sandboxed tools separately.
+2. On Linux, retain kernel process descriptors for the owned tree. Stop each
+   parent before discovering its children. Validate each child against that
+   retained parent. Bound the traversal by time and process count.
+3. Check the original authorization before each signal. Terminate children before
+   the app-server. Resume any processes stopped by an incomplete attempt. Do not
+   signal saved or unverified process IDs.
+4. Verify denied and cancelled requests, protocol disconnection, native cleanup,
+   and owner reaping. Keep macOS native-agent qualification open.
+5. Run hosted CI again and publish the complete results.
+
+The Linux repair passes all seven adapter integration tests, including both native
+sandbox modes and failed-startup reaping. The unsandboxed test also disconnects
+native IPC before it requests termination. Three owner tests check denied authority,
+partial-stop recovery, preservation of an existing stop, cancelled callers, and an
+unrelated live owner. Kernel process
+descriptors prevent PID reuse from redirecting a signal. The traversal uses `/proc`
+parent identities because some supported test kernels omit the optional `children`
+files. All 19 adapter unit tests and 75 session-owner tests pass. The latter
+includes actual managed-agent and process-crash checks; the two child-only test
+entry points run through their parent fixtures. Linux and macOS cross-target
+Clippy checks pass. Privileged and already reparented external processes remain
+outside this proof.
+
+## Hosted evidence
+
+Implementation commit: `0d578cd63c3a13cd763800d2fb4781188452b304`.
+
+- [macOS job](https://github.com/aditya140/remote-session/actions/runs/41222097362/job/124598646703):
+  all workspace, feature, schema, Clippy, PTY, recording, CLI, TUI, and history checks pass.
+- [Specification workflow](https://github.com/aditya140/remote-session/actions/runs/41222097496):
+  all laws, mutation checks, and Rust comparisons pass.
+- Linux passes. The database job exposes the native cleanup failure above.
+  The deployment job also passes in the
+  [Rust workflow](https://github.com/aditya140/remote-session/actions/runs/41222097362).
+
+These checks do not qualify real enterprise identity, native user services,
+production fault domains, or the pilot workload. Those release gates remain open.

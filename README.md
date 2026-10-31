@@ -64,7 +64,7 @@ target/debug/qgenie-remote list --json
 
 ## Scope and persistence
 
-The preview supports Linux/macOS Unix IPC and advertises shell capability only. Linux behavior has been exercised in the managed workspace. macOS checks are configured in CI but have not run here. Windows is unsupported.
+The preview supports Linux/macOS Unix IPC and advertises shell capability only. Linux behavior has been exercised in the managed workspace and GitHub Actions. Hosted macOS 15 checks exercise native PTY, recording, CLI, TUI, and history fixtures. Native service-manager qualification remains open. See the [CI evidence](tasks/035-fix-github-actions.md). Windows is unsupported.
 
 SQLite stores start identities, input acknowledgments, and bounded replay in the private state directory. The replay retains at most 10,000 events or 8 MiB per session. Old cursors return truncation. A running PTY has a screen snapshot for reattachment. A daemon crash can lose the native PTY; restart reports lost/uncertain state and preserves start deduplication. A client exit does not stop the daemon.
 
