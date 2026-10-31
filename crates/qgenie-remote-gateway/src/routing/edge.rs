@@ -252,6 +252,27 @@ async fn serve_client(
         return Err(Error::Forbidden);
     }
     let id = ClientId::new();
+    // A published peer can receive owner-wide events immediately. Finish the
+    // handshake before publication; queue priority alone cannot prevent an event
+    // from overtaking an untransmitted ConnectionReady frame.
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        connection
+            .sender()
+            .try_send(
+                Priority::Control,
+                Frame::Text(Box::new(Envelope::new(Message::ConnectionReady {
+                    client: id,
+                    host_generation: None,
+                    activated: false,
+                }))),
+            )
+            .map_err(|_| Error::Overloaded)?
+            .transmitted(),
+    )
+    .await
+    .map_err(|_| Error::Unavailable)?
+    .map_err(|_| Error::Unavailable)?;
     {
         let mut peers = hub.peers.lock().unwrap();
         if peers
@@ -295,15 +316,6 @@ async fn serve_client(
         machine: None,
     };
     hub.await_subscription(actor.user).await;
-    hub.client_send(
-        id,
-        Frame::Text(Box::new(Envelope::new(Message::ConnectionReady {
-            client: id,
-            host_generation: None,
-            activated: false,
-        }))),
-        Priority::Control,
-    )?;
     hub.pages(id, actor.user).await?;
     let result = async { loop {
         tokio::select! {

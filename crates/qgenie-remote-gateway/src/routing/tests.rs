@@ -235,10 +235,12 @@ async fn connect(server: &Server, ca: &std::path::Path, role: &str, token: &str)
         })),
     )
     .await;
-    receive!(&mut connection, |envelope| {
-        matches!(envelope.message, Message::ConnectionReady { .. })
-    })
-    .await;
+    // Do not discard unexpected frames: real clients require this exact prefix,
+    // including when the owner has concurrent host inventory or approval events.
+    let welcome = receive!(&mut connection, |_| true).await;
+    assert!(matches!(welcome.message, Message::Welcome(_)));
+    let ready = receive!(&mut connection, |_| true).await;
+    assert!(matches!(ready.message, Message::ConnectionReady { .. }));
     connection
 }
 macro_rules! receive_host {
@@ -408,6 +410,25 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     inventory.machine = Some(enrolled.machine);
     send!(&host, inventory).await;
     receive!(&mut client,|envelope| matches!(&envelope.message,Message::MachineUpdated(machine) if machine.id==enrolled.machine && machine.sessions==1)).await;
+    // The host's node has no client subscription yet. Its first client must not
+    // receive owner-wide session events while waiting for Redis subscription.
+    let publish = async {
+        for _ in 0..100 {
+            let mut update = Envelope::new(Message::Sessions {
+                sessions: vec![session.clone()],
+            });
+            update.machine = Some(enrolled.machine);
+            send!(&host, update).await;
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    };
+    let reconnect = async {
+        for _ in 0..12 {
+            let connection = connect(&server_a, ca.path(), "client", &owner_jwt).await;
+            connection.close().await.unwrap();
+        }
+    };
+    tokio::join!(publish, reconnect);
     // Page a large ended history through the application role without hiding live work.
     let mut seeded = Vec::new();
     let mut tx = admin.begin().await.unwrap();
