@@ -313,3 +313,51 @@ The referenced Herdr source was inspected at its pinned revision. It was not
 executed. Developer pilot evidence was not supplied. The usage gate remains open;
 no orchestration runtime or new crate was added. Relative documentation links and
 the current CLI documentation check are the applicable checks for this PR.
+
+## Issue 8 design
+
+- Compare Herdr's holder/core boundary with the current native owner and connector.
+  Identify conditional old/new-binary tests without claiming they ran here.
+- Inventory process, PTY, transport, journal, recording, approval, cursor, and
+  control state. Require one effective native authority through each transition.
+- Define safe outcomes for crashes and lost acknowledgments. Preserve original
+  start keys and distinguish new processes from verified continued lifetimes.
+- Compare handoff cost with the tested deferred-update policy. State schema and
+  rollback constraints. Keep Linux, managed Codex, and other platforms separate.
+- Record a no-go decision until developer need and real binary evidence justify
+  a bounded prototype. Add no permanent holder or handoff runtime now.
+
+### Issue 8 research result
+
+The [native-owner upgrade decision](../docs/integration/native-owner-upgrades.md)
+records a no-go for live handoff in this release. It compares four options and
+inventories all owned state. It specifies single-authority fencing, lost-reply
+and crash outcomes, schema compatibility, distinct lifetimes, and the required
+real old/new-binary proof. It does not present a required invariant as a complete
+handoff algorithm.
+
+The Herdr holder and conditional upgrade tests were inspected at the pinned
+revision. They were not executed. No measured urgent-update need or qualified
+binary pair was supplied. Linux, structured Codex, macOS, and Windows gates stay
+separate. The issue remains open for these conditions. Relative document links,
+the CLI documentation check, and the preview compatibility check passed.
+
+## Pull request sequence and remaining gates
+
+| Issue | Pull request | Delivered scope |
+| --- | --- | --- |
+| 1 | [#9](https://github.com/aditya140/remote-session/pull/9) | Exact prompt receipts and same-turn waits. |
+| 2 | [#10](https://github.com/aditya140/remote-session/pull/10) | Private launch profiles and scoped session metadata. |
+| 3 | [#11](https://github.com/aditya140/remote-session/pull/11) | Bounded multi-machine work inbox. |
+| 4 | [#12](https://github.com/aditya140/remote-session/pull/12) | Fresh output and explicit any/all waits. |
+| 5 | [#13](https://github.com/aditya140/remote-session/pull/13) | Generated CLI docs and preview compatibility checks. Released N-2 evidence remains open. |
+| 6 | [#14](https://github.com/aditya140/remote-session/pull/14) | Composed reliability regressions and reproduced spool lock fix. |
+| 7 | [#15](https://github.com/aditya140/remote-session/pull/15) | Research decision and pilot gate. No automatic coordination runtime. |
+| 8 | Owner-upgrade research PR | Research decision and binary qualification gates. No live handoff runtime. |
+
+The PRs are stacked in this order. Main is unchanged. Each issue has a design
+record before implementation and an evidence record afterward. Hosted checks
+that fail before any workflow steps require separate investigation. Their cause
+is not established by the available connector or CLI results. The last complete
+local runtime suite and five-phase Linux deployment proof passed as recorded
+above. The original local development deployment and demo state were preserved.
