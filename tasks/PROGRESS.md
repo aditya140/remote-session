@@ -41,19 +41,15 @@ onto one `main` branch. It extends client laws for completion evidence, recovery
 and credential validity. The specification runner compares those decisions with the actual
 SDK and records separate model-proof and implementation-comparison evidence.
 
-[Task 035](035-fix-github-actions.md) tracks the hosted CI repairs. The Linux and
-macOS matrix, database/native integration, deployment job, aggregate CI, and
-specification workflow all pass on `00a27fe`. A fresh `main` run exposed a
-routing-fixture recovery race, stale TUI startup metadata, and a deployment probe
-that read durable inventory instead of contacting the native owner. Those repairs
-pass local checks. A later macOS run exposed omitted JSON array overhead in the
-inventory page budget. Its deterministic regression and the owner suite now pass
-on Linux. Final hosted verification is in progress.
-The changes fix private test permissions,
-macOS portability, presence-cleanup and protocol-recovery races, and native Codex tool
-cleanup across Linux process groups. The task records the plan, regressions, and hosted
-run links. See the [CI guide](../docs/development/ci.md) for workflow coverage and required
-results. External release qualification remains separate.
+[Task 035](035-fix-github-actions.md) completes the hosted CI repairs. Linux,
+macOS, database/native integration, deployment, aggregate CI, and specification
+checks all pass on `main` at `8a005ae`. The repairs cover private test permissions,
+macOS portability, presence and protocol recovery, Linux native tool cleanup,
+stale TUI startup metadata, exact inventory byte budgets, and recovery/deployment
+fixtures. The task records the plan, deterministic regressions, hosted job links,
+and sanitized acceptance artifacts. See the [CI guide](../docs/development/ci.md)
+for workflow coverage and required results. External release qualification remains
+separate.
 
 ## Completed milestone — core journey repairs
 

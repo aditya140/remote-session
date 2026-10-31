@@ -1,6 +1,6 @@
 # Fix GitHub Actions
 
-Status: In progress.
+Status: Completed.
 
 ## Goal and sequence
 
@@ -122,7 +122,7 @@ entry points run through their parent fixtures. Linux and macOS cross-target
 Clippy checks pass. Privileged and already reparented external processes remain
 outside this proof.
 
-## Hosted evidence
+## Initial hosted evidence
 
 Verified implementation commit: `00a27fe3d857400bb970ce36ed41b5f949e4b601`.
 Documentation commit `d286917` changes this report and the progress record only.
@@ -163,8 +163,7 @@ broker budget. With the public-presence wait, the same full routing proof passes
 in 68.24 seconds. The test sends one attach request and keeps its eight-second
 forwarding deadline. A concurrent client read now reports an early error directly.
 Gateway Clippy also passes. Two fresh runs of the exact CI database command
-pass all 26 tests in 68.72 and 69.03 seconds. Hosted verification of this fixture
-correction remains in progress.
+pass all 26 tests in 68.72 and 69.03 seconds. The final hosted run below also passes this fixture correction.
 
 ## TUI startup follow-up
 
@@ -228,4 +227,31 @@ The adjusted large-history fixture reproduces the overflow on the original code.
 With the repair, all 70 non-ignored Linux owner tests pass. Five native tests retain
 their existing separate qualification path. The two crash-helper entry points are
 excluded from direct execution and still run through their parent fixtures.
-Formatting and all-feature owner Clippy pass. Hosted verification follows.
+Formatting and all-feature owner Clippy pass. The final hosted run below verifies
+the repair on both Linux and macOS.
+
+## Final main-branch evidence
+
+Verified implementation commit: `8a005aef311f2799c0cb471029493b12f34698bd`.
+Both workflows complete successfully on `main`. This final documentation update
+changes only this task report and the progress record.
+
+| Check | Result |
+| --- | --- |
+| [Linux](https://github.com/aditya140/remote-session/actions/runs/41227751216/job/124615451898) | Pass. Workspace, features, Clippy, schemas, CLI/TUI/history, foreign-user IPC, and full recording storage. |
+| [macOS](https://github.com/aditya140/remote-session/actions/runs/41227751216/job/124615451766) | Pass. Workspace, features, Clippy, schemas, native PTY, recording, CLI/TUI, and the exact page-boundary regression. |
+| [Database and native integration](https://github.com/aditya140/remote-session/actions/runs/41227751216/job/124615451821) | Pass. PostgreSQL/Redis, enrollment, revocation, recording durability, native Codex, and transaction pooling. |
+| [Development deployment](https://github.com/aditya140/remote-session/actions/runs/41227751216/job/124615451692) | Pass. Image build, monitoring, actual cross-node dispatch, capacity baseline, restore, and fault recovery. |
+| [Aggregate CI](https://github.com/aditya140/remote-session/actions/runs/41227751216/job/124619485928) | Pass. Every required Rust workflow job succeeded. |
+| [Specification laws](https://github.com/aditya140/remote-session/actions/runs/41227751221) | Pass. Laws, mutation checks, and 18,432 authorization plus 4,274 SDK comparisons. |
+
+The final run preserves the [synchronous acceptance report](https://github.com/aditya140/remote-session/actions/runs/41227751216/artifacts/13052418455)
+and the [specification report](https://github.com/aditya140/remote-session/actions/runs/41227751221/artifacts/13053180563).
+The artifacts have a 14-day retention period. The deployment log confirms the
+original-key lookup crossed gateway nodes and returned the same native session.
+The database job passes all 26 integration tests both directly and through
+transaction pooling. It also passes all six explicitly selected native adapter
+contracts and the full recording/managed-start/primary-loss proof.
+
+No identified CI failure remains open. External release qualification remains
+separate, as listed above and in the release-gate document.
