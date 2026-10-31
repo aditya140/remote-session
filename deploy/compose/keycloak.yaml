@@ -1,0 +1,45 @@
+# Optional local human-login provider. The default CI profile stays synthetic.
+services:
+  fixture-identity:
+    profiles: [fixture]
+  keycloak:
+    image: qgenie-remote-keycloak:development
+    build: {context: ., dockerfile: keycloak.Dockerfile}
+    user: "10001:10001"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - identity-secrets:/run/qgr:ro
+      - identity-secrets:/opt/keycloak/data/import:ro
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /opt/keycloak/data:size=128m,uid=10001,gid=10001,mode=0700
+    networks: [backend]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+    mem_limit: 1g
+    cpus: 1.5
+    logging: {driver: local, options: {max-size: 10m, max-file: "3"}}
+  directory:
+    image: python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8
+    command: [python3, -B, /app/directory.py]
+    user: "10001:10001"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes: [./directory.py:/app/directory.py:ro]
+    networks: [backend]
+    mem_limit: 64m
+    cpus: 0.5
+    logging: {driver: local, options: {max-size: 10m, max-file: "3"}}
+  edge:
+    volumes:
+      - ./keycloak-haproxy.cfg:/usr/local/etc/haproxy/identity.cfg:ro
+    depends_on: !override
+      init-secrets: {condition: service_completed_successfully}
+      keycloak: {condition: service_started}
+      directory: {condition: service_started}

@@ -337,6 +337,23 @@ async fn scoped_pkce_device_enrollment_lost_ack_credentials_and_unenrollment() {
 }
 
 #[tokio::test]
+async fn device_pkce_extension_binds_polling_to_original_verifier() {
+    for enabled in [false, true] {
+        let tls = Tls::new();
+        let provider = Provider::default();
+        let issuer = tls.bind().await.serve(provider.router()).await;
+        let mut config = provider.config(&issuer.origin, tls.ca.path().into());
+        config.device_pkce = enabled;
+        let oauth = OAuth::new(config).unwrap();
+        let (_cancel, mut cancellation) = watch::channel(false);
+        let login = oauth.device(&mut cancellation).await.unwrap();
+        assert_eq!(provider.device_challenge.lock().unwrap().is_some(), enabled);
+        login.wait(&mut cancellation).await.unwrap();
+        assert_eq!(provider.polls.load(Ordering::SeqCst), 2);
+    }
+}
+
+#[tokio::test]
 async fn device_provider_slow_down_cancellation_expiry_and_tls_are_enforced() {
     let tls = Tls::new();
     let provider = Provider::default();

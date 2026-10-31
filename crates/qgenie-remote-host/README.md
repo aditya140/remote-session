@@ -18,6 +18,12 @@ The default `os-keyring` feature uses Linux Secret Service or macOS Keychain, th
 
 The user authorized the standalone provider in ADR 0007. Corporate integration can supply its own `AccessToken` to enrollment without using this OAuth module. `OAuth::browser` creates a 127.0.0.1 loopback callback and returns an authorization URL for the composition's system-browser launcher. It uses S256 PKCE, random state/verifier, exact Host/path/state validation, duplicate-field rejection, bounded callback attempts/headers, and cancellation/expiry. `OAuth::device` exposes only the verification URI and user code for display; its device code is redacted. Polling respects provider intervals, adds five seconds on slow-down, handles 429, and stops on cancellation, expiry, denial, or uncertain exchange. The app's interactive/headless mode selection and browser launcher are task 025.
 
+Set the optional `device_pkce` configuration field to `true` when the provider
+requires the S256 extension for device authorization. The client keeps the verifier
+in memory and binds every poll to the original challenge. The default is `false`.
+Existing device providers keep their original request shape. The local Keycloak
+profile enables this option.
+
 Configure a dedicated native OAuth client with a registered loopback redirect, allowed device grant, and the remote resource scope:
 
 ```json

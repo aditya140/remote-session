@@ -25,7 +25,7 @@ impl std::fmt::Debug for BrowserLogin {
         f.write_str("BrowserLogin([state and verifier redacted])")
     }
 }
-fn random() -> Zeroizing<String> {
+pub(super) fn random() -> Zeroizing<String> {
     Zeroizing::new(URL_SAFE_NO_PAD.encode(rand::random::<[u8; 32]>()))
 }
 impl OAuth {

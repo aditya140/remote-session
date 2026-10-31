@@ -245,12 +245,13 @@ services:
     <<: *sandbox
     image: haproxy:3.2-alpine@sha256:254e6370f01cd654e0744edf607c67f33777c1b6a9dc0d4b28bcba7171460122
     restart: unless-stopped
-    command: [haproxy, -W, -db, -f, /usr/local/etc/haproxy/haproxy.cfg]
+    command: [haproxy, -W, -db, -f, /usr/local/etc/haproxy/haproxy.cfg, -f, /usr/local/etc/haproxy/identity.cfg]
     ports:
       - 127.0.0.1:${QGR_EDGE_PORT:-8443}:8443
       - 127.0.0.1:${QGR_IDENTITY_PORT:-9443}:9443
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./fixture-haproxy.cfg:/usr/local/etc/haproxy/identity.cfg:ro
       - edge-secrets:/run/qgr:ro
     networks: [backend, egress]
     depends_on:

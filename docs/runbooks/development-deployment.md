@@ -1,5 +1,9 @@
 # Four-gateway development deployment
 
+For real local user sign-in, use the [Keycloak development guide](../development/local-stack.md).
+This runbook describes the default synthetic CI profile. The shared deployment
+also accepts `--identity keycloak` with a separate private state directory.
+
 This is an isolated **synthetic development environment**. The separate fixture issuer does
 not authenticate people or a real tenant. Use no production credentials. It exercises the
 real gateway/host/native PTY and recording paths with an actual same-host synchronous standby.

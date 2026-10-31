@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Owned single-server development stack. Its synthetic issuer is never production auth."""
+"""Owned single-server development stack with fixture or local Keycloak identity."""
 import argparse
 import base64
 import json
@@ -58,7 +58,7 @@ def initialize(args):
     manifest = directory / "state.json"
     if manifest.exists():
         state = json.loads(manifest.read_text())
-        if (state["project"], state["edge_port"], state["identity_port"]) != (args.project, args.edge_port, args.identity_port):
+        if (state["project"], state["edge_port"], state["identity_port"], state.get("identity", "fixture")) != (args.project, args.edge_port, args.identity_port, args.identity):
             raise RuntimeError("existing development identity/ports differ; refusing implicit reconfiguration")
         return state
     if not shutil.which("openssl"):
@@ -81,7 +81,7 @@ def initialize(args):
         ["openssl", "x509", "-req", "-in", str(certs / "redis.csr"), "-CA", str(certs / "ca.pem"), "-CAkey", str(certs / "ca.key"), "-CAcreateserial", "-days", "7", "-extfile", str(certs / "redis.cnf"), "-extensions", "server_ext", "-out", str(certs / "redis.pem")],
     ]:
         run(command, capture=True, timeout=30)
-    state = {"version": 1, "project": args.project, "edge_port": args.edge_port,
+    state = {"version": 1, "identity": args.identity, "project": args.project, "edge_port": args.edge_port,
              "identity_port": args.identity_port, "epoch": "development-" + str(uuid.uuid4())}
     passwords = {role: secrets.token_hex(32) for role in ("super", "migrate", "app", "audit", "ingest", "owner", "admin", "lifecycle", "replication", "redis", "graph")}
     inputs = directory / "input"
@@ -96,8 +96,12 @@ def initialize(args):
     put("gateway", "routing-key", base64.b64encode(secrets.token_bytes(32)).decode())
     put("gateway", "graph-secret", passwords["graph"])
     put("identity", "graph-secret", passwords["graph"])
-    put("gateway", "identity.json", {"issuer": f"https://localhost:{args.identity_port}/{TENANT}/v2.0", "tenant": TENANT, "audience": AUDIENCE, "remote_scope": "Remote.Control", "admin_role": "Remote.Admin", "jwks_url": "https://edge:9443/keys", "ca_bundle": "/run/qgr/ca.pem"})
-    put("gateway", "directory.json", {"tenant": TENANT, "client_id": GRAPH_CLIENT, "credential_file": "/run/qgr/graph-secret", "token_url": "https://edge:9443/token", "graph_base": "https://edge:9443/v1.0", "ca_bundle": "/run/qgr/ca.pem"})
+    if args.identity == "keycloak":
+        from keycloak import configure
+        configure(args, put, private, passwords["graph"])
+    else:
+        put("gateway", "identity.json", {"issuer": f"https://localhost:{args.identity_port}/{TENANT}/v2.0", "tenant": TENANT, "audience": AUDIENCE, "remote_scope": "Remote.Control", "admin_role": "Remote.Admin", "jwks_url": "https://edge:9443/keys", "ca_bundle": "/run/qgr/ca.pem"})
+        put("gateway", "directory.json", {"tenant": TENANT, "client_id": GRAPH_CLIENT, "credential_file": "/run/qgr/graph-secret", "token_url": "https://edge:9443/token", "graph_base": "https://edge:9443/v1.0", "ca_bundle": "/run/qgr/ca.pem"})
     put("gateway", "redaction.json", ["development-fixture-secret"])
     put("gateway", "redis-url", f"rediss://:{passwords['redis']}@redis:6379/0")
     put("redis", "redis.pem", (certs / "redis.pem").read_text())
@@ -129,10 +133,22 @@ def initialize(args):
 class Stack:
     def __init__(self, args, state):
         self.args, self.state = args, state
+        # Some managed checkouts use umask 077. These public source files must
+        # be readable by container UIDs 70/10001. Never apply this to secrets.
+        for name in ("init-secrets.sh", "standby.sh", "haproxy.cfg", "fixture-haproxy.cfg",
+                     "keycloak-haproxy.cfg", "directory.py", "otel.yaml", "prometheus.yaml",
+                     "alerts.yaml", "alerts-test.yaml"):
+            path = COMPOSE.with_name(name)
+            path.chmod(stat.S_IMODE(path.stat().st_mode) | 0o444)
         self.docker = ["docker"] + (["--host=" + args.docker_host] if args.docker_host else [])
         self.environment = os.environ.copy()
+        if args.docker_host and args.docker_host.startswith("unix://"):
+            for key in ("DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_TLS", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"):
+                self.environment.pop(key, None)
         self.environment.update(QGR_PROJECT=args.project, QGR_SECRETS_DIR=str(args.state.resolve()), QGR_EDGE_PORT=str(args.edge_port), QGR_IDENTITY_PORT=str(args.identity_port))
         self.compose = self.docker + ["compose", "--project-name", args.project, "--file", str(COMPOSE)]
+        if args.identity == "keycloak":
+            self.compose += ["--file", str(COMPOSE.with_name("keycloak.yaml"))]
     def call(self, *arguments, **kwargs):
         return run(self.compose + list(arguments), env=self.environment, **kwargs)
     def sql(self, sql, database="qgr"):
@@ -148,10 +164,13 @@ class Stack:
             time.sleep(0.25)
         raise RuntimeError(f"development readiness timed out: {label}")
     def build(self):
+        dockerfile = "local.Dockerfile" if self.args.build_cache == "mounts" else "Dockerfile"
         for target, tag in (("gateway", "qgenie-remote-gateway:development"), ("fixture-identity", "qgenie-remote-fixture-identity:development")):
+            if self.args.identity == "keycloak" and self.args.build_target == "all" and target == "fixture-identity":
+                continue
             if self.args.build_target not in ("all", target):
                 continue
-            command = self.docker + ["build", "--network=" + self.args.build_network, "--file", str(ROOT / "deploy/images/Dockerfile"), "--target", target, "--tag", tag, "--build-arg", "HTTPS_PROXY", "--build-arg", "HTTP_PROXY", "--build-arg", "NO_PROXY"]
+            command = self.docker + ["build", "--network=" + self.args.build_network, "--file", str(ROOT / "deploy/images" / dockerfile), "--target", target, "--tag", tag, "--build-arg", "HTTPS_PROXY", "--build-arg", "HTTP_PROXY", "--build-arg", "NO_PROXY"]
             if self.args.build_ca:
                 command += ["--secret", "id=ca_bundle,src=" + str(self.args.build_ca.resolve())]
             # Docker build namespaces may lack the host's local proxy DNS alias.
@@ -159,9 +178,12 @@ class Stack:
             for hostname in sorted({urllib.parse.urlsplit(self.environment.get(key, "")).hostname for key in ("HTTPS_PROXY", "HTTP_PROXY")} - {None}):
                 command += ["--add-host", hostname + ":" + socket.gethostbyname(hostname)]
             run(command + [str(ROOT)], env=self.environment)
+        if self.args.identity == "keycloak":
+            self.call("build", "keycloak")
     def up(self):
         self.call("config", "--quiet")
-        self.call("up", "--detach", "postgres", "standby", "redis", "pgbouncer", "fixture-identity", "edge", "otel", "prometheus")
+        identities = ["keycloak", "directory"] if self.args.identity == "keycloak" else ["fixture-identity"]
+        self.call("up", "--detach", "postgres", "standby", "redis", "pgbouncer", *identities, "edge", "otel", "prometheus")
         self.wait(lambda: self.sql("SELECT count(*) FROM pg_stat_replication WHERE application_name='qgr_development_standby' AND state='streaming'") == "1", "streaming standby")
         self.sql("ALTER SYSTEM SET synchronous_standby_names='FIRST 1 (qgr_development_standby)'")
         self.sql("SELECT pg_reload_conf()")
@@ -175,8 +197,21 @@ class Stack:
         self.call("up", "--detach", "gateway-1", "gateway-2", "gateway-3", "gateway-4", "jobs")
         for node in range(1, 5):
             self.wait(lambda n=node: self.probe(n), f"gateway {node}")
-        self.wait(lambda: self.http("/v1/machines", token=self.mint()) is not None, "verified edge/identity/directory")
-        print("Four development gateways are ready with actual synchronous storage. This same-host synthetic stack does not qualify production durability or identity.")
+        if self.args.identity == "keycloak":
+            from keycloak import ready
+            self.wait(lambda: ready(self), "verified Keycloak and real user directory")
+            self.wait(self.edge_ready, "public gateway through HTTPS edge")
+        else:
+            self.wait(lambda: self.http("/v1/machines", token=self.mint()) is not None, "verified edge/identity/directory")
+        print("Four development gateways are ready with actual synchronous storage. This same-host stack does not qualify production durability or corporate identity.")
+    def edge_ready(self):
+        # Internal gateway probes can pass before HAProxy admits a backend.
+        # The real protected API must be reachable and reject anonymous access.
+        try:
+            self.http("/v1/machines")
+        except urllib.error.HTTPError as error:
+            return error.code == 401
+        return False
     def probe(self, node):
         self.call("exec", "-T", f"gateway-{node}", "/app/gateway", "probe", capture=True, report_failure=False, timeout=5)
         return True
@@ -211,6 +246,14 @@ class Stack:
                 raise RuntimeError("oversize development response")
             return json.loads(body)
     def mint(self):
+        if self.args.identity == "keycloak":
+            if not self.args.token_file:
+                raise RuntimeError("Keycloak smoke requires --token-file from a real OAuth login")
+            path = self.args.token_file
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077:
+                raise RuntimeError("OAuth token must be an owned private regular file")
+            return path.read_text().strip()
         return self.http("/token", identity=True, form={"client_id": CLIENT, "grant_type": "urn:qgenie:development-fixture"})["access_token"]
     def backup(self):
         backups = self.args.state / "backups"
@@ -344,7 +387,10 @@ def main():
     parser.add_argument("--docker-host")
     parser.add_argument("--edge-port", type=int, default=8443)
     parser.add_argument("--identity-port", type=int, default=9443)
+    parser.add_argument("--identity", choices=("fixture", "keycloak"), default="fixture")
+    parser.add_argument("--token-file", type=Path, help="Private token from real Keycloak OAuth, for deployment smoke only")
     parser.add_argument("--build-ca", type=Path)
+    parser.add_argument("--build-cache", choices=("layers", "mounts"), default="layers")
     parser.add_argument("--build-network", choices=("default", "host"), default="default")
     parser.add_argument("--build-target", choices=("all", "gateway", "fixture-identity"), default="all")
     parser.add_argument("--client-bin",type=Path)
@@ -363,7 +409,7 @@ def main():
     stack = Stack(args, state)
     if args.command == "init":
         stack.call("config", "--quiet")
-        print("Private synthetic development inputs initialized; nothing has been deployed.")
+        print("Private development inputs are ready; initialization did not start services.")
     elif args.command == "build":
         stack.build()
     elif args.command == "up":

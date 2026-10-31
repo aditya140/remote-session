@@ -32,6 +32,9 @@ Use [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json) as the de
 See [README.md](README.md) for environment details.
 The configuration provides Rust tools, PostgreSQL, Redis, SQLite tools, and tmux.
 It does not start an application.
+Use [the local application guide](docs/development/local-stack.md) and
+`python3 tools/dev.py up` for the complete Linux stack with real local Keycloak
+sign-in. The default deployment profile remains the synthetic CI fixture.
 
 The container image supplies a development toolchain.
 The standalone workspace selects Rust 1.99.1 and edition 2024.

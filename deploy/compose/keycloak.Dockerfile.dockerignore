@@ -1,0 +1,4 @@
+# This image only optimizes the pinned upstream distribution. Send no credentials,
+# generated realm, or other checkout files as build context.
+*
+!keycloak.Dockerfile

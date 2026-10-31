@@ -58,6 +58,19 @@ completed work adds parallel suites, complete dependency caches, and a
 conservative prose-only path. The prose-only push passes in 17 seconds, with both
 required results present. The task records rebuild costs, measurements, and limits.
 
+[Task 037](037-local-development-end-to-end.md) adds and runs the full local
+Keycloak development setup. A clean seed passes 12 real-user end-to-end checks,
+including browser/device sign-in, the TUI, recording, revocation, dependency loss,
+and identity recovery. The synthetic deployment and all five native Codex phases
+also pass locally. Workspace tests pass 220 checks, with 23 environment proofs
+ignored by the ordinary suite. Strict Clippy and 10 Python tool tests pass.
+The final gateway passes all 26 checks after a handshake-order fix. The real-user
+proof passes again. Developer-command checks confirm that the TUI works and that
+the same native session survives a full stack shutdown and restart. The local
+stack and a demo terminal remain running.
+See the [setup guide](../docs/development/local-stack.md) and
+[execution report](../docs/validation/local-development-2026-10-31.md).
+
 ## Completed milestone — core journey repairs
 
 [Task 029](029-stabilize-core-journey.md) records the user-authorized repair plan and its

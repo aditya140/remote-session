@@ -362,6 +362,7 @@ mod tests {
             authorization_endpoint: format!("{}/authorize", server.origin),
             token_endpoint: format!("{}/token", server.origin),
             device_endpoint: format!("{}/device", server.origin),
+            device_pkce: false,
             ca_bundle: Some(tls.ca.path().into()),
         })
         .unwrap();

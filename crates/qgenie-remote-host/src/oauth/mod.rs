@@ -22,6 +22,10 @@ pub struct OAuthConfig {
     pub authorization_endpoint: String,
     pub token_endpoint: String,
     pub device_endpoint: String,
+    /// Send the PKCE extension required by some device authorization providers.
+    /// Disabled by default to preserve existing provider requests.
+    #[serde(default)]
+    pub device_pkce: bool,
     #[serde(default)]
     pub ca_bundle: Option<PathBuf>,
 }

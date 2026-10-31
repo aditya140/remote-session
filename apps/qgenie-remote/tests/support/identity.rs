@@ -156,6 +156,7 @@ pub const SCOPE: &str = "api://remote-fixture/Remote.Control";
 pub struct Provider {
     pub polls: Arc<AtomicUsize>,
     pub proof: Arc<Mutex<Option<(String, String)>>>,
+    pub device_challenge: Arc<Mutex<Option<String>>>,
     pub wrong_scope: Arc<AtomicUsize>,
     pub mode: Arc<AtomicUsize>,
     pub times: Arc<Mutex<Vec<tokio::time::Instant>>>,
@@ -166,6 +167,7 @@ impl Default for Provider {
         Self {
             polls: Default::default(),
             proof: Default::default(),
+            device_challenge: Default::default(),
             wrong_scope: Default::default(),
             mode: Default::default(),
             times: Default::default(),
@@ -201,6 +203,7 @@ impl Provider {
             authorization_endpoint: format!("{origin}/authorize"),
             token_endpoint: format!("{origin}/token"),
             device_endpoint: format!("{origin}/device"),
+            device_pkce: false,
             ca_bundle: Some(ca),
         }
     }
@@ -225,6 +228,14 @@ async fn device(
     Form(form): Form<HashMap<String, String>>,
 ) -> Json<Value> {
     assert_eq!(form["client_id"], "standalone-fixture");
+    if let Some(challenge) = form.get("code_challenge") {
+        assert_eq!(form["code_challenge_method"], "S256");
+        assert_eq!(challenge.len(), 43);
+        *provider.device_challenge.lock().unwrap() = Some(challenge.clone());
+    } else {
+        assert!(!form.contains_key("code_challenge_method"));
+        *provider.device_challenge.lock().unwrap() = None;
+    }
     assert!(
         form["scope"]
             .split_ascii_whitespace()
@@ -242,6 +253,14 @@ async fn token(
     assert!(!form.contains_key("client_secret"));
     match form["grant_type"].as_str() {
         "urn:ietf:params:oauth:grant-type:device_code" => {
+            if let Some(challenge) = provider.device_challenge.lock().unwrap().as_ref() {
+                assert_eq!(
+                    &URL_SAFE_NO_PAD.encode(Sha256::digest(form["code_verifier"].as_bytes())),
+                    challenge
+                );
+            } else {
+                assert!(!form.contains_key("code_verifier"));
+            }
             provider
                 .times
                 .lock()

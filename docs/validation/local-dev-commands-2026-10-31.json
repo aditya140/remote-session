@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "checks": [
+    "tools/dev.py login: real browser PKCE enrollment",
+    "tools/dev.py host: independent owner and connector, doctor passed",
+    "tools/dev.py client: real sign-in, TUI observed demo terminal and detached cleanly",
+    "tools/dev.py down/up/host: native session, start key, credentials and database state survived"
+  ],
+  "live_demo": true
+}

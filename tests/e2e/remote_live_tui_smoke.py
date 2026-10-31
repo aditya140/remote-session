@@ -19,6 +19,10 @@ def select_session(view, suffix):
         time.sleep(0.08)
         assert time.monotonic() < deadline, "machine page did not become ready"
     until(lambda: not view.sees("Loading"))
+    machine = os.environ.get("QGR_UI_MACHINE_FILTER")
+    if machine:
+        view.send(b"/\x15" + machine.encode() + b"\r")
+        until(lambda: view.sees("Filter: " + machine))
     view.send(b"\r")
     until(lambda: view.sees("Sessions ·") and not view.sees("Loading"))
     view.send(b"/\x15" + suffix.encode() + b"\r")

@@ -1,0 +1,27 @@
+{
+  "format": "qgr-local-keycloak-e2e-v1",
+  "status": "passed",
+  "mode": "full_application",
+  "keycloak": "26.8.1",
+  "checks": [
+    "verified HTTPS browser PKCE for two real users; wrong password rejected; ID/access tokens separated",
+    "actual CLI device login with S256 proof, browser user approval and gateway access",
+    "gateway rejects anonymous requests and real Keycloak ID tokens",
+    "actual CLI PKCE login and machine enrollment with recording consent",
+    "independent host/owner, machine authentication, owner isolation and allowed-root enforcement",
+    "real TUI create, observe/control/release, input, detach, reconnect, termination and terminal restoration",
+    "connector pause preserves the same running session and original start identity",
+    "revocation denies remote input while native execution survives",
+    "real-user full deployment smoke: recording redaction/history, Redis/PostgreSQL outages, hosting-gateway loss and four rolling replacements",
+    "logical backup restores into an isolated quarantined database",
+    "Keycloak account disablement is enforced on fresh gateway directory verification",
+    "provider outage denies fresh authorization; recovery preserves realm signing keys and user identity"
+  ],
+  "unrun": [
+    "corporate Entra",
+    "macOS services",
+    "production fault domains",
+    "external model API"
+  ],
+  "elapsed_ms": 140567
+}

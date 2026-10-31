@@ -15,6 +15,14 @@ The [BeautifulRust review](docs/validation/beautiful-rust-review-2026-10-26.md) 
 remaining Rust API and readability work. Its [pinned skills](.agents/skills/README.md)
 are installed for this repository.
 
+## Run the full local application
+
+Use the [local development guide](docs/development/local-stack.md) to start the
+gateways, synchronous database pair, Redis, recording services, and Keycloak.
+Run `python3 tools/dev.py up`, trust the generated browser CA, then run
+`python3 tools/dev.py login`, `host`, and `client`. This path uses real local user
+sign-in. The devcontainer alone starts dependencies only.
+
 ## Run the local preview
 
 Install Rust through rustup. This workspace selects Rust 1.99.1. Run these commands from the repository root:
