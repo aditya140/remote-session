@@ -12,7 +12,7 @@ use qgenie_remote_host::{
 use qgenie_remote_proto::{decode_json, ipc::RemoteScope};
 use qgenie_remote_sessiond::{Config, RedactionRules};
 use qgenie_remote_transport::ipc::{private_directory, private_file};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::BTreeMap,
     io::Read,
@@ -27,12 +27,26 @@ mod service;
 #[derive(ClapArgs)]
 pub(crate) struct Args {
     #[arg(long)]
-    config: PathBuf,
+    config: Option<PathBuf>,
     #[command(subcommand)]
     command: Action,
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Write an initial private configuration; enrollment and startup remain explicit.
+    Setup {
+        #[arg(long)]
+        gateway: String,
+        #[arg(long = "allow-root", required = true)]
+        roots: Vec<PathBuf>,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        ca_bundle: Option<PathBuf>,
+        /// Explicit fallback when the native credential store is unavailable.
+        #[arg(long)]
+        allow_private_file: bool,
+    },
     /// Resume the host using user services, or independent background processes explicitly.
     Up {
         #[arg(long)]
@@ -80,7 +94,7 @@ enum Action {
         yes: bool,
     },
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Settings {
     pub gateway: String,
@@ -101,7 +115,7 @@ pub(crate) struct Settings {
     #[serde(default)]
     pub codex: Option<CodexSettings>,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CodexSettings {
     binary: PathBuf,
@@ -141,36 +155,37 @@ impl Settings {
             path.is_absolute(),
             "host configuration path must be absolute"
         );
-        GatewayApi::new(&settings.gateway, settings.ca_bundle.as_deref())?;
+        settings.validate()?;
+        Ok(settings)
+    }
+    fn validate(&self) -> Result<()> {
+        GatewayApi::new(&self.gateway, self.ca_bundle.as_deref())?;
         ensure!(
-            !settings.os_user.is_empty()
-                && settings.os_user.len() <= 128
-                && !settings.os_user.chars().any(char::is_control),
+            !self.os_user.is_empty()
+                && self.os_user.len() <= 128
+                && !self.os_user.chars().any(char::is_control),
             "invalid OS user binding"
         );
         ensure!(
-            !settings.name.is_empty()
-                && settings.name.len() <= 256
-                && !settings.name.chars().any(char::is_control)
-                && !settings.hostname.is_empty()
-                && settings.hostname.len() <= 256
-                && !settings.hostname.chars().any(char::is_control),
+            !self.name.is_empty()
+                && self.name.len() <= 256
+                && !self.name.chars().any(char::is_control)
+                && !self.hostname.is_empty()
+                && self.hostname.len() <= 256
+                && !self.hostname.chars().any(char::is_control),
             "invalid machine metadata"
         );
         ensure!(
-            settings.ca_bundle.as_ref().is_none_or(|p| p.is_absolute())
-                && settings
+            self.ca_bundle.as_ref().is_none_or(|p| p.is_absolute())
+                && self
                     .identity_directory
                     .as_ref()
                     .is_none_or(|p| p.is_absolute())
-                && settings
-                    .redaction_file
-                    .as_ref()
-                    .is_none_or(|p| p.is_absolute()),
+                && self.redaction_file.as_ref().is_none_or(|p| p.is_absolute()),
             "configured host paths must be absolute"
         );
-        Roots::open(&settings.roots)?;
-        if let Some(codex) = &settings.codex {
+        Roots::open(&self.roots)?;
+        if let Some(codex) = &self.codex {
             ensure!(
                 codex.binary.is_absolute() && codex.credential_file.is_absolute(),
                 "Codex binary and credential paths must be absolute"
@@ -187,7 +202,7 @@ impl Settings {
                 "this build does not support managed Codex; enable managed-codex on Linux"
             );
         }
-        Ok(settings)
+        Ok(())
     }
     fn identity_dir(&self, state: &Path) -> PathBuf {
         self.identity_directory
@@ -256,7 +271,7 @@ pub(crate) fn native_config(state: &Path, path: &Path) -> Result<Config> {
     }
     Ok(config)
 }
-async fn shutdown_signal() -> Result<()> {
+pub(crate) async fn shutdown_signal() -> Result<()> {
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     tokio::select! {result=tokio::signal::ctrl_c()=>result?,_=terminate.recv()=>{}}
     Ok(())
@@ -289,18 +304,77 @@ async fn enrollment(
     Ok(())
 }
 pub(crate) async fn run(args: Args, state: &Path) -> Result<()> {
-    let settings = Settings::load(&args.config)?;
+    let config = args.config.unwrap_or_else(|| state.join("host.json"));
+    let config = super::absolute(config, &std::env::current_dir()?);
+    if let Action::Setup {
+        gateway,
+        roots,
+        name,
+        ca_bundle,
+        allow_private_file,
+    } = args.command
+    {
+        ensure!(
+            !config.try_exists()?,
+            "host configuration already exists; edit it to preserve enrollment settings"
+        );
+        let user = tokio::process::Command::new("id")
+            .arg("-un")
+            .output()
+            .await?;
+        ensure!(
+            user.status.success(),
+            "cannot determine the current OS user"
+        );
+        let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname")?
+            .trim()
+            .to_owned();
+        let cwd = std::env::current_dir()?;
+        let settings = Settings {
+            gateway,
+            os_user: String::from_utf8(user.stdout)?.trim().to_owned(),
+            name: name.unwrap_or_else(|| hostname.clone()),
+            hostname,
+            roots: roots
+                .into_iter()
+                .map(|root| super::absolute(root, &cwd))
+                .collect(),
+            ca_bundle: ca_bundle.map(|path| super::absolute(path, &cwd)),
+            identity_directory: None,
+            allow_private_file,
+            redaction_file: None,
+            labels: BTreeMap::new(),
+            codex: None,
+        };
+        settings.validate()?;
+        super::remote_access::save_settings(
+            config.parent().context("configuration parent is missing")?,
+            config
+                .file_name()
+                .and_then(|name| name.to_str())
+                .context("invalid configuration name")?,
+            &settings,
+            false,
+        )?;
+        println!(
+            "Host setup saved to {}. Run `host login --oauth-config FILE --acknowledge-recording`, then `host up` with the same state/config options. Run `host doctor` to verify connectivity.",
+            config.display()
+        );
+        return Ok(());
+    }
+    let settings = Settings::load(&config)?;
     private_directory(state)?;
     let api = GatewayApi::new(&settings.gateway, settings.ca_bundle.as_deref())?;
     match args.command {
+        Action::Setup { .. } => unreachable!("setup returns before loading configuration"),
         Action::Up { no_service } => {
             if no_service {
-                background_up(&settings, state, &args.config).await?;
+                background_up(&settings, state, &config).await?;
             } else {
-                service::run(service::Action::Up, state, &args.config).await?;
+                service::run(service::Action::Up, state, &config).await?;
             }
         }
-        Action::Service { command } => service::run(command, state, &args.config).await?,
+        Action::Service { command } => service::run(command, state, &config).await?,
         Action::Enroll {
             token_file,
             acknowledge_recording,
@@ -320,38 +394,8 @@ pub(crate) async fn run(args: Args, state: &Path) -> Result<()> {
                 "login/enrollment requires --acknowledge-recording"
             );
             let oauth = OAuth::new(OAuthConfig::from_file(&oauth_config)?)?;
-            let (_stop, mut cancel) = watch::channel(false);
             let login = async {
-                let mut tokens = if device {
-                    let pending = oauth.device(&mut cancel).await?;
-                    eprintln!(
-                        "Open {} and enter {}",
-                        pending.verification_uri(),
-                        pending.user_code()
-                    );
-                    pending.wait(&mut cancel).await?
-                } else {
-                    let pending = oauth.browser().await?;
-                    let opener = if cfg!(target_os = "macos") {
-                        "open"
-                    } else {
-                        "xdg-open"
-                    };
-                    let status = tokio::time::timeout(
-                        Duration::from_secs(10),
-                        tokio::process::Command::new(opener)
-                            .arg(pending.authorization_url())
-                            .stdin(Stdio::null())
-                            .stdout(Stdio::null())
-                            .stderr(Stdio::null())
-                            .kill_on_drop(true)
-                            .status(),
-                    )
-                    .await
-                    .context("browser opener timed out; use --device")??;
-                    ensure!(status.success(), "cannot open browser; use --device");
-                    pending.wait(&mut cancel).await?
-                };
+                let mut tokens = super::remote_access::sign_in(&oauth, device).await?;
                 drop(tokens.take_refresh());
                 enrollment(&settings, state, &tokens.access, true).await
             };

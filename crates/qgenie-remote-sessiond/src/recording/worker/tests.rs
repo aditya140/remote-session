@@ -56,6 +56,49 @@ fn wait_until(mut predicate: impl FnMut() -> bool) {
 }
 
 #[test]
+fn completed_streams_do_not_exhaust_the_workers_lifetime_capacity() {
+    let dir = tempdir();
+    let worker = RecordingWorker::spawn(SpoolConfig::new(dir.path().to_owned()), time(1)).unwrap();
+    let first = identity();
+    let rules = RedactionRules::literals(Vec::new()).unwrap();
+    for n in 0..4100 {
+        let identity = if n == 0 { first.clone() } else { identity() };
+        let capture = worker
+            .register(identity, rules.clone(), time(1))
+            .unwrap_or_else(|error| panic!("registration {n} failed: {error}"));
+        capture.finish();
+    }
+    let closed = worker
+        .register(first.clone(), rules.clone(), time(2))
+        .unwrap();
+    assert!(!closed.capture(
+        time(2),
+        Counter(1),
+        CaptureContent::Output(b"closed".to_vec())
+    ));
+    let changed = RecordingIdentity {
+        session: SessionId::new(),
+        ..first
+    };
+    assert!(worker.register(changed, rules.clone(), time(2)).is_err());
+    let capture = worker.register(identity(), rules, time(3)).unwrap();
+    assert!(capture.capture(
+        time(3),
+        Counter(1),
+        CaptureContent::Output(b"still recording".to_vec())
+    ));
+    capture.finish();
+    wait_until(|| worker.status().unwrap().chunks == 1);
+    worker.shutdown().unwrap();
+    let mut spool = RecordingSpool::open(SpoolConfig::new(dir.path().to_owned()), time(4)).unwrap();
+    assert!(matches!(
+        spool.fetch().unwrap(),
+        Some(SpoolItem::Content(_))
+    ));
+    assert_eq!(spool.status().unwrap().gaps, 0);
+}
+
+#[test]
 fn scoped_worker_rpcs_do_not_upload_or_ack_another_enrollment() {
     let dir = tempdir();
     let worker = RecordingWorker::spawn(config(dir.path()), time(1)).unwrap();

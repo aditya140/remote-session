@@ -1,0 +1,68 @@
+{
+  "format": "qgr-ra-jit-builds-v1",
+  "platform": "Linux x86_64",
+  "tool_release_revision": "8b15e4b406f010f98eb456ec867e16e0a9ebb0d5",
+  "archive_sha256": "c5202bfb3c29920831149db9b7060c58e9876972aba3cbcd73e9e4ccaf818330",
+  "compiler": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "flags": [
+    "build",
+    "-p",
+    "qgenie-remote",
+    "--locked"
+  ],
+  "profile": {
+    "debug": 0,
+    "incremental": true
+  },
+  "samples": {
+    "cargo": [
+      {
+        "seconds": 1.3402232979999553,
+        "engine": "cargo",
+        "output_verified": true
+      },
+      {
+        "seconds": 1.405233384999974,
+        "engine": "cargo",
+        "output_verified": true
+      },
+      {
+        "seconds": 1.619673311999918,
+        "engine": "cargo",
+        "output_verified": true
+      }
+    ],
+    "ra-jit": [
+      {
+        "seconds": 9.095142298000042,
+        "engine": "ra-jit",
+        "output_verified": true
+      },
+      {
+        "seconds": 0.4318703420000247,
+        "engine": "ra-jit",
+        "output_verified": true
+      },
+      {
+        "seconds": 0.33004229299990584,
+        "engine": "ra-jit",
+        "output_verified": true
+      }
+    ]
+  },
+  "scope": "Private copy of the current workspace. Change one diagnostic line at the start of the real CLI async main, then verify --version and the changed stderr marker.",
+  "limits": [
+    "Three edits on one Linux host; not a cold-build or release-build speedup",
+    "Rust 1.99.0 is used for both paths; normal project validation remains on Rust 1.99.1",
+    "The JIT does not implement borrow checking; ordinary Cargo checks remain required"
+  ],
+  "cargo_initial_build_seconds": 42.44890426900008,
+  "ra-jit_initial_build_seconds": 13.176639517000012,
+  "jit_load_wait_seconds": 34.38277798800004,
+  "tool_version": "0.0.0-4513540-18e21e299eba3c40",
+  "original_source_unchanged": true,
+  "median_cargo_seconds": 1.405233384999974,
+  "median_ra_jit_seconds": 0.4318703420000247,
+  "all_jit_edits_served_by_daemon": true,
+  "median_speedup": 3.2538316442204165
+}

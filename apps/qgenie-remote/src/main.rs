@@ -17,13 +17,19 @@ use std::{
     time::Duration,
 };
 mod host;
+mod remote_access;
 mod remote_cli;
+mod remote_observe;
+#[cfg(test)]
+#[path = "../tests/support/identity.rs"]
+#[allow(dead_code)]
+mod test_identity;
 
 #[derive(Parser)]
 #[command(
     version,
     about = "Standalone QGenie Remote sessions and recorded history",
-    long_about = "Local terminal sessions with private same-user IPC, durable start keys and replay; remote owner metadata and protected recorded history with explicitly injected gateway credentials."
+    long_about = "Local terminal sessions with private same-user IPC, durable start keys and replay; remote sessions, scoped sign-in, readable output and protected recorded history."
 )]
 struct Args {
     #[arg(long, global = true)]
@@ -37,17 +43,8 @@ struct Args {
 enum Action {
     /// Enroll, connect, pause and diagnose the independently owned remote host.
     Host(host::Args),
-    /// Open the remote TUI or scriptable owner PTY/history operations using injected credentials.
-    Remote {
-        #[arg(long)]
-        gateway: String,
-        #[arg(long)]
-        token_file: PathBuf,
-        #[arg(long)]
-        ca_bundle: Option<PathBuf>,
-        #[command(subcommand)]
-        command: Option<remote_cli::Action>,
-    },
+    /// Sign in and open remote sessions, or use scriptable owner operations.
+    Remote(remote_access::Args),
     /// Start the interactive machine/session interface.
     Tui {
         #[arg(long)]
@@ -72,6 +69,12 @@ enum Action {
     },
     /// List running and historical local sessions.
     List {
+        #[arg(long)]
+        page: bool,
+        #[arg(long, requires = "page")]
+        after: Option<SessionId>,
+        #[arg(long)]
+        active: bool,
         #[arg(long)]
         json: bool,
     },
@@ -144,23 +147,7 @@ async fn main() -> Result<()> {
     };
     let client = Client::local(&state_dir);
     match args.command.unwrap_or(Action::Tui { session: None }) {
-        Action::Remote {
-            gateway,
-            token_file,
-            ca_bundle,
-            command,
-        } => {
-            let token = read_remote_token(&token_file)?;
-            let config = qgenie_remote_client::GatewayConfig {
-                origin: gateway,
-                ca_bundle,
-            };
-            if let Some(command) = command {
-                remote_cli::run(config, token, &state_dir, command).await?;
-            } else {
-                qgenie_remote_tui::run_remote_with_state(config, token, &state_dir).await?;
-            }
-        }
+        Action::Remote(args) => remote_access::run(args, &state_dir).await?,
         Action::Host(args) => host::run(args, &state_dir).await?,
         Action::Sessiond { host_config } => {
             // Private umask covers SQLite sidecar creation and service logs.
@@ -205,22 +192,56 @@ async fn main() -> Result<()> {
                 );
             }
         }
-        Action::List { json } => {
-            let sessions = client.sessions().await?;
+        Action::List {
+            json,
+            page,
+            after,
+            active,
+        } => {
+            if page || active {
+                let (sessions, next) = client.session_page(after, 64, active).await?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(
+                        &serde_json::json!({"sessions":sessions,"next":next})
+                    )?
+                );
+                return Ok(());
+            }
+            let mut after = None;
+            let mut first = true;
             if json {
-                println!("{}", serde_json::to_string_pretty(&sessions)?);
-            } else {
+                print!("[");
+            }
+            loop {
+                let (sessions, next) = client.session_page(after, 64, false).await?;
                 for session in sessions {
-                    println!(
-                        "{}  {:?}  {}  {}",
-                        session.id,
-                        session.state,
-                        session.command.join(" "),
-                        session.cwd
-                    );
+                    if json {
+                        if !first {
+                            print!(",");
+                        }
+                        print!("{}", serde_json::to_string(&session)?);
+                        first = false;
+                    } else {
+                        println!(
+                            "{}  {:?}  {}  {}",
+                            session.id,
+                            session.state,
+                            session.command.join(" "),
+                            session.cwd
+                        );
+                    }
+                }
+                after = next;
+                if after.is_none() {
+                    break;
                 }
             }
+            if json {
+                println!("]");
+            }
         }
+
         Action::Run {
             cwd: run_cwd,
             key,

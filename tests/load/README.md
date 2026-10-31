@@ -1,5 +1,34 @@
 # Reduced development baseline
 
+## Host resource check
+
+Build the supported Linux host in the release profile. Use the composed fixture to
+measure the native owner and connector after the PTY workflow finishes:
+
+```sh
+cargo build --locked --release -p qgenie-remote --features managed-codex
+QGR_CODEX_BINARY=/absolute/path/to/codex \
+  python3 tests/e2e/recording_durability.py --require-managed-codex \
+  --host-binary target/release/qgenie-remote --measure-host \
+  --report target/validation/release-host.json
+```
+
+The measurement requires Linux and the composed fixture prerequisites in
+[MVP evidence](../../docs/validation/mvp-evidence.md). Both measured processes use the
+selected binary. The report includes its SHA-256 hash. The host has no active sessions
+during the 60-second sample. Recording remains enabled. The fixture verifies the
+connector route after measurement. The sample follows real PTY work; it is not an empty
+process startup measurement. The managed-agent phase runs separately in the same proof.
+
+`host_resources` reports process and aggregate RSS and CPU. It compares aggregate values
+with 30,000,000 bytes and 0.5 percent of one core. A `target_not_met` phase is an open
+performance finding even if the functional proof passes. One-second RSS samples can miss
+short peaks. Child-process memory, socket count, fleet variation, and long-duration
+behavior need separate evidence. Do not compare debug and release binaries as if they
+were the same deployment configuration.
+
+## Reduced gateway workload
+
 Run the real four-gateway deployment first, then build the standalone CLI and SDK load example:
 
 ```sh

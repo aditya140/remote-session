@@ -1,0 +1,51 @@
+{
+  "repository": "https://github.com/morganlinton/BeautifulRust",
+  "revision": "a2b22682fa69b5e2d41a5d041663df7d51aac521",
+  "installed_files": [
+    {
+      "path": ".agents/skills/BeautifulRust.LICENSE",
+      "upstream_path": "LICENSE",
+      "git_blob_sha1": "ac8854130fbce7019423c53172914105591851f1"
+    },
+    {
+      "path": ".agents/skills/rust-best-practices/SKILL.md",
+      "upstream_path": "skills/rust-best-practices/SKILL.md",
+      "git_blob_sha1": "96f122ec7326a4e70541dd12fc186ace761367a7"
+    },
+    {
+      "path": ".agents/skills/rust-best-practices/references/effective-rust.md",
+      "upstream_path": "skills/rust-best-practices/references/effective-rust.md",
+      "git_blob_sha1": "2990d3efea1912e6a3aa893d8484b244f9e12c3d"
+    },
+    {
+      "path": ".agents/skills/rust-best-practices/references/google-rust-style-guide.md",
+      "upstream_path": "skills/rust-best-practices/references/google-rust-style-guide.md",
+      "git_blob_sha1": "e408370dd7d3e721710273a40f672c147cc69c61"
+    },
+    {
+      "path": ".agents/skills/rust-best-practices/references/microsoft-rust-guidelines.md",
+      "upstream_path": "skills/rust-best-practices/references/microsoft-rust-guidelines.md",
+      "git_blob_sha1": "d4ecd16408d49a0dd06f25c56ca075ce5515a731"
+    },
+    {
+      "path": ".agents/skills/rust-best-practices/references/rust-api-guidelines.md",
+      "upstream_path": "skills/rust-best-practices/references/rust-api-guidelines.md",
+      "git_blob_sha1": "72c927784a610c999e390d378dd036b35d335b24"
+    },
+    {
+      "path": ".agents/skills/rust-best-practices/references/rust-design-patterns.md",
+      "upstream_path": "skills/rust-best-practices/references/rust-design-patterns.md",
+      "git_blob_sha1": "e92dfa31aa584dc0bfd76525b6a6f0edf58bc200"
+    },
+    {
+      "path": ".agents/skills/rust-port/SKILL.md",
+      "upstream_path": "skills/rust-port/SKILL.md",
+      "git_blob_sha1": "d2fc8b7a1308fab9e640cfb3c126fb2028aaf86a"
+    },
+    {
+      "path": ".agents/skills/rust-review/SKILL.md",
+      "upstream_path": "skills/rust-review/SKILL.md",
+      "git_blob_sha1": "191858fb9f91799ee226a2aa234ba48199c120ad"
+    }
+  ]
+}

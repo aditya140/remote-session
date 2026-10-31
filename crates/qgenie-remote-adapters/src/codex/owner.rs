@@ -48,6 +48,24 @@ impl CodexProcessControl {
         result.await.unwrap_or(Err(CodexError::Unknown))
     }
 }
+fn stop_owned_group(child: &mut Child) -> std::io::Result<()> {
+    let Some(pid) = child.id() else {
+        return Ok(());
+    };
+    let pid = i32::try_from(pid).map_err(|_| std::io::ErrorKind::InvalidInput)?;
+    // SAFETY: launch creates this child as a private process-group leader.
+    // Its unreaped Child retains the PID, so the group ID cannot be reused.
+    // Never use a saved PID after child.wait() has completed.
+    if unsafe { libc::kill(-pid, libc::SIGKILL) } == 0 {
+        return Ok(());
+    }
+    let error = std::io::Error::last_os_error();
+    if error.raw_os_error() == Some(libc::ESRCH) {
+        child.start_kill()
+    } else {
+        Err(error)
+    }
+}
 impl ProcessOwner {
     pub fn start(mut child: Child, directory: Option<std::fs::File>) -> Result<Self, CodexError> {
         let pid = child.id().ok_or(CodexError::Process)?;
@@ -66,6 +84,7 @@ impl ProcessOwner {
                 tokio::select! {
                     result = child.wait() => break result,
                     _ = &mut stopping => {
+                        let _ = stop_owned_group(&mut child);
                         let _ = child.start_kill();
                         // Retain ownership through reap, even if the caller goes away.
                         break child.wait().await;
@@ -74,7 +93,7 @@ impl ProcessOwner {
                         let mut attempted = false;
                         let result = request.authorization.perform(&mut || {
                             attempted = true;
-                            child.start_kill().map(|_| 0)
+                            stop_owned_group(&mut child).map(|_| 0)
                         });
                         match result {
                             Ok(_) => {

@@ -66,6 +66,38 @@ fn receipt(batch: &RecordingBatch) -> CommitReceipt {
         committed_at: time(999),
     }
 }
+
+#[test]
+fn reclaimed_stream_tombstones_do_not_exhaust_live_capacity() {
+    let dir = tempdir();
+    let mut spool = RecordingSpool::open(SpoolConfig::new(dir.path().to_owned()), time(1)).unwrap();
+    let first = identity();
+    // Seed durable, fully reclaimed history in one transaction. Keep its epoch identities.
+    let tx = spool.db.transaction().unwrap();
+    for n in 0..4100 {
+        let value = if n == 0 { first.clone() } else { identity() };
+        tx.execute(
+            "INSERT INTO streams VALUES(?1,?2,?3,?4,1)",
+            params![
+                value.stream_epoch.to_string(),
+                serde_json::to_string(&value).unwrap(),
+                0u64.to_be_bytes().as_slice(),
+                time(1).as_str()
+            ],
+        )
+        .unwrap();
+    }
+    tx.commit().unwrap();
+    let next = identity();
+    spool.register(&next, time(2)).unwrap();
+    spool.reserve(&next, time(2)).unwrap();
+    assert!(spool.reserve(&first, time(2)).is_err());
+    let changed = RecordingIdentity {
+        session: SessionId::new(),
+        ..first
+    };
+    assert!(spool.register(&changed, time(2)).is_err());
+}
 fn gap_receipt(gap: &LossRange, machine: MachineId) -> GapCommitReceipt {
     GapCommitReceipt {
         id: ReceiptId::new(),

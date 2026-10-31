@@ -108,7 +108,15 @@ pub(crate) fn draw(frame: &mut Frame<'_>, app: &App) {
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▸ ")
-        .block(Block::default().borders(Borders::ALL).title(" Sessions "));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(if app.history {
+                    " History · h live · ] next · [ first "
+                } else {
+                    " Live sessions · h history "
+                }),
+        );
         frame.render_stateful_widget(
             table,
             panes[1],
@@ -116,7 +124,9 @@ pub(crate) fn draw(frame: &mut Frame<'_>, app: &App) {
         );
         if app.sessions.is_empty() {
             frame.render_widget(
-                Paragraph::new("Press n to create your first shell session."),
+                Paragraph::new(
+                    "No sessions on this page. n creates a shell; h switches live/history.",
+                ),
                 Rect {
                     x: panes[1].x + 2,
                     y: panes[1].y + 3,

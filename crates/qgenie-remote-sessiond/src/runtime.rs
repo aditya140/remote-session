@@ -1,6 +1,7 @@
 mod authority;
 mod capture;
 mod changes;
+mod inventory;
 pub use capture::RecordingSettings;
 mod clock;
 mod control;
@@ -216,35 +217,7 @@ impl Runtime {
             .join("recordings/metadata.sqlite")
             .symlink_metadata()
             .is_ok();
-        let mut sessions = BTreeMap::new();
-        for mut stored in store.load(machine)? {
-            if stored.scope.is_some() && !had_recording_spool {
-                stored.info.recording_warning = Some(
-                    "Recording spool metadata is absent; historical completeness is unknown".into(),
-                );
-            }
-            sessions.insert(
-                stored.info.id,
-                Arc::new(Mutex::new(Session {
-                    agent_state: None,
-                    #[cfg(all(feature = "managed-codex", target_os = "linux"))]
-                    agent_control: None,
-                    recording: None,
-                    remote_controller: None,
-                    info: stored.info,
-                    spec: stored.spec,
-                    fingerprint: stored.fingerprint,
-                    generation: stored.generation,
-                    input_seq: 0,
-                    deadline: None,
-                    deadline_elapsed: None,
-                    control: None,
-                    screen: None,
-                    pending_lost_bytes: 0,
-                    scope: stored.scope,
-                })),
-            );
-        }
+        store.recover()?;
         let runtime = Arc::new(Self {
             #[cfg(all(feature = "managed-codex", target_os = "linux"))]
             approvals: crate::NativeApprovals::open(&config.state_dir.join("approvals"))?,
@@ -252,7 +225,7 @@ impl Runtime {
             directories,
             machine,
             store: Mutex::new(store),
-            sessions: Mutex::new(sessions),
+            sessions: Mutex::new(BTreeMap::new()),
             changes: Mutex::new(BTreeMap::new()),
             starts: Mutex::new(()),
             readers: Mutex::new(Vec::new()),
@@ -314,19 +287,23 @@ impl Runtime {
                     .iter()
                     .map(|p| p.display().to_string())
                     .collect(),
-                sessions: lock(&self.sessions)?.len(),
+                sessions: lock(&self.store)?.count().map_err(storage_error)?,
                 mode: "local preview (same OS user; no gateway)".into(),
             })),
             Operation::List => Ok(Reply::Sessions(self.list()?)),
+            Operation::ListPage {
+                after,
+                limit,
+                active_only,
+            } => {
+                let (sessions, next) = self.local_page(after, limit, active_only)?;
+                Ok(Reply::SessionPage { sessions, next })
+            }
             Operation::Start(spec) => self.start(spec).map(Reply::Started),
             Operation::LookupStart { key } => {
                 let _start = lock(&self.starts)?;
-                let sessions: Vec<_> = lock(&self.sessions)?.values().cloned().collect();
-                for session in sessions {
-                    let session = lock(&session)?;
-                    if session.spec.key == key && session.scope.is_none() {
-                        return Ok(Reply::Started(session.info.clone()));
-                    }
+                if let Some(session) = self.lookup_start(None, key)? {
+                    return Ok(Reply::Started(lock(&session)?.info.clone()));
                 }
                 Err(RemoteError::unknown(
                     "no known session for this key; no new launch was sent",
@@ -700,33 +677,50 @@ impl Runtime {
     }
 
     pub fn list(&self) -> Result<Vec<SessionInfo>, RemoteError> {
-        let sessions: Vec<_> = lock(&self.sessions)?.values().cloned().collect();
-        let mut result = Vec::with_capacity(sessions.len());
+        let mut after = None;
+        let mut sessions = Vec::new();
         let mut bytes = 0;
-        for session in sessions {
-            let mut state = lock(&session)?;
-            expire(&mut state);
-            self.recording_warning(&mut state);
-            bytes += serde_json::to_vec(&state.info)
-                .map_err(storage_error)?
-                .len();
-            if bytes > 512 * 1024 {
-                return Err(RemoteError::rejected(
-                    ErrorCode::Overloaded,
-                    "session metadata exceeds the local list limit; use a known session ID until paginated listing is available",
-                ));
+        loop {
+            let (page, next) = self.local_page(after, 256, false)?;
+            for info in page {
+                bytes += serde_json::to_vec(&info).map_err(storage_error)?.len();
+                if bytes > 512 * 1024 {
+                    return Err(RemoteError::rejected(
+                        ErrorCode::Overloaded,
+                        "session metadata requires paginated listing",
+                    ));
+                }
+                sessions.push(info);
             }
-            result.push(state.info.clone());
+            after = next;
+            if after.is_none() {
+                break;
+            }
         }
-        result.sort_by_key(|s| s.created_at_ms);
-        Ok(result)
+        sessions.sort_by_key(|s| s.created_at_ms);
+        Ok(sessions)
     }
 
     fn session(&self, id: SessionId) -> Result<Arc<Mutex<Session>>, RemoteError> {
-        lock(&self.sessions)?
-            .get(&id)
-            .cloned()
-            .ok_or_else(|| RemoteError::rejected(ErrorCode::NotFound, "session not found"))
+        if let Some(session) = lock(&self.sessions)?.get(&id).cloned() {
+            return Ok(session);
+        }
+        let mut stored = lock(&self.store)?
+            .get(self.machine, id)
+            .map_err(storage_error)?
+            .ok_or_else(|| RemoteError::rejected(ErrorCode::NotFound, "session not found"))?;
+        if stored.scope.is_some()
+            && !self
+                .config
+                .state_dir
+                .join("recordings/metadata.sqlite")
+                .exists()
+        {
+            stored.info.recording_warning = Some(
+                "Recording spool metadata is absent; historical completeness is unknown".into(),
+            );
+        }
+        Ok(Arc::new(Mutex::new(Session::from(stored))))
     }
 
     fn output(&self, session: &Mutex<Session>, bytes: &[u8]) {

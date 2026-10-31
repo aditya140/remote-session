@@ -16,16 +16,11 @@ pub(super) async fn poll(
 ) -> Result<(), Error> {
     let budget = access.remaining()?.min(Duration::from_secs(8));
     tokio::time::timeout(budget, async {
-        let mut request = Envelope::new(Message::SessionList);
-        request.machine = Some(client.scope().machine);
-        let reply = client
-            .read(&access, client.scope().owner, access.connection(), request)
-            .await?;
-        let Message::Sessions { sessions } = reply.message else {
-            return Err(Error::Protocol);
-        };
-        let mut sessions = sessions
+        let mut sessions = client
+            .active_session_pages(&access)
+            .await?
             .into_iter()
+            .flatten()
             .filter(|session| !session.capabilities.approvals.is_empty())
             .map(|session| session.id)
             .collect::<Vec<_>>();

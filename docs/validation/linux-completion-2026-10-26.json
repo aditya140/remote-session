@@ -1,0 +1,94 @@
+{
+  "format": "qgr-synchronous-acceptance-v1",
+  "status": "passed",
+  "environment": {
+    "system": "Linux",
+    "arch": "x86_64"
+  },
+  "mode": "composed",
+  "phases": {
+    "synchronous_pair": "passed",
+    "public_session_pipeline": "passed",
+    "managed_codex": "passed",
+    "managed_start_boundaries": "passed",
+    "primary_volume_loss": "passed",
+    "host_footprint": "target_not_met"
+  },
+  "release_gates": {
+    "real_entra": "not_run",
+    "macos_services": "not_run",
+    "linux_user_manager": "not_run",
+    "beta_scale": "not_run",
+    "production_fault_domains": "not_run"
+  },
+  "docker_version": "28.4.0",
+  "postgres_version": "17.11",
+  "gateway_observations": {
+    "qgr_approval_choice_attempts_total": 4.0,
+    "qgr_native_approval_delivery_attempt_seconds_count": 5.0,
+    "qgr_native_approval_delivery_attempt_seconds_sum": 0.039315,
+    "qgr_replay_requests_total": 170.0,
+    "qgr_transport_bytes_in_total": 931792.0,
+    "qgr_transport_bytes_out_total": 1572512.0,
+    "qgr_transport_connections_total": 23.0
+  },
+  "approval_latency_definition": "Native delivery attempt through received/persisted result or error; includes fault-injected attempts, excludes claim SQL and retry scheduling. Aggregate count/sum, not a release latency distribution.",
+  "managed_codex_pin": "0.159.2",
+  "host_resources": {
+    "format": "qgr-host-footprint-v1",
+    "platform": {
+      "system": "Linux",
+      "arch": "x86_64"
+    },
+    "binary_sha256": "92f1f8c8255f411daf5a40a7529d34d72c0ac32fa555cf5e4a88ade024a0b21e",
+    "binary_bytes": 22227304,
+    "sample_seconds": 60.0004284179995,
+    "sample_count": 61,
+    "processes": {
+      "native": {
+        "rss_max_bytes": 18522112,
+        "rss_final_bytes": 18522112,
+        "cpu_percent_one_core": 0.4166636915629134,
+        "threads_max": 6
+      },
+      "connector": {
+        "rss_max_bytes": 14004224,
+        "rss_final_bytes": 14004224,
+        "cpu_percent_one_core": 0.14999892896264877,
+        "threads_max": 4
+      }
+    },
+    "aggregate_rss_max_bytes": 32526336,
+    "aggregate_cpu_percent_one_core": 0.5666626205255622,
+    "targets": {
+      "rss_less_than_bytes": 30000000,
+      "cpu_less_than_percent_one_core": 0.5,
+      "rss_met": false,
+      "cpu_met": false
+    },
+    "limits": [
+      "RSS sampled once per second; transient peaks can be missed",
+      "No network socket count or child-process memory measurement",
+      "One Linux fixture host; no fleet or long-run qualification"
+    ],
+    "workload": "Idle after composed PTY lifecycle; no active sessions; connector authenticated; recording enabled"
+  },
+  "elapsed_ms": 162361,
+  "host_memory_diagnostic": {
+    "native": {
+      "Rss_bytes": 18522112,
+      "Pss_bytes": 13880320,
+      "Pss_Anon_bytes": 5730304,
+      "Pss_File_bytes": 8084480,
+      "Pss_Shmem_bytes": 65536
+    },
+    "connector": {
+      "Rss_bytes": 14004224,
+      "Pss_bytes": 9327616,
+      "Pss_Anon_bytes": 1839104,
+      "Pss_File_bytes": 7488512,
+      "Pss_Shmem_bytes": 0
+    },
+    "definition": "Single diagnostic spot sample during the final 60-second idle interval; PSS apportions shared mappings and is not the PRD RSS acceptance metric."
+  }
+}

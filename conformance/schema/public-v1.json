@@ -612,6 +612,45 @@
     {
       "type": "object",
       "properties": {
+        "type": {
+          "type": "string",
+          "const": "fs.roots"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "roots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "roots"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "fs.roots.listed"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
         "body": {
           "type": "object",
           "properties": {
@@ -689,6 +728,151 @@
       },
       "required": [
         "type"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "active_only": {
+              "type": "boolean"
+            },
+            "after": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SessionId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "limit",
+            "active_only"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "session.list.page"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SessionId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Session"
+              }
+            }
+          },
+          "required": [
+            "sessions"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "session.list.paged"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "$ref": "#/$defs/SessionId"
+            }
+          },
+          "required": [
+            "session"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "session.get"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/Session"
+        },
+        "type": {
+          "type": "string",
+          "const": "session.found"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "sessions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Session"
+              }
+            }
+          },
+          "required": [
+            "sessions"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "session.updates"
+        }
+      },
+      "required": [
+        "type",
+        "body"
       ]
     },
     {
@@ -2022,6 +2206,17 @@
               "properties": {
                 "input_tokens": {
                   "$ref": "#/$defs/Counter"
+                },
+                "outcome": {
+                  "description": "Older peers and retained history can omit the final native outcome.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TurnOutcome"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "output_tokens": {
                   "$ref": "#/$defs/Counter"
@@ -3490,6 +3685,14 @@
     "Timestamp": {
       "description": "Canonical UTC timestamp with exactly millisecond precision.",
       "type": "string"
+    },
+    "TurnOutcome": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "failed",
+        "interrupted"
+      ]
     },
     "UserId": {
       "type": "string"

@@ -125,9 +125,16 @@ types! {
         #[serde(rename="machine.updated")] MachineUpdated(Machine),
         #[serde(rename="machine.presence")] Presence { online: bool,last_seen: Timestamp },
         #[serde(rename="inventory.update")] Inventory { agents: BTreeMap<String,AgentInventory> },
+        #[serde(rename="fs.roots")] FsRoots,
+        #[serde(rename="fs.roots.listed")] FsRootsListed { roots:Vec<String> },
         #[serde(rename="fs.list")] FsList { path: String,cursor: Option<String>,limit: u16 },
         #[serde(rename="fs.listed")] FsListed { entries: Vec<DirectoryEntry>,next: Option<String> },
         #[serde(rename="session.list")] SessionList,
+        #[serde(rename="session.list.page")] SessionListPage { after:Option<SessionId>,limit:u16,active_only:bool },
+        #[serde(rename="session.list.paged")] SessionPage { sessions:Vec<Session>,next:Option<SessionId> },
+        #[serde(rename="session.get")] SessionGet { session:SessionId },
+        #[serde(rename="session.found")] SessionFound(Session),
+        #[serde(rename="session.updates")] SessionUpdates { sessions: Vec<Session> },
         #[serde(rename="session.snapshot_list")] Sessions { sessions: Vec<Session> },
         #[serde(rename="session.start")] Start(Launch),
         #[serde(rename="session.start.lookup")] StartLookup { key: IdempotencyKey },
@@ -252,7 +259,12 @@ types! {
         ToolOutput { tool: String,text: String },
         ToolCompleted { tool: String,success: bool },
         FileDiff { path: String,diff: String },
-        TurnCompleted { turn: String,input_tokens: Counter,output_tokens: Counter },
+        TurnCompleted {
+            turn: String,input_tokens: Counter,output_tokens: Counter,
+            /// Older peers and retained history can omit the final native outcome.
+            #[serde(default,skip_serializing_if="Option::is_none")]
+            outcome: Option<TurnOutcome>,
+        },
         Idle,
         Error { message: String },
         PtyOutput { data: String },
@@ -261,6 +273,9 @@ types! {
         Gap { from: Counter,to: Counter,reason: String },
         Opaque { native_kind: String,payload: serde_json::Value },
     }
+    #[derive(Copy,PartialEq,Eq)]
+    #[serde(rename_all="snake_case")]
+    pub enum TurnOutcome { Completed,Failed,Interrupted }
     #[derive(PartialEq, Eq)]
     pub struct ApprovalRequest {
         pub id: ApprovalId,pub session: SessionId,pub owner: UserId,pub native_id: String,
@@ -490,6 +505,25 @@ impl Envelope {
                         .any(|(k, v)| k.is_empty() || k.len() > 64 || v.len() > 256) =>
             {
                 return Err(invalid("invalid labels"));
+            }
+            Message::FsRootsListed { roots }
+                if roots.is_empty()
+                    || roots.len() > 16
+                    || roots.iter().any(|root| {
+                        !root.starts_with('/')
+                            || root.len() > 4096
+                            || root.chars().any(char::is_control)
+                    }) =>
+            {
+                return Err(invalid("invalid allowed roots"));
+            }
+            Message::SessionListPage { limit, .. } if !(1..=256).contains(limit) => {
+                return Err(invalid("invalid session page limit"));
+            }
+            Message::SessionPage { sessions, .. } | Message::SessionUpdates { sessions }
+                if sessions.len() > 256 =>
+            {
+                return Err(invalid("session page count exceeds limit"));
             }
             Message::FsList { path, limit, .. }
                 if path.is_empty()

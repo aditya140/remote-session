@@ -31,7 +31,10 @@ Configure a dedicated native OAuth client with a registered loopback redirect, a
 }
 ```
 
-Endpoint origins must agree. HTTPS uses verified native trust plus an optional PEM CA bundle and standard HTTPS_PROXY/NO_PROXY behavior. Redirects are disabled. Dedicated remote scope is mandatory; inference scopes are rejected. Request/response/callback sizes and deadlines are bounded. Token Debug output redacts both access and refresh credentials. Refresh credentials are returned only to interactive client composition for its own protected storage.
+Endpoint origins must agree. HTTPS uses verified native trust plus an optional PEM CA bundle and standard HTTPS_PROXY/NO_PROXY behavior. Redirects are disabled. Dedicated remote scope is mandatory; inference scopes are rejected. Request/response/callback sizes and deadlines are bounded. Token Debug output redacts both access and refresh credentials. Refresh credentials are returned only to interactive client composition. `OAuth::refresh`
+performs one bounded exchange without retries. Composition serializes exchanges and replaces
+rotated credentials. The standalone remote client keeps them in memory; enrollment discards
+them. They never enter machine state.
 
 ## Native connector
 
@@ -65,3 +68,16 @@ QGR_EXPECT_MISSING_KEYRING=yes \
 ```
 
 Linux proofs use real verified HTTPS, a clearly synthetic OAuth/JWKS issuer, and the actual PostgreSQL-backed gateway. They cover PKCE/state attacks, device pending/slow-down/cancellation/expiry/denial, scope/TLS rejection, lost enrollment acknowledgements, repeat/hostname changes, private-file/key-loss handling, interrupted explicit key recovery, old-key denial, machine-only authentication, unenrollment, and absence of persisted user tokens. An actual unavailable Linux session bus proves disclosed fallback and refusal to silently switch an existing backend. Actual two-gateway/native SDK/TUI proofs cover remote sessions, original-access fencing, pushed heads, durable approval losses and lost-upload-ACK reconciliation. A real tenant, working native keychain, macOS and actual platform-service execution remain separate evidence gates. See [MVP evidence](../../docs/validation/mvp-evidence.md).
+
+## Session inventory and directory discovery
+
+New native connectors require `host-session-pages-v1` from the gateway and
+`native-pages-v1` from sessiond. Live inventory and approval discovery read active
+sessions. Historical metadata advances one bounded page per pass. `session.updates`
+contains partial metadata; it does not replace the complete session list. The gateway
+projects these updates and sends them only to clients with `session-pages-v1` support.
+The connector periodically repeats history traversal to repair missed updates.
+
+`fs.roots` returns the configured roots after the same owner, generation, access, and
+browse-policy checks as `fs.list`. It does not permit browsing or launching outside
+those roots. The host and session owner still validate the directory before launch.

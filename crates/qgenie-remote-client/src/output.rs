@@ -190,7 +190,8 @@ impl OutputCursor {
     pub fn frame(&mut self, frame: &LiveFrame) -> Result<OutputUpdate, RemoteError> {
         match frame {
             LiveFrame::Text(envelope) if envelope.machine == Some(self.machine) => {
-                if let Message::Sessions { sessions } = &envelope.message
+                if let Message::Sessions { sessions } | Message::SessionUpdates { sessions } =
+                    &envelope.message
                     && let Some(session) = sessions.iter().find(|session| {
                         session.id == self.session && session.machine == self.machine
                     })

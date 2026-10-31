@@ -1,5 +1,11 @@
-//! SDK for the same-user local preview. Connection retries never resend mutations.
+//! Local and remote session clients. Connection retries never resend mutations.
+mod activity;
+mod credentials;
+mod recovery;
+pub use activity::{Activity, ApprovalSummary, WaitOutcome, WaitTarget};
+pub use recovery::observation_can_reconnect;
 mod gateway;
+pub use credentials::{CredentialUpdates, UserCredential, UserCredentials};
 mod live;
 mod observe;
 mod output;
@@ -11,20 +17,17 @@ mod remote_replay;
 pub use output::{OutputCursor, OutputItem, OutputUpdate, ReadPlan};
 pub use remote_replay::{RemoteAttachment, RemoteReplay, RemoteSnapshot};
 mod remote_start;
+mod start_journal;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use fs2::FileExt;
 pub use gateway::{GatewayClient, GatewayConfig};
 pub use live::{LiveClient, LiveEvent, LiveHandle, LiveStatus};
 use qgenie_remote_proto::ipc::DispatchFrame;
 use qgenie_remote_proto::*;
-use qgenie_remote_transport::ipc::{
-    client_handshake, connect, private_directory, private_file, read_dispatch, write_dispatch,
-};
+use qgenie_remote_transport::ipc::{client_handshake, connect, read_dispatch, write_dispatch};
 pub use qgenie_remote_transport::ws::Frame as LiveFrame;
 pub use remote_control::RemoteController;
 pub use remote_start::RemoteStartIdentity;
 use std::{
-    io::{Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -117,8 +120,49 @@ impl Client {
             _ => Err(unexpected()),
         }
     }
+    /// Reads one ID-ordered page of active sessions or all retained history.
+    /// `limit` must be 1..=256. `after` is the last ID from the previous page.
+    /// Concurrent starts can insert IDs before a cursor; restart traversal to see them.
+    /// Dropping the read does not change native session state.
+    ///
+    /// # Errors
+    /// Returns an error for invalid bounds, unavailable IPC, or an invalid page reply.
+    pub async fn session_page(
+        &self,
+        after: Option<SessionId>,
+        limit: u16,
+        active_only: bool,
+    ) -> Result<(Vec<SessionInfo>, Option<SessionId>), RemoteError> {
+        match self
+            .request(Operation::ListPage {
+                after,
+                limit,
+                active_only,
+            })
+            .await?
+        {
+            Reply::SessionPage { sessions, next }
+                if sessions.len() <= usize::from(limit)
+                    && sessions.iter().all(|s| after.is_none_or(|id| s.id > id))
+                    && sessions.windows(2).all(|pair| pair[0].id < pair[1].id)
+                    && next.is_none_or(|id| sessions.last().is_some_and(|s| s.id == id)) =>
+            {
+                Ok((sessions, next))
+            }
+            _ => Err(unexpected()),
+        }
+    }
+    /// Persists the start identity before asking the native owner to launch.
+    /// Keep `spec.key` until the outcome is known. Reconcile an uncertain result with
+    /// [`Self::lookup_start`]; do not use a new key to retry the same launch.
+    /// Cancellation does not undo a persisted identity or an accepted native launch.
+    ///
+    /// # Errors
+    /// Returns `NotSent` when journal admission or persistence fails before submission.
+    /// Native denials preserve their error code. A lost or invalid response can return
+    /// `Unknown`, including when the native process already exists.
     pub async fn start(&self, spec: StartSpec) -> Result<SessionInfo, RemoteError> {
-        let permit = self.journal_work.try_acquire().map_err(|_| {
+        let permit = self.journal_work.clone().try_acquire_owned().map_err(|_| {
             failure(
                 ErrorCode::Overloaded,
                 OperationOutcome::NotSent,
@@ -127,16 +171,19 @@ impl Client {
         })?;
         let state_dir = self.path.parent().unwrap().to_owned();
         let saved = spec.clone();
-        tokio::task::spawn_blocking(move || persist_start(&state_dir, &saved))
-            .await
-            .map_err(|_| {
-                failure(
-                    ErrorCode::Internal,
-                    OperationOutcome::NotSent,
-                    "start journal worker failed",
-                )
-            })??;
-        drop(permit);
+        tokio::task::spawn_blocking(move || {
+            // Cancellation does not stop blocking I/O. Keep its capacity reserved.
+            let _permit = permit;
+            persist_start(&state_dir, &saved)
+        })
+        .await
+        .map_err(|_| {
+            failure(
+                ErrorCode::Internal,
+                OperationOutcome::NotSent,
+                "start journal worker failed",
+            )
+        })??;
         let key = spec.key;
         let reply = match self.request(Operation::Start(spec)).await {
             Ok(reply) => reply,
@@ -356,54 +403,14 @@ fn unexpected() -> RemoteError {
 }
 
 fn persist_start(state_dir: &Path, spec: &StartSpec) -> Result<(), RemoteError> {
-    fn persist(state_dir: &Path, spec: &StartSpec) -> std::io::Result<()> {
-        private_directory(state_dir)?;
-        let journal_lock = private_file(&state_dir.join("starts.lock"))?;
-        journal_lock.lock_exclusive()?;
-        let directory = state_dir.join("starts");
-        private_directory(&directory)?;
-        let path = directory.join(format!("{}.json", spec.key));
-        if !path.exists() && std::fs::read_dir(&directory)?.count() >= 4096 {
-            return Err(std::io::Error::other("start journal capacity reached"));
-        }
-        let mut file = private_file(&path)?;
-        if file.metadata()?.len() > 0 {
-            let mut previous = Vec::new();
-            file.take(MAX_JSON_BYTES as u64 + 1)
-                .read_to_end(&mut previous)?;
-            let saved: StartSpec = decode_json(&previous).map_err(std::io::Error::other)?;
-            if fingerprint(&saved).map_err(std::io::Error::other)?
-                != fingerprint(spec).map_err(std::io::Error::other)?
-            {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::AlreadyExists,
-                    "start key has different parameters",
-                ));
-            }
-        } else {
-            file.write_all(&serde_json::to_vec(spec)?)?;
-            file.sync_all()?;
-            std::fs::File::open(&directory)?.sync_all()?;
-        }
-        Ok(())
-    }
-    persist(state_dir, spec).map_err(|error| {
-        failure(
-            if error.kind() == std::io::ErrorKind::AlreadyExists {
-                ErrorCode::IdempotencyConflict
-            } else {
-                ErrorCode::Internal
-            },
-            OperationOutcome::NotSent,
-            "start identity cannot be persisted or conflicts; no request was sent",
-        )
-    })
+    start_journal::Journal::open(state_dir)?.local(spec)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qgenie_remote_transport::ipc::{Listener, server_handshake};
+    use fs2::FileExt;
+    use qgenie_remote_transport::ipc::{Listener, private_file, server_handshake};
     async fn receive(stream: &mut tokio::net::UnixStream) -> Request {
         server_handshake(stream).await.unwrap();
         let DispatchFrame::Local(request) = read_dispatch(stream).await.unwrap() else {
@@ -411,6 +418,43 @@ mod tests {
         };
         request
     }
+    #[tokio::test]
+    async fn cancelled_start_keeps_journal_capacity_until_the_worker_finishes() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()
+            .unwrap();
+        let journal_lock = private_file(&temp.path().join("starts.lock")).unwrap();
+        journal_lock.lock_exclusive().unwrap();
+        let mut client = Client::local(temp.path());
+        client.journal_work = Arc::new(Semaphore::new(1));
+        let mut start = Box::pin(client.start(StartSpec {
+            key: IdempotencyKey::new(),
+            command: vec!["/bin/sh".into()],
+            cwd: temp.path().display().to_string(),
+            rows: 24,
+            cols: 80,
+        }));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut start)
+                .await
+                .is_err()
+        );
+        assert_eq!(client.journal_work.available_permits(), 0);
+        drop(start);
+        assert_eq!(client.journal_work.available_permits(), 0);
+        drop(journal_lock);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while client.journal_work.available_permits() == 0 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
     #[tokio::test]
     async fn lost_mutation_reply_is_unknown_without_a_retry() {
         let temp = tempfile::Builder::new()
@@ -484,12 +528,7 @@ mod tests {
         });
         let client = Client::local(temp.path());
         assert_eq!(client.start(spec).await.unwrap().id, id);
-        assert!(
-            temp.path()
-                .join("starts")
-                .join(format!("{key}.json"))
-                .exists()
-        );
+        assert!(temp.path().join("start-identities.sqlite").exists());
         peer.await.unwrap();
     }
 }

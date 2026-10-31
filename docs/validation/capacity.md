@@ -1,7 +1,44 @@
-# Reduced connected baseline — 2026-10-18
+# Capacity and host resource evidence
 
-This is an executed local baseline, not beta-scale qualification. Source is the current
-uncommitted task implementation on branch `work`, schema 15, Rust 1.99.1, PostgreSQL 17.11,
+## Release host measurement — 2026-10-26
+
+[Task 030](../../tasks/030-complete-linux-release-readiness.md) measures both host processes
+from the same release binary. The connector remains authenticated. No session is active.
+The sample follows real PTY execution and recording acknowledgment in the composed fixture.
+The measurement lasts 60 seconds with one RSS sample per second. It sums sessiond and
+connector RSS and CPU. CPU percentages use one core. MB means 1,000,000 bytes.
+
+| Measurement | Before repairs | Final release build | PRD target |
+| --- | ---: | ---: | ---: |
+| Aggregate maximum sampled RSS | 32.58 MB | 32.53 MB | Less than 30 MB |
+| Aggregate idle CPU | 1.72% | 0.57% | Less than 0.5% |
+| Resource target result | Not met | Not met | Both must pass |
+
+The [before sample](host-footprint-before-2026-10-26.json) and
+[final composed result](linux-completion-2026-10-26.json) retain exact bytes, CPU values,
+binary hashes, and limitations. Explicit recording wakeups and notification-driven inventory
+reads reduce idle CPU. Releasing sealed encoders removes a lifetime capacity limit. This
+small workload does not establish a measurable RSS improvement from that lifecycle repair.
+
+A diagnostic spot sample reports 23.21 MB aggregate proportional set size (PSS). PSS
+apportions shared mappings between processes. Most RSS in this sample is file-backed;
+only 7.57 MB is anonymous memory. This explains why summed RSS exceeds actual proportional
+memory, but it does not replace the PRD's RSS metric or close its acceptance gate.
+
+The functional composed proof reports its own status. The separate `host_footprint` phase
+reports `target_not_met`. Neither result establishes a long-run or representative fleet
+budget. The sampler excludes child memory and socket count. The next resource step is to
+profile remaining timer work and resident code pages under representative use. Preserve
+independent process ownership, recording, and execution-time authorization checks.
+
+Reproduce the measurement with the release command in
+[tests/load/README.md](../../tests/load/README.md). The final binary enables managed Codex.
+Actual Codex proof phases use the pinned native executable and a synthetic provider.
+
+## Reduced connected baseline — 2026-10-18
+
+This executed local baseline does not establish beta-scale qualification. The sample used
+the uncommitted task implementation on branch `work`, schema 15, Rust 1.99.1, PostgreSQL 17.11,
 Redis 8, PgBouncer 1.24.1 and the pinned development images. The gateway image is 19,625,695
 bytes and the separate synthetic identity image 5,621,503 bytes; both run as UID 10001.
 The [aggregate sample](capacity-baseline-2026-10-18.json) preserves the executed 200-echo

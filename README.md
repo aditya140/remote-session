@@ -2,11 +2,18 @@
 
 The standalone Rust CLI/TUI supports local shell sessions and authenticated remote PTY and managed Codex workflows. A separate session daemon owns native processes, replay and recording. Closing the TUI leaves sessions running. Reattach to observe output or request input control.
 
-Linux standalone development across all 28 tasks is complete within the user-selected scope,
+The supported Linux journey has development acceptance evidence. The host resource budget,
+real enterprise access, user-service lifetime, and pilot qualification remain open. See the
+[overall completion plan](tasks/030-complete-linux-release-readiness.md) for the ordered
+remaining work. The earlier 28 tasks are complete within the user-selected development scope,
 with external release gates documented separately. [Progress](tasks/PROGRESS.md) records the implementation and
 executed evidence. [ADR 0007](docs/adr/0007-standalone-preview.md) authorizes the new TUI
 without the existing corporate CLI source. See [external release gates](docs/validation/external-release-gates.md)
 for unrun tenant, platform, production operations and beta-scale qualification.
+
+The [BeautifulRust review](docs/validation/beautiful-rust-review-2026-10-26.md) ranks the
+remaining Rust API and readability work. Its [pinned skills](.agents/skills/README.md)
+are installed for this repository.
 
 ## Run the local preview
 
@@ -65,6 +72,12 @@ Local replay can contain terminal output and secrets printed by commands. Raw te
 
 WSS/proxy transport, host OAuth/enrollment, directory freshness, gateway audit, protected recording and original-authority native dispatch are implemented. Remote PTY workflows compose through the SDK, gateways and the independently owned daemon. The four-gateway development deployment and service installers are implemented; real user-manager/platform qualification remains separate. Managed Codex discovery/creation, structured control, owner approval delivery and historical resume now pass composed Linux fixtures; the full release fault/platform matrix remains open. Same-user IPC does not protect against another process running as that OS user.
 
+The [core-journey repair plan](tasks/029-stabilize-core-journey.md) records the current
+completed implementation, ordered steps, acceptance checks, and external pilot gates.
+The [overall completion plan](tasks/030-complete-linux-release-readiness.md) continues
+with dispatch clarity, required regression coverage, host resource measurements, and
+real-environment qualification.
+
 ## Development checks
 
 ```sh
@@ -99,20 +112,24 @@ See the [transport API](crates/qgenie-remote-transport/README.md), [native Codex
 ### Remote terminals and owner history
 
 ```sh
-qgenie-remote remote --gateway https://your-gateway.example \
-  --token-file /private/path/current-user-token --ca-bundle /path/to/enterprise-ca.pem
+qgenie-remote remote setup --gateway https://your-gateway.example \
+  --oauth-config /private/oauth.json --ca-bundle /path/to/enterprise-ca.pem
+qgenie-remote remote
 ```
 
-The caller supplies a current dedicated remote user token in a private regular file owned by
-that OS user; this command stores no credential. `--ca-bundle` is optional when system roots
-already trust the gateway. Use Enter to browse machines, sessions and recorded streams;
+Setup saves connection settings in the selected `--state-dir`. Each new invocation signs
+in through browser PKCE, or a device code with `--device`. The running client refreshes its
+user credentials in memory. It never saves access or refresh tokens. Automation can still
+supply `--token-file /private/current-user-token`. The file must be a private regular file
+owned by the current OS user. `--ca-bundle` is optional when system roots already trust the gateway. Use Enter to browse machines, sessions and recorded streams;
 `v` opens a live terminal, `c` opens the allowed-directory picker for a new `/bin/sh`, and
 `k` looks up persisted start identities without resending launches. In the picker, Enter
 browses a path, `p` edits it, Backspace opens its parent and Ctrl-N submits one start in the
 current directory. Start identities use the global `--state-dir`; their journal contains
 scope/key/fingerprint metadata, without argv or credentials. `n` reads another history page,
-Esc goes back, `r` reconnects, and `q` exits. Expired tokens
-are replaced by reopening with a fresh injected credential. Protected gateway history must
+Esc goes back, `r` retries a connection, and `q` exits. Observation reconnects automatically
+after temporary loss, with at most six attempts per recovery. Denied access stops recovery.
+A failed credential refresh requires a new sign-in. Token-file users supply a new token. Protected gateway history must
 be configured and qualified. The view displays original gaps and redacted text with bounded
 memory and independent keyboard/signal handling. Local PTY workflows remain available.
 
@@ -128,18 +145,46 @@ labels (Ctrl-D confirms removal), and F6 confirms remote-access revocation. Revo
 native sessions and local capture alive. `/` filters machines by ID/name/hostname/labels and
 sessions by ID/cwd/state/agent/command. Enter applies, Esc cancels the edit and Ctrl-U clears;
 hidden rows cannot receive actions. The machine list shows host/platform/CLI/native-agent versions and last seen time; its
-owner approval badge reports pending, partial or unavailable status. In the creation picker,
-F5 selects an advertised agent.
+owner approval badge reports pending, partial or unavailable status. In the session list,
+`!` filters the current page to pending approvals, failed or uncertain lifetime, and recording
+warnings. The agent pane shows typed activity separately from process lifetime. In the creation picker,
+F5 selects an advertised agent. When no valid directory is selected, the picker offers the host's allowed roots.
+F1 returns to root selection; `p` accepts a manual path when an older peer cannot list roots.
+Session lists open on live work. In the remote list, `b` switches live/history, `n` advances
+one page, and Home returns to the first page. The local list uses `h`, `]`, and `[`.
+Filtering applies to the current page. Completed history does not consume live capacity.
 The agent pane renders structured messages/tools and accepts controlled prompt/steer input.
 `a` opens owner-wide approvals; F7 does the same from observe mode without taking control.
 In the session list, `u` resumes eligible confirmed-ended agent history in a new session and
 selected directory; `k` remains read-only recovery of an original start identity. Lost or
 outcome-unknown history is not resumed automatically. See the [MVP evidence report](docs/validation/mvp-evidence.md).
 
+`remote read MACHINE SESSION` prints a bounded, safe text checkpoint. `remote events` emits
+bounded JSON lines. `remote activity` reports typed activity and durable approval status.
+`remote wait MACHINE SESSION --turn TURN_ID --timeout 300` waits for that exact turn;
+`--exit` waits for native exit. Timeout leaves work running. These commands never take control.
+See [remote commands](docs/integration/remote-commands.md) for bounds and result meanings.
+
 Scriptable `remote rename`, `label`, `remove-label` and `revoke --yes` use the same owner SDK.
 `remote send MACHINE SESSION --stdin [--enter]` sends piped input once, with a 32 KiB bound
 including optional Enter, after reading it and acquiring control. Unknown mutation outcomes
 require explicit inventory/key reconciliation. See [remote commands](docs/integration/remote-commands.md).
+
+## Faster development builds
+
+An optional pinned ra-jit launcher supports repeated development edits:
+
+```sh
+./tools/ra-jit setup
+./tools/ra-jit build -p qgenie-remote --locked
+./tools/ra-jit status
+./tools/ra-jit stop
+```
+
+It uses separate build output and Rust 1.99.0. Normal Cargo commands and CI use Rust
+1.99.1. The measured warmed edits took 0.33–0.43 seconds; the first JIT edit took 9.10 seconds.
+Keep the normal Cargo checks: this pinned JIT has no borrow checker. See the
+[setup, measurements, and limits](docs/development/ra-jit.md).
 
 ## Editor development container
 

@@ -25,6 +25,7 @@ wire! {
     pub enum Operation {
         Status,
         List,
+        ListPage { after: Option<SessionId>, limit: u16, active_only: bool },
         Start(StartSpec),
         LookupStart { key: IdempotencyKey },
         Attach { session: SessionId },
@@ -42,6 +43,7 @@ wire! {
     pub enum Reply {
         Status(HostStatus),
         Sessions(Vec<SessionInfo>),
+        SessionPage { sessions: Vec<SessionInfo>, next: Option<SessionId> },
         Started(SessionInfo),
         Attached(Attachment),
         SnapshotPage(Snapshot),

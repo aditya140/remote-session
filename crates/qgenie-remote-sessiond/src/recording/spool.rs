@@ -137,7 +137,7 @@ impl RecordingSpool {
                 return Ok(());
             }
             let (total, active): (u32, u32) = tx.query_row(
-                "SELECT count(*),coalesce(sum(sealed=0),0) FROM streams",
+                "SELECT count(*),coalesce(sum(sealed=0),0) FROM streams s WHERE sealed=0 OR EXISTS(SELECT 1 FROM reservations r WHERE r.epoch=s.epoch) OR EXISTS(SELECT 1 FROM chunks c WHERE c.epoch=s.epoch) OR EXISTS(SELECT 1 FROM gaps g WHERE g.epoch=s.epoch)",
                 [],
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
@@ -158,6 +158,14 @@ impl RecordingSpool {
             Ok(())
         })();
         self.observe_error(result)
+    }
+
+    pub(super) fn is_sealed(&self, identity: &RecordingIdentity) -> Result<bool> {
+        Ok(self.db.query_row(
+            "SELECT sealed FROM streams WHERE epoch=?1",
+            [identity.stream_epoch.to_string()],
+            |row| row.get(0),
+        )?)
     }
 
     /// Commits the recording sequence before the worker may expose/encode that record.

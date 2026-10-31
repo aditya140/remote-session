@@ -34,6 +34,18 @@ where
     F: FnOnce(Connection) -> Fut + Send + 'static,
     Fut: Future<Output = ()> + Send + 'static,
 {
+    fixture_with_discovery(serve, agents, approval_status, false).await
+}
+async fn fixture_with_discovery<F, Fut>(
+    serve: F,
+    agents: bool,
+    approval_status: bool,
+    discovery: bool,
+) -> Fixture
+where
+    F: FnOnce(Connection) -> Fut + Send + 'static,
+    Fut: Future<Output = ()> + Send + 'static,
+{
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
     let mut ca = tempfile::NamedTempFile::new().unwrap();
     use std::io::Write;
@@ -75,6 +87,10 @@ where
         .into_iter()
         .map(str::to_owned)
         .collect();
+        if discovery {
+            available.insert("session-pages-v1".into());
+            available.insert("root-discovery-v1".into());
+        }
         if agents {
             available.insert("agent-events-v1".into());
         }
@@ -107,6 +123,121 @@ where
 }
 fn token() -> AccessToken {
     "synthetic-live-token".to_owned().try_into().unwrap()
+}
+
+#[tokio::test]
+async fn lost_wss_refresh_ack_allows_new_observation_but_never_resends_the_request() {
+    let server = fixture(move |mut connection| async move {
+        assert!(matches!(
+            read(&mut connection).await.message,
+            Message::Reauthenticate { .. }
+        ));
+        connection.close().await.unwrap();
+    })
+    .await;
+    let (updates, credentials) =
+        crate::UserCredentials::channel(crate::UserCredential::fixed(token()));
+    let mut client = server
+        .api
+        .connect_authenticated(&credentials)
+        .await
+        .unwrap();
+    updates.replace(crate::UserCredential::fixed(token()));
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while client.next().await.is_some() {}
+    })
+    .await
+    .unwrap();
+    tokio::task::yield_now().await;
+    assert_eq!(client.disconnect_error().code, ErrorCode::AccessStale);
+    assert!(credentials.current().is_ok());
+    client.close().await;
+}
+
+#[tokio::test]
+async fn injected_rotation_reauthenticates_and_sign_in_failure_stops_the_connection() {
+    let (seen, received) = oneshot::channel();
+    let server = fixture(move |mut connection| async move {
+        let request = read(&mut connection).await;
+        let Message::Reauthenticate { token } = &request.message else {
+            panic!("only reauthentication is expected")
+        };
+        assert_eq!(token.as_str(), "synthetic-rotated-token");
+        send(
+            &connection,
+            response(
+                &request,
+                Message::AuthRefreshed {
+                    expires_at: Timestamp::from_unix_millis(4102444800000).unwrap(),
+                },
+            ),
+        )
+        .await;
+        seen.send(()).unwrap();
+        assert!(
+            connection.recv().await.is_none(),
+            "rotation and failure must not send an application action"
+        );
+    })
+    .await;
+    let (updates, credentials) =
+        crate::UserCredentials::channel(crate::UserCredential::fixed(token()));
+    let mut client = server
+        .api
+        .connect_authenticated(&credentials)
+        .await
+        .unwrap();
+    updates.replace(crate::UserCredential::fixed(
+        "synthetic-rotated-token".to_owned().try_into().unwrap(),
+    ));
+    received.await.unwrap();
+    updates.require_sign_in();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while client.next().await.is_some() {}
+    })
+    .await
+    .unwrap();
+    assert_eq!(client.disconnect_error().code, ErrorCode::Unauthenticated);
+    assert!(!crate::observation_can_reconnect(
+        &client.disconnect_error()
+    ));
+    client.close().await;
+}
+
+#[tokio::test]
+async fn rejected_rotation_is_not_retried_and_cannot_restart_observation() {
+    let server = fixture(move |mut connection| async move {
+        let request = read(&mut connection).await;
+        assert!(matches!(request.message, Message::Reauthenticate { .. }));
+        send(
+            &connection,
+            response(
+                &request,
+                Message::Error(RemoteError::rejected(
+                    ErrorCode::Forbidden,
+                    "access revoked",
+                )),
+            ),
+        )
+        .await;
+        assert!(connection.recv().await.is_none());
+    })
+    .await;
+    let (updates, credentials) =
+        crate::UserCredentials::channel(crate::UserCredential::fixed(token()));
+    let mut client = server
+        .api
+        .connect_authenticated(&credentials)
+        .await
+        .unwrap();
+    updates.replace(crate::UserCredential::fixed(token()));
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while client.next().await.is_some() {}
+    })
+    .await
+    .unwrap();
+    assert_eq!(client.disconnect_error().code, ErrorCode::Forbidden);
+    client.close().await;
 }
 async fn read(connection: &mut Connection) -> Envelope {
     let frame = tokio::time::timeout(Duration::from_secs(3), connection.recv())
@@ -151,6 +282,91 @@ fn session(machine: MachineId) -> Session {
         capabilities: Capabilities::default(),
         recording_warning: None,
     }
+}
+
+#[tokio::test]
+async fn negotiated_roots_and_pages_reject_repeated_cursors() {
+    let machine = MachineId::new();
+    let value = session(machine);
+    let id = value.id;
+    let server = fixture_with_discovery(
+        move |mut connection| async move {
+            let roots = read(&mut connection).await;
+            assert!(matches!(roots.message, Message::FsRoots));
+            let mut reply = Envelope::new(Message::FsRootsListed {
+                roots: vec!["/projects".into(), "/scratch".into()],
+            });
+            reply.re = Some(roots.id);
+            reply.machine = Some(machine);
+            send(&connection, reply).await;
+            for _ in 0..2 {
+                let request = read(&mut connection).await;
+                assert!(matches!(
+                    request.message,
+                    Message::SessionListPage { limit: 1, .. }
+                ));
+                let mut reply = Envelope::new(Message::SessionPage {
+                    sessions: vec![value.clone()],
+                    next: Some(id),
+                });
+                reply.re = Some(request.id);
+                reply.machine = Some(machine);
+                send(&connection, reply).await;
+            }
+            std::future::pending::<()>().await;
+        },
+        false,
+        false,
+        true,
+    )
+    .await;
+    let live = server.api.connect(&token()).await.unwrap();
+    let handle = live.handle();
+    assert_eq!(
+        handle.allowed_roots(machine).await.unwrap(),
+        vec!["/projects", "/scratch"]
+    );
+    let (page, next) = handle.session_page(machine, None, 1, false).await.unwrap();
+    assert_eq!(page[0].id, id);
+    assert_eq!(next, Some(id));
+    assert!(handle.session_page(machine, next, 1, false).await.is_err());
+    live.close().await;
+}
+
+#[tokio::test]
+async fn old_gateway_keeps_manual_roots_and_explicit_complete_list_fallback() {
+    let machine = MachineId::new();
+    let value = session(machine);
+    let server = fixture(move |mut connection| async move {
+        let request = read(&mut connection).await;
+        assert!(matches!(request.message, Message::SessionList));
+        let mut reply = Envelope::new(Message::Sessions {
+            sessions: vec![value],
+        });
+        reply.re = Some(request.id);
+        reply.machine = Some(machine);
+        send(&connection, reply).await;
+        std::future::pending::<()>().await;
+    })
+    .await;
+    let live = server.api.connect(&token()).await.unwrap();
+    let handle = live.handle();
+    for limit in [0, 257] {
+        let error = handle
+            .session_page(machine, None, limit, false)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidFrame);
+        assert!(matches!(error.outcome, OperationOutcome::NotSent));
+    }
+    assert_eq!(
+        handle.allowed_roots(machine).await.unwrap_err().code,
+        ErrorCode::UnsupportedCapability
+    );
+    let (page, next) = handle.session_page(machine, None, 64, false).await.unwrap();
+    assert_eq!(page.len(), 1);
+    assert!(next.is_none());
+    live.close().await;
 }
 #[tokio::test]
 async fn reverse_responses_duplicates_and_reused_correlation_cannot_cross_requests() {
@@ -320,20 +536,20 @@ async fn lost_start_reply_keeps_original_scoped_key_without_resending() {
                 };
                 assert_eq!(launch.key, key);
                 assert_eq!(request.machine, Some(machine));
-                let files: Vec<_> = std::fs::read_dir(location.join("remote-starts"))
-                    .unwrap()
-                    .collect();
-                assert_eq!(
-                    files.len(),
-                    1,
-                    "identity must be persisted before transmission"
-                );
-                let bytes = std::fs::read(files[0].as_ref().unwrap().path()).unwrap();
-                let saved: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+                let db =
+                    rusqlite::Connection::open(location.join("start-identities.sqlite")).unwrap();
+                let bytes: String = db
+                    .query_row(
+                        "SELECT body FROM identities WHERE key=?1",
+                        [key.to_string()],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                let saved: serde_json::Value = serde_json::from_str(&bytes).unwrap();
                 assert_eq!(saved["key"], key.to_string());
                 assert_eq!(saved["owner"], owner.to_string());
                 assert_eq!(saved["machine"], machine.to_string());
-                assert!(!String::from_utf8(bytes).unwrap().contains("private-argv"));
+                assert!(!bytes.contains("private-argv"));
                 requests.fetch_add(1, Ordering::SeqCst);
                 let _ = connection.close().await; // Native may have accepted; lose its reply.
             },

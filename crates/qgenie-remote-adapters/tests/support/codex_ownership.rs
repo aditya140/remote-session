@@ -14,6 +14,93 @@ impl qgenie_remote_adapters::NativeEffectAuthorization for Current {
 }
 
 #[tokio::test]
+#[ignore = "requires actual pinned QGR_CODEX_BINARY; launcher ownership qualification"]
+async fn native_socket_must_belong_to_the_launched_process() {
+    use std::os::{fd::FromRawFd, unix::fs::PermissionsExt};
+    let binary = PathBuf::from(std::env::var_os("QGR_CODEX_BINARY").expect("set QGR_CODEX_BINARY"));
+    let temp = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    let quote = |path: &Path| format!("'{}'", path.display().to_string().replace('\'', "'\\''"));
+    let wrapper = root.join("launcher");
+    let pid_file = root.join("forked.pid");
+    std::fs::write(&wrapper, format!(
+        "#!/bin/sh\nif [ \"$1\" = --version ]; then exec {} \"$@\"; fi\n{} \"$@\" &\nprintf '%s' \"$!\" > {}\nwait\n",
+        quote(&binary), quote(&binary), quote(&pid_file),
+    )).unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let result = Codex::launch(config(&wrapper, &root, 9)).await;
+    let rejected = matches!(
+        result,
+        Err(qgenie_remote_adapters::CodexError::Configuration)
+    );
+    let pid: i32 = std::fs::read_to_string(&pid_file).unwrap().parse().unwrap();
+    // Retain an exact OS process reference for cleanup even when testing the broken code.
+    // SAFETY: pidfd_open accepts a PID and zero flags. It returns an owned descriptor.
+    let descriptor = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
+    let descriptor = i32::try_from(descriptor)
+        .ok()
+        .filter(|descriptor| *descriptor >= 0)
+        .map(|descriptor| {
+            // SAFETY: the successful syscall returned a fresh descriptor owned here.
+            unsafe { std::os::fd::OwnedFd::from_raw_fd(descriptor) }
+        });
+    if let Ok(adapter) = result {
+        adapter.shutdown().await.unwrap();
+    }
+    let still_running = || {
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|stat| {
+                stat.rsplit_once(')')
+                    .map(|(_, rest)| rest.trim().starts_with(['Z', 'X']))
+            })
+            .is_some_and(|dead| !dead)
+    };
+    let stopped = timeout(Duration::from_secs(2), async {
+        while still_running() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .is_ok();
+    if !stopped && let Some(descriptor) = descriptor {
+        use std::os::fd::AsRawFd;
+        // This fixture owns the launcher and its child. Never signal a reused PID.
+        // SAFETY: the descriptor is live, SIGKILL is valid, and null selects no siginfo.
+        unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                descriptor.as_raw_fd(),
+                libc::SIGKILL,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            )
+        };
+    }
+    assert!(
+        rejected,
+        "a forked native socket was accepted as the owned child"
+    );
+    assert!(stopped, "rejected launcher left its native child running");
+
+    // A wrapper that preserves the child identity remains supported.
+    std::fs::write(
+        &wrapper,
+        format!("#!/bin/sh\nexec {} \"$@\"\n", quote(&binary)),
+    )
+    .unwrap();
+    Codex::launch(config(&wrapper, &root, 9))
+        .await
+        .unwrap()
+        .shutdown()
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn failed_native_startup_is_reaped_before_returning_to_its_executor_owner() {
     use std::os::unix::fs::PermissionsExt;
     let temp = tempfile::Builder::new()

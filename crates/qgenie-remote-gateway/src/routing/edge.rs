@@ -96,13 +96,21 @@ fn configure(ws: WebSocketUpgrade) -> WebSocketUpgrade {
         .max_frame_size(1024 * 1024)
         .max_message_size(1024 * 1024)
 }
+struct Negotiated {
+    native: bool,
+    controllers: bool,
+    replay: bool,
+    approvals: bool,
+    agents: bool,
+    session_pages: bool,
+}
 async fn hello(
     connection: &mut Connection,
     client: bool,
     native: bool,
     controllers: bool,
     approval_status: bool,
-) -> Result<(bool, bool, bool, bool, bool), Error> {
+) -> Result<Negotiated, Error> {
     let frame = tokio::time::timeout(Duration::from_secs(5), connection.recv())
         .await
         .map_err(|_| Error::Invalid)?
@@ -117,13 +125,21 @@ async fn hello(
         "routing-v1",
         "auth-refresh-v1",
         "machine-pages-v1",
+        "session-pages-v1",
+        "host-session-pages-v1",
+        "root-discovery-v1",
         "host-dispatch-v1",
     ]
     .map(str::to_owned)
     .into();
     if native {
         caps.insert("host-changes-v1".into());
-        caps.insert("session-changes-v1".into());
+        if !client
+            || hello.required.contains("session-pages-v1")
+            || hello.optional.contains("session-pages-v1")
+        {
+            caps.insert("session-changes-v1".into());
+        }
         caps.insert("host-agent-v1".into());
         caps.insert("agent-events-v1".into());
         caps.insert("host-native-authority-v1".into());
@@ -156,6 +172,7 @@ async fn hello(
     let replay = welcome.capabilities.contains("host-replay-v1");
     let approvals = welcome.capabilities.contains("host-approvals-v1");
     let agents = welcome.capabilities.contains("host-agent-v1");
+    let session_pages = welcome.capabilities.contains("session-pages-v1");
     connection
         .sender()
         .try_send(
@@ -163,7 +180,14 @@ async fn hello(
             Frame::Text(Box::new(Envelope::new(Message::Welcome(welcome)))),
         )
         .map_err(|_| Error::Overloaded)?;
-    Ok((native, controllers, replay, approvals, agents))
+    Ok(Negotiated {
+        native,
+        controllers,
+        replay,
+        approvals,
+        agents,
+        session_pages,
+    })
 }
 struct Registration {
     hub: Arc<Hub>,
@@ -216,7 +240,7 @@ async fn serve_client(
         connection.cancellation(),
         gate.clone(),
     );
-    hello(
+    let negotiated = hello(
         &mut connection,
         true,
         hub.native_enabled,
@@ -253,6 +277,7 @@ async fn serve_client(
         peers.clients.insert(
             id,
             Client {
+                session_pages: negotiated.session_pages,
                 owner: actor.user,
                 expires: expires.clone(),
                 sender: connection.sender(),
@@ -331,7 +356,14 @@ async fn serve_host(
         connection.cancellation(),
         gate.clone(),
     );
-    let (native, controllers, replay, approvals, agents) = hello(
+    let Negotiated {
+        native,
+        controllers,
+        replay,
+        approvals,
+        agents,
+        ..
+    } = hello(
         &mut connection,
         false,
         hub.native_enabled,
@@ -421,7 +453,7 @@ async fn serve_host(
             received=connection.recv()=> {
                 let Some(received)=received else {break Ok(());};
                 if expires.load(Ordering::Acquire).saturating_mul(1000)<=now_ms()? {break Err(Error::Unauthenticated);}
-                if matches!(&received.frame,Frame::Text(envelope) if envelope.re.is_none() && matches!(envelope.message,Message::Sessions{..}|Message::Head{..}|Message::Approvals{..})) {
+                if matches!(&received.frame,Frame::Text(envelope) if envelope.re.is_none() && matches!(envelope.message,Message::Sessions{..}|Message::SessionUpdates{..}|Message::Head{..}|Message::Approvals{..})) {
                     let _=metadata_send.try_send(received);
                 } else if let Frame::Text(envelope)=&received.frame && let Message::Reauthenticate {token}=&envelope.message {
                     let identity=hub.gateway.identity.as_ref().ok_or(Error::Configuration)?;

@@ -21,6 +21,12 @@ import time
 def main():
     options = argparse.ArgumentParser()
     options.add_argument("--probe-only", action="store_true")
+    options.add_argument("--require-managed-codex", action="store_true",
+                         help="Fail unless the composed proof includes the pinned native Codex binary")
+    options.add_argument("--host-binary", type=Path,
+                         help="Use this built CLI for the standalone native owner and connector")
+    options.add_argument("--measure-host", action="store_true",
+                         help="Sample Linux host RSS and CPU for 60 idle seconds after the PTY workflow")
     options.add_argument("--report", type=Path,
                          help="Write a sanitized JSON result, including failed/unrun phases")
     args = options.parse_args()
@@ -37,6 +43,8 @@ def main():
                           "production_fault_domains": "not_run"},
     }
     began = time.monotonic()
+    if args.measure_host:
+        report["phases"]["host_footprint"] = "not_run"
     try:
         execute(args, report)
         report["status"] = "passed"
@@ -64,6 +72,15 @@ def main():
 
 def execute(args, report):
     environment = os.environ.copy()
+    if args.require_managed_codex and (args.probe_only or not environment.get("QGR_CODEX_BINARY")):
+        raise RuntimeError("Managed acceptance requires composed mode and QGR_CODEX_BINARY")
+    if args.measure_host and (args.probe_only or platform.system() != "Linux"):
+        raise RuntimeError("Host measurement requires the composed Linux proof")
+    if args.host_binary:
+        binary = args.host_binary.resolve(strict=True)
+        if not binary.is_file() or not os.access(binary, os.X_OK):
+            raise RuntimeError("The supplied host binary is not executable")
+        environment["QGR_HOST_BINARY"] = str(binary)
     if not args.probe_only and environment.get("QGR_CODEX_BINARY") and platform.system() != "Linux":
         raise RuntimeError("The composed managed Codex proof is qualified only on Linux")
     report["phases"]["synchronous_pair"] = "running"
@@ -82,6 +99,8 @@ def execute(args, report):
     with tempfile.TemporaryDirectory(prefix="qgr-durability-") as temporary:
         root = Path(temporary)
         root.chmod(0o700)
+        if args.measure_host:
+            environment["QGR_HOST_RESOURCE_REPORT"] = str(root / "host-resources.json")
         password = secrets.token_hex(24)
         private = root / "postgres.env"
         private.write_text(f"POSTGRES_PASSWORD={password}\nPGPASSWORD={password}\n")
@@ -222,6 +241,8 @@ def execute(args, report):
             project = Path(__file__).resolve().parents[2]
             environment.setdefault("QGR_GATEWAY_BINARY", str(project / "target/debug/qgenie-remote-gateway"))
             report["phases"]["public_session_pipeline"] = "running"
+            if args.measure_host:
+                report["phases"]["host_footprint"] = "running"
             if environment.get("QGR_CODEX_BINARY"):
                 report["phases"]["managed_codex"] = "running"
             subprocess.run(["cargo", "build", "-p", "qgenie-remote-gateway", "--locked"], cwd=project, env=environment, check=True)
@@ -275,6 +296,14 @@ def execute(args, report):
             if network:
                 subprocess.run(docker + ["network", "rm", identifier], env=environment,
                                capture_output=True, timeout=20)
+            # Preserve a completed measurement even if a later agent or durability
+            # phase fails. The enclosing report still records that failure.
+            if args.measure_host and (root / "host-resources.json").is_file():
+                report["host_resources"] = json.loads((root / "host-resources.json").read_text())
+                report["host_resources"]["workload"] = "Idle after composed PTY lifecycle; no active sessions; connector authenticated; recording enabled"
+                targets = report["host_resources"]["targets"]
+                report["phases"]["host_footprint"] = "passed" if targets["rss_met"] and targets["cpu_met"] else "target_not_met"
+
 
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/indexable-inc/blaze",
+  "revision": "8b15e4b406f010f98eb456ec867e16e0a9ebb0d5",
+  "release": "nightly",
+  "rust_toolchain": "1.99.0",
+  "archives": {
+    "x86_64-unknown-linux-gnu": "c5202bfb3c29920831149db9b7060c58e9876972aba3cbcd73e9e4ccaf818330",
+    "aarch64-unknown-linux-gnu": "bca650706326725b390a8b251a58d3f0b248e648237eab6fb6b565ab8e0a6388",
+    "aarch64-apple-darwin": "29e29754367ae1b35d519194dcadded0699505a660fed07b48b4dc704428fb99"
+  }
+}

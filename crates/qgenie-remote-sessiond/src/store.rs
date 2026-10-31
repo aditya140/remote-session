@@ -27,7 +27,7 @@ impl Store {
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
         )?;
         let version: u32 = connection.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        anyhow::ensure!(version <= 6, "unsupported session schema");
+        anyhow::ensure!(version <= 7, "unsupported session schema");
         if version == 0 {
             connection.execute_batch(include_str!("../migrations/0001_sessions.sql"))?;
         }
@@ -45,6 +45,9 @@ impl Store {
         }
         if version < 6 {
             connection.execute_batch(include_str!("../migrations/0006_managed_identity.sql"))?;
+        }
+        if version < 7 {
+            connection.execute_batch(include_str!("../migrations/0007_session_pages.sql"))?;
         }
         // SQLite WAL/SHM inherit the private DB permissions in the private state directory.
         Ok(Self {
@@ -66,9 +69,105 @@ impl Store {
             .execute("INSERT INTO machine VALUES(1,?1)", [id.to_string()])?;
         Ok(id)
     }
+    pub fn recover(&self) -> Result<()> {
+        self.connection.execute("UPDATE sessions SET state=CASE state WHEN '\"running\"' THEN '\"lost\"' WHEN '\"idle\"' THEN '\"lost\"' ELSE '\"outcome_unknown\"' END WHERE state IN ('\"running\"','\"idle\"','\"accepted\"','\"launching\"')", [])?;
+        Ok(())
+    }
+    #[cfg(test)]
     pub fn load(&self, machine: MachineId) -> Result<Vec<StoredSession>> {
-        let mut query=self.connection.prepare("SELECT id,spec,fingerprint,state,created_ms,head,generation,exit_code,remote_scope,ended_ms,agent FROM sessions ORDER BY created_ms")?;
-        let rows = query.query_map([], |row| {
+        self.recover()?;
+        self.read_where(machine, "1 ORDER BY created_ms", [])
+    }
+    pub fn get(&self, machine: MachineId, id: SessionId) -> Result<Option<StoredSession>> {
+        Ok(self.read_where(machine, "id=?1", [id.to_string()])?.pop())
+    }
+    pub fn lookup(
+        &self,
+        scope: Option<&RemoteScope>,
+        key: IdempotencyKey,
+    ) -> Result<Option<SessionId>> {
+        let key = match scope {
+            None => key.to_string(),
+            Some(scope) => format!(
+                "remote:v1:{}:{}",
+                fingerprint(&serde_json::to_value(scope)?)?,
+                key
+            ),
+        };
+        self.connection
+            .query_row(
+                "SELECT id FROM sessions WHERE idempotency_key=?1",
+                [key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .map(|id| id.parse().map_err(anyhow::Error::msg))
+            .transpose()
+    }
+    pub fn count(&self) -> Result<usize> {
+        Ok(self
+            .connection
+            .query_row("SELECT count(*) FROM sessions", [], |row| row.get(0))?)
+    }
+    pub fn page_ids(
+        &self,
+        scope: Option<&RemoteScope>,
+        after: Option<SessionId>,
+        limit: u16,
+        active_only: bool,
+    ) -> Result<Vec<SessionId>> {
+        let scoped = scope.is_some();
+        let scope = scope.map(serde_json::to_string).transpose()?;
+        // Only fixed SQL fragments vary; scope and cursor remain bound parameters.
+        let scope_filter = if scoped {
+            "remote_scope=?1"
+        } else {
+            "?1 IS NULL"
+        };
+        let live_filter = if active_only {
+            "AND state IN ('\"accepted\"','\"launching\"','\"running\"','\"idle\"')"
+        } else {
+            ""
+        };
+        let mut query = self.connection.prepare(&format!("SELECT id FROM sessions WHERE {scope_filter} AND id>?2 {live_filter} ORDER BY id LIMIT ?3"))?;
+        query
+            .query_map(
+                params![
+                    scope,
+                    after.map(|id| id.to_string()).unwrap_or_default(),
+                    u32::from(limit) + 1
+                ],
+                |row| row.get::<_, String>(0),
+            )?
+            .map(|id| id?.parse().map_err(anyhow::Error::msg))
+            .collect()
+    }
+    #[cfg(all(feature = "managed-codex", target_os = "linux"))]
+    pub fn history_homes(
+        &self,
+        scope: Option<&RemoteScope>,
+        agent: &str,
+        thread: &str,
+    ) -> Result<Vec<SessionId>> {
+        let scope = scope.map(serde_json::to_string).transpose()?;
+        let mut query=self.connection.prepare("SELECT DISTINCT coalesce(json_extract(agent,'$.native_home'),id) FROM sessions WHERE agent IS NOT NULL AND remote_scope IS ?1 AND state='\"exited\"' AND ended_ms IS NOT NULL AND json_extract(agent,'$.agent')=?2 AND json_extract(agent,'$.native_thread')=?3 LIMIT 2")?;
+        query
+            .query_map(params![scope, agent, thread], |row| row.get::<_, String>(0))?
+            .map(|id| id?.parse().map_err(anyhow::Error::msg))
+            .collect()
+    }
+    #[cfg(all(feature = "managed-codex", target_os = "linux"))]
+    pub fn history_uncertain(&self, home: SessionId) -> Result<bool> {
+        Ok(self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sessions WHERE agent IS NOT NULL AND coalesce(json_extract(agent,'$.native_home'),id)=?1 AND state NOT IN ('\"exited\"','\"failed\"'))", [home.to_string()], |row|row.get(0))?)
+    }
+    fn read_where(
+        &self,
+        machine: MachineId,
+        condition: &str,
+        parameters: impl rusqlite::Params,
+    ) -> Result<Vec<StoredSession>> {
+        let mut query=self.connection.prepare(&format!("SELECT id,spec,fingerprint,state,created_ms,head,generation,exit_code,remote_scope,ended_ms,agent,recording_warning FROM sessions WHERE {condition}"))?;
+        let rows = query.query_map(parameters, |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -81,6 +180,7 @@ impl Store {
                 row.get::<_, Option<String>>(8)?,
                 row.get::<_, Option<String>>(9)?,
                 row.get::<_, Option<String>>(10)?,
+                row.get::<_, Option<String>>(11)?,
             ))
         })?;
         let mut sessions = Vec::new();
@@ -97,6 +197,7 @@ impl Store {
                 scope,
                 ended,
                 agent,
+                recording_warning,
             ) = row?;
             let scope: Option<RemoteScope> =
                 scope.map(|text| serde_json::from_str(&text)).transpose()?;
@@ -114,13 +215,7 @@ impl Store {
             }
             let spec: StartSpec = serde_json::from_str(&spec)?;
             let state: SessionState = serde_json::from_str(&state)?;
-            let state = match state {
-                SessionState::Running | SessionState::Idle => SessionState::Lost,
-                SessionState::Accepted | SessionState::Launching => SessionState::OutcomeUnknown,
-                other => other,
-            };
             let id: SessionId = id.parse().map_err(anyhow::Error::msg)?;
-            self.state(id, &state, exit_code)?;
             sessions.push(StoredSession {
                 info: SessionInfo {
                     id,
@@ -133,11 +228,11 @@ impl Store {
                     head: Counter(counter(&head)?),
                     controller: None,
                     exit_code,
-                    recording_warning: if scope.is_some() {
+                    recording_warning: recording_warning.or_else(|| if scope.is_some() {
                         matches!(state,SessionState::Lost|SessionState::OutcomeUnknown).then(||"Native owner restarted; recording spool reconciles the uncertain output tail".into())
                     } else {
                         Some("Local preview replay only; this session is not enrolled for remote recording".into())
-                    },
+                    }),
                     agent,
                 },
                 spec,
@@ -234,11 +329,12 @@ impl Store {
     }
     pub fn finished(&self, info: &SessionInfo) -> Result<()> {
         self.connection.execute(
-            "UPDATE sessions SET state=?1,exit_code=?2,ended_ms=coalesce(ended_ms,?3) WHERE id=?4",
+            "UPDATE sessions SET state=?1,exit_code=?2,ended_ms=coalesce(ended_ms,?3),recording_warning=coalesce(?4,recording_warning) WHERE id=?5",
             params![
                 serde_json::to_string(&info.state)?,
                 info.exit_code,
                 info.ended_at_ms.map(|v| v.0.to_string()),
+                info.recording_warning,
                 info.id.to_string()
             ],
         )?;

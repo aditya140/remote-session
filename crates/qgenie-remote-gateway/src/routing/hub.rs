@@ -25,6 +25,7 @@ use tokio::{
 
 #[derive(Clone)]
 pub(super) struct Client {
+    pub session_pages: bool,
     pub gate: Arc<super::authority::Gate>,
     pub owner: UserId,
     pub expires: Arc<AtomicU64>,

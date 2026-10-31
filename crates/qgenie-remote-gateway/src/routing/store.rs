@@ -250,6 +250,65 @@ impl Store {
         transaction.commit().await?;
         Ok(())
     }
+    pub(super) async fn session_page(
+        &self,
+        owner: UserId,
+        machine: MachineId,
+        after: Option<qgenie_remote_proto::SessionId>,
+        limit: u16,
+        active_only: bool,
+    ) -> Result<(Vec<Session>, Option<qgenie_remote_proto::SessionId>), Error> {
+        if !(1..=256).contains(&limit) {
+            return Err(Error::Invalid);
+        }
+        let sql = if active_only {
+            "SELECT body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id>$3 AND state IN ('accepted','launching','running','idle') ORDER BY id LIMIT $4"
+        } else {
+            "SELECT body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id>$3 ORDER BY id LIMIT $4"
+        };
+        let rows = sqlx::query(sql)
+            .bind(owner.to_string())
+            .bind(machine.to_string())
+            .bind(after.map(|id| id.to_string()).unwrap_or_default())
+            .bind(i64::from(limit) + 1)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|_| Error::Database)?;
+        let mut sessions = Vec::new();
+        let mut bytes = 0;
+        for row in rows {
+            let body: serde_json::Value = row.get("body");
+            bytes += serde_json::to_vec(&body)
+                .map_err(|_| Error::Database)?
+                .len();
+            if sessions.len() >= usize::from(limit) || bytes > 512 * 1024 {
+                let last = sessions
+                    .last()
+                    .map(|s: &Session| s.id)
+                    .ok_or(Error::Overloaded)?;
+                return Ok((sessions, Some(last)));
+            }
+            sessions.push(serde_json::from_value(body).map_err(|_| Error::Database)?);
+        }
+        Ok((sessions, None))
+    }
+    pub(super) async fn session_get(
+        &self,
+        owner: UserId,
+        machine: MachineId,
+        id: qgenie_remote_proto::SessionId,
+    ) -> Result<Session, Error> {
+        let row =
+            sqlx::query("SELECT body FROM qgr.sessions WHERE owner=$1 AND machine=$2 AND id=$3")
+                .bind(owner.to_string())
+                .bind(machine.to_string())
+                .bind(id.to_string())
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|_| Error::Database)?
+                .ok_or(Error::NotFound)?;
+        serde_json::from_value(row.get("body")).map_err(|_| Error::Database)
+    }
     pub(super) async fn session_projection(
         &self,
         owner: UserId,

@@ -1,6 +1,6 @@
 //! One owned WSS connection with bounded requests/events. Reconnect is caller-owned;
 //! an interrupted request is never resent by this driver.
-use crate::GatewayClient;
+use crate::{GatewayClient, UserCredentials};
 use qgenie_remote_proto::{
     rest::AccessToken,
     wire::{DirectoryEntry, Envelope, Message, Session, StartStage},
@@ -11,7 +11,7 @@ use qgenie_remote_transport::ws::{
 };
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use tokio::{
@@ -36,6 +36,8 @@ pub struct LiveHandle {
     id: ClientId,
     pub(crate) origin: String,
     pub(crate) controls: bool,
+    pub(crate) pages: bool,
+    pub(crate) roots: bool,
     pub(crate) replays: bool,
     pub(crate) session_changes: bool,
     pub(crate) agents: bool,
@@ -55,6 +57,8 @@ pub struct LiveClient {
     status_sender: watch::Sender<LiveStatus>,
     stop: watch::Sender<bool>,
     task: Option<JoinHandle<()>>,
+    refresh: Option<JoinHandle<()>>,
+    credential_failure: Arc<Mutex<Option<RemoteError>>>,
 }
 struct Command {
     one_way: bool,
@@ -102,6 +106,35 @@ fn protocol() -> RemoteError {
     )
 }
 impl GatewayClient {
+    /// Connects with caller-supplied credentials and renews this connection on updates.
+    ///
+    /// # Errors
+    /// Returns authentication, transport, or negotiation errors. No application request
+    /// is retried. Dropping the returned client stops its credential-update task.
+    pub async fn connect_authenticated(
+        &self,
+        credentials: &UserCredentials,
+    ) -> Result<LiveClient, RemoteError> {
+        let mut updates = credentials.clone();
+        let mut client = self.connect(&updates.current()?).await?;
+        let handle = client.handle();
+        let stop = client.stop.clone();
+        let failure = client.credential_failure.clone();
+        client.refresh = Some(tokio::spawn(async move {
+            loop {
+                let result = match updates.changed().await {
+                    Ok(token) => handle.reauthenticate(token).await.map(|_| ()),
+                    Err(error) => Err(error),
+                };
+                if let Err(error) = result {
+                    *failure.lock().expect("credential failure lock poisoned") = Some(error);
+                    stop.send_replace(true);
+                    break;
+                }
+            }
+        }));
+        Ok(client)
+    }
     pub async fn connect(&self, token: &AccessToken) -> Result<LiveClient, RemoteError> {
         let mut config = ClientConfig::new(&format!(
             "{}/v1/connect/client",
@@ -142,6 +175,8 @@ impl GatewayClient {
             required: required.clone(),
             optional: [
                 "session-control-v1".into(),
+                "session-pages-v1".into(),
+                "root-discovery-v1".into(),
                 "session-replay-v1".into(),
                 "session-changes-v1".into(),
                 "agent-events-v1".into(),
@@ -190,6 +225,8 @@ impl GatewayClient {
                         welcome.capabilities.contains("approval-status-v1"),
                         welcome.capabilities.contains("durable-approvals-v1"),
                         welcome.capabilities.contains("session-changes-v1"),
+                        welcome.capabilities.contains("session-pages-v1"),
+                        welcome.capabilities.contains("root-discovery-v1"),
                     )),
                     _ => Err(protocol()),
                 },
@@ -203,7 +240,17 @@ impl GatewayClient {
                 "gateway negotiation deadline exceeded",
             )
         })??;
-        let (id, controls, replays, agents, approval_status, approvals, session_changes) = id;
+        let (
+            id,
+            controls,
+            replays,
+            agents,
+            approval_status,
+            approvals,
+            session_changes,
+            pages,
+            roots,
+        ) = id;
         let (commands, receive) = mpsc::channel(64);
         let (events, subscription) = mpsc::channel(64);
         let (stop, cancel) = watch::channel(false);
@@ -212,6 +259,8 @@ impl GatewayClient {
             id,
             origin: self.config.origin.clone(),
             controls,
+            pages,
+            roots,
             replays,
             session_changes,
             agents,
@@ -232,10 +281,42 @@ impl GatewayClient {
             status_sender: status,
             stop,
             task: Some(task),
+            refresh: None,
+            credential_failure: Arc::new(Mutex::new(None)),
         })
     }
 }
 impl LiveClient {
+    /// Explains a closed connection without exposing credential material.
+    pub fn disconnect_error(&self) -> RemoteError {
+        let status = self.status.borrow().clone();
+        if status == LiveStatus::ProtocolError {
+            return refused(ErrorCode::InvalidFrame, "gateway protocol failed");
+        }
+        if let Some(error) = self
+            .credential_failure
+            .lock()
+            .expect("credential failure lock poisoned")
+            .clone()
+        {
+            if status == LiveStatus::Disconnected && error.code == ErrorCode::Internal {
+                // A lost WSS refresh acknowledgment is safe to replace with a new
+                // authenticated connection. Application actions remain uncertain.
+                return refused(
+                    ErrorCode::AccessStale,
+                    "gateway connection lost during reauthentication",
+                );
+            }
+            return error;
+        }
+        match status {
+            LiveStatus::ResyncRequired => refused(
+                ErrorCode::Overloaded,
+                "connection consumer fell behind; install a new checkpoint",
+            ),
+            _ => refused(ErrorCode::AccessStale, "gateway connection lost"),
+        }
+    }
     pub fn handle(&self) -> LiveHandle {
         self.handle.clone()
     }
@@ -243,9 +324,26 @@ impl LiveClient {
         self.status.clone()
     }
     pub async fn next(&mut self) -> Option<LiveEvent> {
-        self.events.recv().await
+        let event = self.events.recv().await?;
+        if let Frame::Text(envelope) = &event.frame
+            && let Message::Error(error) = &envelope.message
+            && matches!(
+                error.code,
+                ErrorCode::Unauthenticated | ErrorCode::Forbidden
+            )
+        {
+            *self
+                .credential_failure
+                .lock()
+                .expect("credential failure lock poisoned") = Some(error.clone());
+        }
+        Some(event)
     }
     pub async fn close(mut self) {
+        if let Some(task) = self.refresh.take() {
+            task.abort();
+            let _ = task.await;
+        }
         self.stop.send_replace(true);
         if let Some(mut task) = self.task.take()
             && tokio::time::timeout(Duration::from_secs(2), &mut task)
@@ -259,6 +357,9 @@ impl LiveClient {
 }
 impl Drop for LiveClient {
     fn drop(&mut self) {
+        if let Some(task) = self.refresh.take() {
+            task.abort();
+        }
         self.status_sender.send_replace(LiveStatus::Stopped);
         self.stop.send_replace(true);
         if let Some(task) = self.task.take() {
@@ -275,9 +376,12 @@ impl LiveHandle {
             || !matches!(
                 envelope.message,
                 Message::SessionList
+                    | Message::SessionListPage { .. }
+                    | Message::SessionGet { .. }
                     | Message::HostGenerationQuery
                     | Message::StartLookup { .. }
                     | Message::FsList { .. }
+                    | Message::FsRoots
                     | Message::Attach { .. }
                     | Message::Capture
                     | Message::ReplayRequest { .. }
@@ -359,6 +463,82 @@ impl LiveHandle {
             ))
         })
     }
+    /// Reads one ID-ordered page for a machine. `limit` must be 1..=256.
+    /// Use the returned cursor for the next page. Pages are not a transactional snapshot;
+    /// restart traversal to include concurrent inserts before the cursor.
+    ///
+    /// # Errors
+    /// Returns an error for invalid bounds, denied or unavailable access, or malformed
+    /// metadata. An older gateway uses the bounded legacy complete-list fallback.
+    pub async fn session_page(
+        &self,
+        machine: MachineId,
+        after: Option<SessionId>,
+        limit: u16,
+        active_only: bool,
+    ) -> Result<(Vec<Session>, Option<SessionId>), RemoteError> {
+        if !(1..=256).contains(&limit) {
+            return Err(refused(
+                ErrorCode::InvalidFrame,
+                "session page limit must be 1..=256",
+            ));
+        }
+        if !self.pages {
+            if after.is_some() {
+                return Err(refused(
+                    ErrorCode::UnsupportedCapability,
+                    "gateway does not support session pages",
+                ));
+            }
+            let mut sessions = self.sessions(machine).await?;
+            if active_only {
+                sessions.retain(|s| {
+                    matches!(
+                        s.state,
+                        SessionState::Accepted
+                            | SessionState::Launching
+                            | SessionState::Running
+                            | SessionState::Idle
+                    )
+                });
+            }
+            return Ok((sessions, None));
+        }
+        let mut request = Envelope::new(Message::SessionListPage {
+            after,
+            limit,
+            active_only,
+        });
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::SessionPage { sessions, next })
+                if valid_session_page(&sessions, next, machine, after, limit) =>
+            {
+                Ok((sessions, next))
+            }
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn session(&self, machine: MachineId, id: SessionId) -> Result<Session, RemoteError> {
+        if !self.pages {
+            return self
+                .sessions(machine)
+                .await?
+                .into_iter()
+                .find(|s| s.id == id)
+                .ok_or_else(|| RemoteError::rejected(ErrorCode::NotFound, "session not found"));
+        }
+        let mut request = Envelope::new(Message::SessionGet { session: id });
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::SessionFound(session))
+                if session.id == id && session.machine == machine =>
+            {
+                Ok(session)
+            }
+            _ => Err(protocol()),
+        }
+    }
     pub async fn sessions(&self, machine: MachineId) -> Result<Vec<Session>, RemoteError> {
         let mut request = Envelope::new(Message::SessionList);
         request.machine = Some(machine);
@@ -369,6 +549,20 @@ impl LiveHandle {
             {
                 Ok(sessions)
             }
+            _ => Err(protocol()),
+        }
+    }
+    pub async fn allowed_roots(&self, machine: MachineId) -> Result<Vec<String>, RemoteError> {
+        if !self.roots {
+            return Err(refused(
+                ErrorCode::UnsupportedCapability,
+                "gateway does not support root discovery; enter an allowed path manually",
+            ));
+        }
+        let mut request = Envelope::new(Message::FsRoots);
+        request.machine = Some(machine);
+        match self.request(request).await?.pop().map(|v| v.message) {
+            Some(Message::FsRootsListed { roots }) => Ok(roots),
             _ => Err(protocol()),
         }
     }
@@ -420,6 +614,20 @@ impl LiveHandle {
             _ => Err(protocol()),
         }
     }
+}
+fn valid_session_page(
+    sessions: &[Session],
+    next: Option<SessionId>,
+    machine: MachineId,
+    after: Option<SessionId>,
+    limit: u16,
+) -> bool {
+    sessions.len() <= usize::from(limit)
+        && sessions
+            .iter()
+            .all(|s| s.machine == machine && after.is_none_or(|id| s.id > id))
+        && sessions.windows(2).all(|pair| pair[0].id < pair[1].id)
+        && next.is_none_or(|id| sessions.last().is_some_and(|s| s.id == id))
 }
 impl Pending {
     fn accept(&mut self, envelope: Envelope, budget: &Arc<Semaphore>) -> Result<bool, RemoteError> {
@@ -524,7 +732,13 @@ async fn run(
                 pending.insert(id,Pending{machine,session,deadline:command.deadline,reply:command.reply,frames:Vec::new(),snapshot:None,attach,_request:command._request,_bytes:command._bytes,_snapshot:command._snapshot,response_bytes:Vec::new()});
             },
             incoming=connection.recv()=>{
-                let Some(incoming)=incoming else {break LiveStatus::Disconnected;};
+                let Some(incoming)=incoming else {
+                    break match connection.closed().await {
+                        Err(ws::Error::Protocol(_)) => LiveStatus::ProtocolError,
+                        Err(ws::Error::SlowConsumer) => LiveStatus::ResyncRequired,
+                        _ => LiveStatus::Disconnected,
+                    };
+                };
                 let frame=incoming.frame.clone();
                 if let Frame::Text(envelope)=&frame && let Some(re)=envelope.re {
                     if let Some(mut request)=pending.remove(&re) {

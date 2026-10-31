@@ -1,5 +1,6 @@
 //! A start is submitted once. Uncertain results retain the original key for lookup.
 use crate::app::TerminalGuard;
+use crate::display::single_line as clean;
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use qgenie_remote_client::{LiveHandle, RemoteStartIdentity};
@@ -19,7 +20,8 @@ use std::{
 use tokio::task::JoinSet;
 
 enum Update {
-    Identities(Vec<RemoteStartIdentity>),
+    Roots(Vec<String>),
+    Identities(Vec<RemoteStartIdentity>, Option<IdempotencyKey>),
     Directory(String, Vec<DirectoryEntry>, Option<String>, bool),
     Started(Session),
     Status(StartStage, Option<SessionId>),
@@ -31,24 +33,39 @@ struct Picker {
     loaded: Option<String>,
     entries: Vec<DirectoryEntry>,
     next: Option<String>,
+    roots: Vec<String>,
+    choosing_root: bool,
     selected: usize,
     editing: bool,
     submitted: bool,
     key: IdempotencyKey,
     message: String,
 }
-fn clean(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if c.is_control() || matches!(c,'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}') {
-                '�'
-            } else {
-                c
-            }
-        })
-        .collect()
-}
 impl Picker {
+    fn show_roots(&mut self) {
+        if self.roots.is_empty() {
+            self.editing = true;
+            return;
+        }
+        self.entries = self
+            .roots
+            .iter()
+            .map(|path| DirectoryEntry {
+                name: path.clone(),
+                path: path.clone(),
+                directory: true,
+            })
+            .collect();
+        self.path = "Choose an allowed root".into();
+        self.loaded = None;
+        self.next = None;
+        self.selected = 0;
+        self.editing = false;
+        self.choosing_root = true;
+        self.message =
+            "Select a root with Enter. The host checks the directory again before launch.".into();
+    }
+
     fn draw(&self, frame: &mut ratatui::Frame<'_>, machine: &Machine, busy: bool) {
         let areas = Layout::default()
             .direction(Direction::Vertical)
@@ -115,7 +132,7 @@ impl Picker {
         } else if self.resume.is_some() {
             "Enter opens folder · p edits path · Ctrl-N resumes history in a new session · Esc returns"
         } else {
-            "Enter opens folder · p edits path · F5 terminal/advertised agent · Ctrl-N starts selected runtime · Esc returns"
+            "Enter opens folder · F1 roots · p edits path · F5 terminal/advertised agent · Ctrl-N starts selected runtime · Esc returns"
         };
         frame.render_widget(
             Paragraph::new(format!(
@@ -184,6 +201,8 @@ pub(crate) async fn run(
         loaded: None,
         entries: Vec::new(),
         next: None,
+        roots: Vec::new(),
+        choosing_root: false,
         selected: 0,
         editing: true,
         submitted: false,
@@ -197,6 +216,12 @@ pub(crate) async fn run(
         .cloned()
         .collect();
     let mut jobs: JoinSet<Result<Update, RemoteError>> = JoinSet::new();
+    {
+        let handle = handle.clone();
+        let id = machine.id;
+        jobs.spawn(async move { Ok(Update::Roots(handle.allowed_roots(id).await?)) });
+    }
+
     let mut ticks = tokio::time::interval(Duration::from_millis(30));
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut result = None;
@@ -212,6 +237,7 @@ pub(crate) async fn run(
                                 if key.code==KeyCode::Char('l') {let handle=handle.clone();let machine=machine.id;let key=picker.key;jobs.spawn(async move {let (stage,session)=handle.lookup_start(machine,key).await?;Ok(Update::Status(stage,session))});}
                             }else if picker.editing {
                                 match key.code {
+                                    KeyCode::F(1)=>picker.show_roots(),
                                     KeyCode::Enter=>{jobs.spawn(browse(handle.clone(),machine.id,picker.path.clone(),None,false));},
                                     KeyCode::Backspace=>{picker.path.pop();},
                                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL)=>picker.path.clear(),
@@ -221,10 +247,11 @@ pub(crate) async fn run(
                             }else {match key.code {
                                 KeyCode::Up=>picker.selected=picker.selected.saturating_sub(1),
                                 KeyCode::Down=>picker.selected=(picker.selected+1).min(picker.entries.len().saturating_sub(1)),
-                                KeyCode::Char('p')=>picker.editing=true,
+                                KeyCode::Char('p')=>{if picker.choosing_root{picker.path.clear();}picker.editing=true;},
                                 KeyCode::F(5) if picker.resume.is_none()=>{picker.agent=match picker.agent.as_ref().and_then(|selected|agents.iter().position(|agent|agent==selected)){Some(index)=>agents.get(index+1).cloned(),None=>agents.first().cloned()};},
                                 KeyCode::Enter=>{if let Some(entry)=picker.entries.get(picker.selected).filter(|entry|entry.directory){jobs.spawn(browse(handle.clone(),machine.id,entry.path.clone(),None,false));}},
-                                KeyCode::Backspace=>{if let Some(parent)=Path::new(&picker.path).parent().and_then(Path::to_str){jobs.spawn(browse(handle.clone(),machine.id,parent.to_owned(),None,false));}},
+                                KeyCode::F(1)=>picker.show_roots(),
+                                KeyCode::Backspace if !picker.choosing_root=>{if picker.roots.contains(&picker.path){picker.show_roots();}else if let Some(parent)=Path::new(&picker.path).parent().and_then(Path::to_str){jobs.spawn(browse(handle.clone(),machine.id,parent.to_owned(),None,false));}},
                                 KeyCode::Char('n') if !key.modifiers.contains(KeyModifiers::CONTROL)=>{if picker.entries.len()<4096 && let Some(cursor)=picker.next.clone(){jobs.spawn(browse(handle.clone(),machine.id,picker.path.clone(),Some(cursor),true));}},
                                 KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) && picker.loaded.as_ref()==Some(&picker.path)=>{
                                     let size=terminal.terminal.size()?;
@@ -244,17 +271,23 @@ pub(crate) async fn run(
                 terminal.terminal.draw(|frame|picker.draw(frame,&machine,!jobs.is_empty()))?;
             },
             update=jobs.join_next(),if !jobs.is_empty()=>match update {
+                Some(Ok(Ok(Update::Roots(roots))))=>{
+                    picker.roots=roots;
+                    if picker.roots.iter().any(|root| Path::new(&picker.path).starts_with(root)) {
+                        picker.message="Enter browses this directory; F1 selects another allowed root.".into();
+                    } else {picker.show_roots();}
+                },
                 Some(Ok(Ok(Update::Directory(path,mut entries,next,append))))=>{
                     if append {picker.entries.append(&mut entries);}else{picker.entries=entries;picker.selected=0;}
-                    picker.path=path;picker.loaded=Some(picker.path.clone());picker.next=next;picker.editing=false;
+                    picker.choosing_root=false;picker.path=path;picker.loaded=Some(picker.path.clone());picker.next=next;picker.editing=false;
                     picker.message=if picker.resume.is_some(){"Ctrl-N resumes history in a new session. Input starts in observe mode."}else{"Ctrl-N creates a new terminal in this directory. Input starts in observe mode."}.into();
                 },
                 Some(Ok(Ok(Update::Started(session))))=>{result=Some(session);break;},
                 Some(Ok(Ok(Update::Status(stage,id))))=>{
                     picker.message=format!("Original start: {stage:?}{}; no launch was resent.",id.map(|id|format!(" · {id}")).unwrap_or_default());
-                    if let Some(id)=id {let handle=handle.clone();let machine=machine.id;jobs.spawn(async move {let session=handle.sessions(machine).await?.into_iter().find(|s|s.id==id).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"original session is absent from current inventory"))?;Ok(Update::Started(session))});}
+                    if let Some(id)=id {let handle=handle.clone();let machine=machine.id;jobs.spawn(async move {let session=handle.session(machine,id).await?;Ok(Update::Started(session))});}
                 },
-                Some(Ok(Ok(Update::Identities(_))))=>{},
+                Some(Ok(Ok(Update::Identities(..))))=>{},
                 Some(Ok(Err(error)))=>{picker.message=if picker.submitted {format!("{:?} ({:?}): {}. Original identity retained; l looks it up.",error.code,error.outcome,error.message)}else{format!("{:?}: {}. Edit the path with p or retry browsing.",error.code,error.message)};},
                 _=>picker.message="Request stopped; original start identity is retained if submitted.".into(),
             }
@@ -278,11 +311,14 @@ pub(crate) async fn recover(
     let state = state.to_owned();
     let owner = machine.owner;
     let id = machine.id;
+    let initial_state = state.clone();
     jobs.spawn(async move {
-        Ok(Update::Identities(
-            reader.start_identities(state, owner, id).await?,
-        ))
+        let (records, next) = reader
+            .start_identities_page(initial_state, owner, id, None, 64)
+            .await?;
+        Ok(Update::Identities(records, next))
     });
+    let mut next_page = None;
     let mut identities: Vec<RemoteStartIdentity> = Vec::new();
     let mut selected = 0usize;
     let mut message = "Loading private start identities…".to_owned();
@@ -298,6 +334,11 @@ pub(crate) async fn recover(
                         KeyCode::Esc=>break,
                         KeyCode::Up=>selected=selected.saturating_sub(1),
                         KeyCode::Down=>selected=(selected+1).min(identities.len().saturating_sub(1)),
+                        KeyCode::Char('n')|KeyCode::Home if jobs.is_empty()=>{
+                            let after=if key.code==KeyCode::Home{None}else if let Some(next)=next_page{Some(next)}else{continue;};
+                            let reader=handle.clone();let state=state.clone();
+                            jobs.spawn(async move {let(records,next)=reader.start_identities_page(state,owner,id,after,64).await?;Ok(Update::Identities(records,next))});
+                        },
                         KeyCode::Enter if jobs.is_empty()=>{if let Some(identity)=identities.get(selected){let key=identity.key;let handle=handle.clone();jobs.spawn(async move {let (stage,session)=handle.lookup_start(id,key).await?;Ok(Update::Status(stage,session))});}},
                         _=>{},
                     }
@@ -306,12 +347,12 @@ pub(crate) async fn recover(
                     let areas=Layout::default().direction(Direction::Vertical).constraints([Constraint::Min(3),Constraint::Length(4)]).split(frame.area());
                     let items:Vec<_>=identities.iter().map(|identity|ListItem::new(identity.key.to_string())).collect();
                     frame.render_stateful_widget(List::new(items).highlight_symbol("› ").block(Block::default().borders(Borders::ALL).title(" Persisted start identities · lookup only ")),areas[0],&mut ListState::default().with_selected((!identities.is_empty()).then_some(selected)));
-                    frame.render_widget(Paragraph::new(format!("{}\n↑/↓ select · Enter looks up original start · Esc returns\nAn identity does not prove launch. No launch is resent.",clean(&message))).wrap(Wrap{trim:false}).block(Block::default().borders(Borders::TOP)),areas[1]);
+                    frame.render_widget(Paragraph::new(format!("{}\n↑/↓ select · Enter looks up original start · n next · Home first · Esc returns\nAn identity does not prove launch. No launch is resent.",clean(&message))).wrap(Wrap{trim:false}).block(Block::default().borders(Borders::TOP)),areas[1]);
                 })?;
             },
             update=jobs.join_next(),if !jobs.is_empty()=>match update {
-                Some(Ok(Ok(Update::Identities(records))))=>{identities=records;message=format!("{} identities for this gateway, owner and machine.",identities.len());},
-                Some(Ok(Ok(Update::Status(stage,session))))=>{message=format!("Original start: {stage:?}; no launch resent.");if let Some(session)=session {let handle=handle.clone();jobs.spawn(async move {let session=handle.sessions(id).await?.into_iter().find(|s|s.id==session && s.owner==owner).ok_or_else(||RemoteError::rejected(ErrorCode::NotFound,"original session absent from current inventory"))?;Ok(Update::Started(session))});}},
+                Some(Ok(Ok(Update::Identities(records,next))))=>{next_page=next;selected=0;identities=records;message=format!("{} identities for this gateway, owner and machine.",identities.len());},
+                Some(Ok(Ok(Update::Status(stage,session))))=>{message=format!("Original start: {stage:?}; no launch resent.");if let Some(session)=session {let handle=handle.clone();jobs.spawn(async move {let session=handle.session(id,session).await?;if session.owner!=owner{return Err(RemoteError::rejected(ErrorCode::Forbidden,"session owner changed"));}Ok(Update::Started(session))});}},
                 Some(Ok(Ok(Update::Started(session))))=>{result=Some(session);break;},
                 Some(Ok(Err(error)))=>message=format!("{:?}: {}",error.code,error.message),
                 _=>message="Journal lookup stopped; no launch resent.".into(),

@@ -31,6 +31,9 @@ pub(crate) struct App {
     pub status: HostStatus,
     pub sessions: Vec<SessionInfo>,
     pub selected: usize,
+    pub history: bool,
+    pub after: Option<SessionId>,
+    pub next: Option<SessionId>,
     pub screen: Option<Screen>,
     pub controller: Option<Controller>,
     pub message: String,
@@ -108,11 +111,14 @@ impl Drop for TerminalGuard {
 
 pub async fn run(client: Client, cwd: String, initial: Option<SessionId>) -> Result<()> {
     let status = client.status().await?;
-    let sessions = client.sessions().await?;
+    let (sessions, next) = client.session_page(None, 64, true).await?;
     let mut app = App {
         status,
         sessions,
         selected: 0,
+        history: false,
+        after: None,
+        next,
         screen: None,
         controller: None,
         message: "Press n to start a shell. Sessions continue after the TUI closes.".into(),
@@ -271,7 +277,10 @@ impl App {
                     "Control expired or another client took over. Observation continues.".into();
             }
         } else {
-            self.sessions = client.sessions().await?;
+            let (sessions, next) = client.session_page(self.after, 64, !self.history).await?;
+            self.sessions = sessions;
+            self.next = next;
+            self.selected = self.selected.min(self.sessions.len().saturating_sub(1));
             self.selected = self.selected.min(self.sessions.len().saturating_sub(1));
         }
         Ok(())
@@ -406,6 +415,21 @@ impl App {
                     self.confirm = Some(Confirm::Terminate(session.id));
                 }
             }
+            KeyCode::Char('h') => {
+                self.history = !self.history;
+                self.after = None;
+                self.refresh(client).await?;
+            }
+            KeyCode::Char(']') => {
+                if let Some(next) = self.next {
+                    self.after = Some(next);
+                    self.refresh(client).await?;
+                }
+            }
+            KeyCode::Char('[') => {
+                self.after = None;
+                self.refresh(client).await?;
+            }
             KeyCode::Char('p') => self.approvals = !self.approvals,
             _ => {}
         }
@@ -439,6 +463,7 @@ pub(crate) fn encode_key(key: KeyEvent, application_cursor: bool) -> Vec<u8> {
         KeyCode::Enter => vec![b'\r'],
         KeyCode::Backspace => vec![127],
         KeyCode::Tab => vec![b'\t'],
+        KeyCode::BackTab => b"\x1b[Z".to_vec(),
         KeyCode::Esc => vec![27],
         KeyCode::Up => if application_cursor {
             b"\x1bOA"
@@ -464,8 +489,19 @@ pub(crate) fn encode_key(key: KeyEvent, application_cursor: bool) -> Vec<u8> {
             b"\x1b[D"
         }
         .to_vec(),
-        KeyCode::Home => b"\x1b[H".to_vec(),
-        KeyCode::End => b"\x1b[F".to_vec(),
+        KeyCode::Home => if application_cursor {
+            b"\x1bOH"
+        } else {
+            b"\x1b[H"
+        }
+        .to_vec(),
+        KeyCode::End => if application_cursor {
+            b"\x1bOF"
+        } else {
+            b"\x1b[F"
+        }
+        .to_vec(),
+        KeyCode::Insert => b"\x1b[2~".to_vec(),
         KeyCode::Delete => b"\x1b[3~".to_vec(),
         KeyCode::PageUp => b"\x1b[5~".to_vec(),
         KeyCode::PageDown => b"\x1b[6~".to_vec(),
@@ -481,6 +517,20 @@ pub(crate) fn encode_key(key: KeyEvent, application_cursor: bool) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn encodes_terminal_editing_keys_and_application_home_end() {
+        for (key, normal, application) in [
+            (KeyCode::BackTab, "\u{1b}[Z", "\u{1b}[Z"),
+            (KeyCode::Insert, "\u{1b}[2~", "\u{1b}[2~"),
+            (KeyCode::Home, "\u{1b}[H", "\u{1b}OH"),
+            (KeyCode::End, "\u{1b}[F", "\u{1b}OF"),
+        ] {
+            let key = KeyEvent::new(key, KeyModifiers::NONE);
+            assert_eq!(encode_key(key, false), normal.as_bytes());
+            assert_eq!(encode_key(key, true), application.as_bytes());
+        }
+    }
+
     #[test]
     fn encodes_shell_control_keys_and_unicode_without_losing_bytes() {
         assert_eq!(

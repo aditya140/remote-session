@@ -488,71 +488,42 @@ impl Runtime {
                 ..local_facts()
             },
         )?;
-        let states = lock(&self.sessions)?.values().cloned().collect::<Vec<_>>();
         let response = match message.message {
-            wire::Message::SessionList => {
-                let mut sessions = Vec::new();
-                let mut bytes = 0;
-                for state in states {
-                    let mut state = lock(&state)?;
-                    if state.scope.as_ref() != Some(&context.scope) {
-                        continue;
-                    }
-                    expire(&mut state);
-                    self.recording_warning(&mut state);
-                    let info = &state.info;
-                    let session = wire::Session {
-                        id: info.id,
-                        machine: info.machine,
-                        owner: context.scope.owner,
-                        kind: native_kind(info),
-                        cwd: info.cwd.clone(),
-                        origin: wire::Origin::Managed,
-                        state: info.state.clone(),
-                        created_at: wire::Timestamp::from_unix_millis(info.created_at_ms.0)?,
-                        ended_at: info
-                            .ended_at_ms
-                            .map(|at| wire::Timestamp::from_unix_millis(at.0))
-                            .transpose()?,
-                        head: info.head,
-                        capabilities: session_capabilities(&state, self.can_resume_history()),
-                        recording_warning: info.recording_warning.clone(),
-                    };
-                    bytes += serde_json::to_vec(&session).map_err(storage_error)?.len();
-                    if bytes > 512 * 1024 || sessions.len() >= 1024 {
-                        return Err(RemoteError::rejected(
-                            ErrorCode::Overloaded,
-                            "native session projection requires pagination",
-                        ));
-                    }
-                    sessions.push(session);
-                }
-                wire::Message::Sessions { sessions }
+            wire::Message::SessionList => wire::Message::Sessions {
+                sessions: self.remote_list(&context.scope)?,
+            },
+            wire::Message::SessionListPage {
+                after,
+                limit,
+                active_only,
+            } => {
+                let (sessions, next) =
+                    self.remote_page(&context.scope, after, limit, active_only)?;
+                wire::Message::SessionPage { sessions, next }
+            }
+            wire::Message::SessionGet { session } => {
+                wire::Message::SessionFound(self.remote_session(&context.scope, session)?)
             }
             wire::Message::StartLookup { key } => {
-                let mut found = None;
-                for state in states {
-                    let state = lock(&state)?;
-                    if state.scope.as_ref() == Some(&context.scope) && state.spec.key == key {
-                        let stage = match state.info.state {
-                            SessionState::Accepted => wire::StartStage::Accepted,
-                            SessionState::Launching => wire::StartStage::Launching,
-                            SessionState::Running | SessionState::Idle | SessionState::Exited => {
-                                wire::StartStage::Running
-                            }
-                            SessionState::Failed => wire::StartStage::Failed,
-                            SessionState::Lost => wire::StartStage::Lost,
-                            SessionState::OutcomeUnknown => wire::StartStage::OutcomeUnknown,
-                        };
-                        found = Some((stage, state.info.id));
-                        break;
+                let session = self
+                    .lookup_start(Some(&context.scope), key)?
+                    .ok_or_else(|| {
+                        RemoteError::unknown(
+                            "no native start is known in this immutable scope; no launch was sent",
+                        )
+                    })?;
+                let state = lock(&session)?;
+                let stage = match state.info.state {
+                    SessionState::Accepted => wire::StartStage::Accepted,
+                    SessionState::Launching => wire::StartStage::Launching,
+                    SessionState::Running | SessionState::Idle | SessionState::Exited => {
+                        wire::StartStage::Running
                     }
-                }
-                let (stage, session) = found.ok_or_else(|| {
-                    RemoteError::unknown(
-                        "no native start is known in this immutable scope; no launch was sent",
-                    )
-                })?;
+                    SessionState::Failed => wire::StartStage::Failed,
+                    SessionState::Lost => wire::StartStage::Lost,
+                    SessionState::OutcomeUnknown => wire::StartStage::OutcomeUnknown,
+                };
+                let session = state.info.id;
                 wire::Message::StartStatus {
                     key,
                     stage,
@@ -649,7 +620,7 @@ impl Runtime {
         Ok(DispatchFrame::RemoteReply(Box::new(response)))
     }
 }
-fn native_kind(info: &SessionInfo) -> wire::LaunchKind {
+pub(super) fn native_kind(info: &SessionInfo) -> wire::LaunchKind {
     match &info.agent {
         Some(agent) => wire::LaunchKind::Agent {
             agent: agent.agent.clone(),
@@ -661,7 +632,7 @@ fn native_kind(info: &SessionInfo) -> wire::LaunchKind {
         },
     }
 }
-fn session_capabilities(state: &Session, can_resume: bool) -> wire::Capabilities {
+pub(super) fn session_capabilities(state: &Session, can_resume: bool) -> wire::Capabilities {
     if state.info.agent.is_some() && !owns_process(state) {
         return wire::Capabilities {
             resume: can_resume

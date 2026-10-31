@@ -165,7 +165,7 @@ async fn follow(
         tokio::select! {biased;
             _=cancel.changed()=>break Ok(()),
             _=sender.closed()=>break Ok(()),
-        _=async {},if !connected && reads.is_empty()=>break Err(error(ErrorCode::AccessStale,"output connection ended; reconnect explicitly with current credentials")),
+        _=async {},if !connected && reads.is_empty()=>break Err(client.disconnect_error()),
         event=client.next(),if connected=>{
             let Some(event)=event else{connected=false;continue;};
                 match output.frame(&event.frame).and_then(|update|deliver(&sender,&budget,update)) {Ok(())=>{},Err(error)=>break Err(error)}

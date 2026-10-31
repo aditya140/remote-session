@@ -329,8 +329,13 @@ impl Codex {
         let child = spawn_authorized(&mut command, authorization.as_ref())?;
         let mut process = owner::ProcessOwner::start(child, directory)?;
         let scope = authorization::WriteScope::default();
-        let connected =
-            endpoint::connect_owned(&socket_path, process.liveness(), scope.clone()).await;
+        let connected = endpoint::connect_owned(
+            &socket_path,
+            process.pid().ok_or(CodexError::Process)?,
+            process.liveness(),
+            scope.clone(),
+        )
+        .await;
         let (socket, guard) = match connected {
             Ok(connected) => connected,
             Err(error) => {
@@ -387,8 +392,13 @@ impl Codex {
         }
         let identity = self.process.socket_identity()?;
         let scope = authorization::WriteScope::default();
-        let socket =
-            endpoint::connect_retained(&identity, self.process.liveness(), scope.clone()).await?;
+        let socket = endpoint::connect_retained(
+            &identity,
+            self.process.pid().ok_or(CodexError::Process)?,
+            self.process.liveness(),
+            scope.clone(),
+        )
+        .await?;
         let DriverParts {
             handle,
             events,

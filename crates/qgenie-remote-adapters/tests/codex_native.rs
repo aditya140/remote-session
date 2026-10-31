@@ -151,10 +151,15 @@ async fn actual_pinned_codex_approval_stream_steer_interrupt_and_restart_resume(
                     AgentEvent::TurnCompleted {
                         input_tokens,
                         output_tokens,
+                        outcome,
                         ..
                     },
                 ..
             } => {
+                assert_eq!(
+                    outcome,
+                    Some(qgenie_remote_proto::wire::TurnOutcome::Completed)
+                );
                 assert_eq!((input_tokens.0, output_tokens.0), (2, 4));
                 break;
             }
@@ -173,13 +178,15 @@ async fn actual_pinned_codex_approval_stream_steer_interrupt_and_restart_resume(
         .unwrap();
     adapter.interrupt(&thread, &turn).await.unwrap();
     loop {
-        if matches!(
-            next(&mut adapter).await,
-            NativeEvent::Event {
-                event: AgentEvent::TurnCompleted { .. },
-                ..
-            }
-        ) {
+        if let NativeEvent::Event {
+            event: AgentEvent::TurnCompleted { outcome, .. },
+            ..
+        } = next(&mut adapter).await
+        {
+            assert_eq!(
+                outcome,
+                Some(qgenie_remote_proto::wire::TurnOutcome::Interrupted)
+            );
             break;
         }
     }
