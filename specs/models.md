@@ -218,6 +218,35 @@ matching confirmation, preserve unknown outcomes, and forbid automatic input res
 The model does not establish TUI keyboard handling or atomic selection snapshots.
 The SDK and TUI must preserve the modeled binding until dispatch.
 
+The model also defines connection recovery eligibility and credential admission.
+Only `AccessStale` and `Overloaded` permit a new observation connection. Every other
+public error code maps to `Fatal`. This decision never authorizes an application retry.
+A credential channel requires a live publisher, no sign-in requirement, and an unexpired
+deadline. Fixed token injection retains its publisher inside the SDK. Token validation
+by the gateway and successful refresh exchanges remain external obligations.
+
+A list of terminal events is ordered newest first within one verified session.
+The newest matching turn supplies its explicit completed, failed, interrupted, or legacy
+unknown result. An event from another turn cannot satisfy the target. Missing evidence
+does not prove completion. The laws quantify over arbitrary finite tails and symbolic
+turn identities. They do not establish the completeness of a real checkpoint.
+
+The [SDK comparison](conformance/client.rs) exercises the real `WaitTarget::outcome`,
+`observation_can_reconnect`, and `UserCredentials::current` functions. It checks all 96
+combinations of the 16 public error codes, three operation outcomes, and retryability.
+It checks all eight credential-admission fact combinations and verifies denial codes.
+It checks 4,170 targeted waits. These enumerate all terminal traces of length zero
+through three over two distinct turn IDs and four statuses. Running sessions with a
+complete checkpoint contribute 1,170 cases. Three additional scenarios each contribute
+1,000 cases with matching retained evidence: later process loss, uncertain history, and
+process exit with uncertain history. Each additional scenario also has a pending approval.
+
+The comparison maps the two symbolic turn IDs to distinct strings and reverses the
+Rust chronological event list for the model. It does not convert real UUIDs to numbers.
+It does not cover arbitrary history lengths, non-terminal event handling, wait timeout,
+native exit waits, backoff timing, token refresh, or TUI recovery. Existing Rust and
+integration tests cover those implementation paths separately.
+
 ## History privacy
 
 Entry: [privacy/LAWS.bend](privacy/LAWS.bend).
@@ -235,8 +264,8 @@ RLS, reason validation, and audit commit remain integration obligations.
 
 Authorization facts, activated control, access deadlines, and storage receipt facts
 must be connected to their producing authorities. The suite does not yet prove this
-composition. Only authorization has an automated comparison with the current Rust code.
-Stateful Rust trace comparisons, general hold sets, full codecs, identity enrollment,
+composition. Authorization and the selected SDK decisions above have automated comparisons
+with the current Rust code. Other stateful Rust trace comparisons, general hold sets, full codecs, identity enrollment,
 eventual-progress proofs, and deployment qualification remain separate work.
 
 Do not infer coverage of an entire catalog requirement from a related law name.

@@ -126,6 +126,23 @@ boundaries below describe the wider contract; they do not declare its laws compl
 | PROTOCOL | Protocol definitions own valid operations and encodings. Each receiving component owns validation and bounded admission. | Invalid or oversized frames cause no dispatch. Numeric identities preserve precision. Capabilities constrain operations. Public remote messages cannot invoke local administration or a generic native tunnel. | PRD SE-2a and compatibility requirements; [ADR 0004](../docs/adr/0004-wire-contract.md); protocol fixtures, schema checks, and transport tests. |
 | CLIENT | The SDK owns request and reconciliation state. The TUI owns selection, confirmation, and displayed evidence. | Show observation separately from control. Bind confirmation to the intended target. Do not display uncertain mutations as success. Do not act on hidden selections or silently resend input. | PRD CL-1, SE-8 through SE-11; SDK recovery tests and actual TUI interaction tests. |
 
+### Client workflow laws
+
+Sources: the accepted [daily workflow](../tasks/033-implement-daily-remote-workflow.md)
+and [remote command contracts](../docs/integration/remote-commands.md).
+
+- `CLIENT-006`: Only temporary access or capacity loss permits observation reconnection.
+  Authentication, authorization, and protocol failures stop recovery.
+- `CLIENT-007`: A caller-owned credential channel requires a live publisher, a valid
+  deadline, and no sign-in requirement. Losing any requirement denies local credential use.
+- `CLIENT-008`: A terminal event proves success only with an explicit completed outcome.
+  Failed, interrupted, and legacy unknown outcomes remain distinct.
+- `CLIENT-009`: A targeted wait uses the newest matching terminal evidence. Events for
+  another turn cannot satisfy the target. Missing evidence cannot prove completion.
+
+See [model boundaries](models.md) for the symbolic proofs, bounded SDK comparisons,
+and implementation behavior that remains outside these models.
+
 ## Definition decisions still needed
 
 Before writing each stateful model, define its failure alphabet and trace observation points.

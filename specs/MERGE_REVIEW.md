@@ -25,10 +25,11 @@ Keep the product runtime and its dependencies unchanged.
 
 These findings describe the branch before the changes below.
 
-The separate `work` branch contains product changes beyond the `main` baseline.
-This review does not treat those changes as part of `bend`.
+The first integration covered `bend` only. The user then selected integration of `work`
+as well. [Task 034](../tasks/034-integrate-work-and-bend.md) records the combined merge
+and its additional client laws and SDK comparisons.
 
-## Results
+## First Bend integration results
 
 The original suite passed 90 kernel-checked laws, 14 regression mutations, and all
 18,432 Rust authorization comparisons. The review then tested additional regressions
@@ -53,12 +54,14 @@ Local verification on Linux:
 - Rust formatting, targeted check, and strict Clippy checks passed.
 - Actionlint 1.7.7 accepted the new workflow. `git diff --check` passed.
 
-The [verification report](verification.json) records exact source hashes and tool versions.
+The current [verification report](verification.json) records exact source hashes and tool
+versions for the latest combined integration. The counts above describe the first Bend review.
 The [workflow](../.github/workflows/specs.yml) repeats the proof, mutation, and Rust
 comparison checks. Hosted execution and required branch protection were not established
 by these local checks. The GitHub integration denied access to commit status data.
 
-No product runtime code changed. The full workspace, database, native process, and
-deployment suites were not rerun for this specification-only integration. Their existing
+The first Bend integration changed no product runtime code. That step did not rerun the
+full workspace, database, native process, or deployment suites. Their existing
 evidence and [external release gates](../docs/validation/external-release-gates.md) remain
-separate. Only the authorization model has an automated Rust comparison.
+separate. At this first review, only authorization had an automated Rust comparison.
+The combined integration adds the selected SDK comparisons described in [models.md](models.md).

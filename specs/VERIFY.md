@@ -6,6 +6,8 @@ so Bun does not load the product's `.env` or `bunfig.toml`.
 
 ## Prepare the tools
 
+Use Python 3.11 or later for the runner.
+
 Install Bun 1.4.4. One option is `npm exec --package=bun@1.4.4 -- bun --version`.
 Use the resulting Bun executable with `--bun`, or install that version on `PATH`.
 Install Lean 4.34.0 and put its `lean` and `leanc` executables on `PATH`.
@@ -41,7 +43,7 @@ The default mode requires both Bend's checker and its independent kernel to acce
 every proof. Use `--mode standard` only for a standard-checker result when Lean is
 unavailable. The report records that weaker mode explicitly.
 
-The mutation checks make twenty-three temporary copies. Each copy introduces one regression
+The mutation checks make thirty-two temporary copies. Each copy introduces one regression
 in a model and retains its original laws and proofs. A check passes only when a named
 law rejects the change. Syntax errors and unavailable tools do not count as rejection.
 The command does not edit the repository's models.
@@ -50,8 +52,10 @@ The control regressions cover activation, lease expiry, each identity comparison
 and successful confirmed activation. Additional regressions try to restore revoked
 or clock-invalid grants, bypass gateway capability support, and reclaim a chunk
 without a durable receipt. The laws must reject each change.
+The client regressions also cover fatal connection failures, invalid credential facts,
+failed or legacy turn outcomes, wrong turn targets, and ignored recent evidence.
 
-## Compare authorization with Rust
+## Compare authorization and SDK decisions with Rust
 
 Use the repository's Rust toolchain and fetch its locked dependencies first:
 
@@ -64,18 +68,25 @@ python3 specs/check.py --bend-source /tmp/qgr-bend --mutations --compare-rust \
 In the managed development environment, source
 `/workspace/.remote-session-tools/env.sh` before the Cargo command.
 
-The runner creates an isolated temporary Cargo harness with a path dependency on the
-current `qgenie-remote-policy` crate. It starts with the product lockfile and runs Cargo
-offline. The harness invokes the real policy function. The comparison also checks
+The runner creates an isolated temporary Cargo harness with path dependencies on the
+current policy, protocol, and client crates. It starts with the product lockfile and runs
+Cargo offline. The harness invokes the real policy function. The comparison also checks
 the independent permission predicate, rejection outcomes, and retryability.
-Build products remain outside the repository.
+The SDK harness compares connection eligibility, credential validity, and bounded
+terminal-evidence traces. See [model boundaries](models.md) for the exact 4,274 SDK cases
+and excluded behavior. This is separate from the 18,432 authorization cases.
+The report preserves `rust_comparison` for authorization and adds `client_comparison`.
+
+Build products remain outside the repository by default. Set `CARGO_TARGET_DIR` to an
+external cache directory to reuse compiled harness dependencies. The harness disables
+debug information and incremental compilation to limit temporary disk use.
 
 ## Continuous verification
 
 The [specification workflow](../.github/workflows/specs.yml) runs on relevant pushes,
 pull requests, and manual dispatch. It reads the tool versions from `toolchain.json`.
 It checks the Lean archive against `lean_linux_sha256` before extraction. It fetches
-locked Cargo dependencies, then runs the kernel, mutations, and Rust comparison.
+locked Cargo dependencies, then runs the kernel, mutations, and both Rust comparisons.
 A successful job uploads a fresh `spec-verification` artifact for that commit.
 
 The workflow does not use the committed report as a test result. Repository branch

@@ -4,6 +4,8 @@ on:
     paths:
       - 'specs/**'
       - 'crates/**'
+      - 'apps/**'
+      - 'conformance/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
@@ -12,6 +14,8 @@ on:
     paths:
       - 'specs/**'
       - 'crates/**'
+      - 'apps/**'
+      - 'conformance/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
@@ -64,7 +68,7 @@ jobs:
           git -C "$RUNNER_TEMP/qgr-bend" fetch --depth 1 origin "$BEND_COMMIT"
           git -C "$RUNNER_TEMP/qgr-bend" checkout --detach FETCH_HEAD
       - run: cargo fetch --locked
-      - name: Check laws, mutations, and Rust authorization
+      - name: Check laws, mutations, and Rust conformance
         run: >-
           python3 specs/check.py --bend-source "$RUNNER_TEMP/qgr-bend"
           --mutations --compare-rust --report "$RUNNER_TEMP/spec-verification.json"

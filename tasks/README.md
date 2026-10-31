@@ -4,7 +4,8 @@ The original plan contains **28 development tasks** from a design-only baseline.
 The repository now contains their standalone Rust implementation, fixtures and deployment.
 The numbered order records dependencies; current results are in [progress](PROGRESS.md).
 Later tasks record repairs, build tooling and the
-[implemented daily remote workflow](033-implement-daily-remote-workflow.md).
+[implemented daily remote workflow](033-implement-daily-remote-workflow.md), and
+[combined implementation and law integration](034-integrate-work-and-bend.md).
 
 **Selected scope:** The user authorized standalone CLI/TUI composition and then selected
 “Finish Linux development scope; document external release gates” through

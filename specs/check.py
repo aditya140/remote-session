@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import tomllib
 
 ROOT = Path(__file__).resolve().parent
 PIN = json.loads((ROOT / "toolchain.json").read_text())
@@ -39,12 +40,21 @@ MUTATIONS = {
     "access/failed-clock": ("case g0 _: g0", "case Grant{d, c, r} RedisHint{}: Grant{d, True{}, r}\n    case g0 _: g0"),
     "capabilities/gateway": ("Bool.and(gateway,", "Bool.and(True{},"),
     "recording/durability": ("case True{} True{} True{}: Reclaimed{}", "case True{} True{} _: Reclaimed{}"),
+    "client/fatal-recovery": ("case Fatal{}: False{}", "case Fatal{}: True{}"),
+    "client/credential-owner": ("Bool.and(publisher_live,", "Bool.and(True{},"),
+    "client/credential-sign-in": ("Bool.not(sign_in_required)", "True{}"),
+    "client/credential-expiry": ("Bool.not(expired)", "True{}"),
+    "client/failed-turn": ("case NativeFailed{}: Failed{}", "case NativeFailed{}: Completed{}"),
+    "client/interrupted-turn": ("case NativeInterrupted{}: Interrupted{}", "case NativeInterrupted{}: Completed{}"),
+    "client/legacy-turn": ("case LegacyUnknown{}: HistoryUnavailable{}", "case LegacyUnknown{}: Completed{}"),
+    "client/turn-target": ("C.eq(target, turn)", "True{}"),
+    "client/latest-turn": ("case True{}: Some{terminal_result(status)}", "case True{}: older"),
 }
 
 
-def run(args, cwd, env):
+def run(args, cwd, env, timeout=180):
     return subprocess.run(args, cwd=cwd, env=env, text=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, timeout=180)
+                          stderr=subprocess.STDOUT, timeout=timeout)
 
 
 def checked(args, cwd, env):
@@ -99,6 +109,7 @@ def main():
             "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "toolchain": PIN, "mode": args.mode, "source_sha256": source_hashes(),
             "laws": {}, "mutations": {}, "rust_comparison": "not_run",
+            "client_comparison": "not_run",
         }
         if args.mode == "kernel":
             lean = checked(["lean", "--version"], cwd, env)
@@ -138,33 +149,50 @@ def main():
         if args.compare_rust:
             implementation_paths = [
                 "Cargo.lock", "rust-toolchain.toml",
-                "crates/qgenie-remote-policy/src/lib.rs",
-                "crates/qgenie-remote-proto/src/model.rs",
+                "Cargo.toml",
+                "conformance/schema/public-v1.json",
             ]
+            for crate in ("policy", "proto", "client"):
+                crate_path = ROOT.parent / "crates" / ("qgenie-remote-" + crate)
+                implementation_paths.append(str((crate_path / "Cargo.toml").relative_to(ROOT.parent)))
+                implementation_paths.extend(str(path.relative_to(ROOT.parent))
+                                            for path in sorted((crate_path / "src").rglob("*.rs")))
             report["implementation_sha256"] = {
                 name: hashlib.sha256((ROOT.parent / name).read_bytes()).hexdigest()
                 for name in implementation_paths
             }
             report["rustc"] = checked(["rustc", "--version"], ROOT.parent, env)
-            model_js = cwd / "policy.mjs"
-            checked(command + [str(ROOT / "authorization/Model.bend"), "-o", str(model_js)], cwd, env)
             harness = cwd / "rust"
-            (harness / "src").mkdir(parents=True)
-            dependency = str(ROOT.parent / "crates/qgenie-remote-policy")
+            (harness / "src/bin").mkdir(parents=True)
+            dependencies = tomllib.loads((ROOT.parent / "Cargo.toml").read_text())["workspace"]["dependencies"]
+            paths = "".join(
+                f'qgenie-remote-{crate} = {{ path = '
+                + json.dumps(str(ROOT.parent / "crates" / ("qgenie-remote-" + crate))) + ' }\n'
+                for crate in ("policy", "proto", "client"))
             (harness / "Cargo.toml").write_text(
-                '[package]\nname = "qgr-spec-policy-conformance"\nversion = "0.0.0"\nedition = "2024"\n'
-                '[dependencies]\nqgenie-remote-policy = { path = ' + json.dumps(dependency) + ' }\n')
+                '[package]\nname = "qgr-spec-conformance"\nversion = "0.0.0"\nedition = "2024"\n'
+                '[profile.dev]\ndebug = 0\nincremental = false\n[dependencies]\n' + paths
+                + 'serde_json = ' + json.dumps(dependencies["serde_json"]) + '\n'
+                + 'tokio = { version = ' + json.dumps(dependencies["tokio"]["version"])
+                + ', features = ["time"] }\n')
             # Preserve the product's dependency versions; Cargo adds only this harness.
             shutil.copy2(ROOT.parent / "Cargo.lock", harness / "Cargo.lock")
-            shutil.copy2(ROOT / "conformance/policy.rs", harness / "src/main.rs")
-            result = run(["cargo", "run", "--offline", "--quiet", "--manifest-path", str(harness / "Cargo.toml")], ROOT.parent, env)
-            if result.returncode:
-                raise RuntimeError("Rust comparison failed (fetch product dependencies first):\n" + result.stdout)
-            rows = cwd / "rust.csv"
-            rows.write_text(result.stdout)
-            output = checked([bun, str(ROOT / "conformance/policy.mjs"), str(model_js), str(rows)], cwd, env)
-            report["rust_comparison"] = json.loads(output)
-            print("PASS authorization: 18,432 Rust decisions and result fields match", flush=True)
+            for name in ("policy", "client"):
+                shutil.copy2(ROOT / f"conformance/{name}.rs", harness / f"src/bin/{name}.rs")
+            for domain, name, key in (("authorization", "policy", "rust_comparison"),
+                                      ("client", "client", "client_comparison")):
+                model_js = cwd / f"{name}.mjs"
+                checked(command + [str(ROOT / domain / "Model.bend"), "-o", str(model_js)], cwd, env)
+                result = run(["cargo", "run", "--offline", "--quiet", "--bin", name,
+                              "--manifest-path", str(harness / "Cargo.toml")], ROOT.parent, env, timeout=600)
+                if result.returncode:
+                    raise RuntimeError("Rust comparison failed (fetch product dependencies first):\n" + result.stdout)
+                rows = cwd / f"{name}.rows"
+                rows.write_text(result.stdout)
+                output = checked([bun, str(ROOT / f"conformance/{name}.mjs"), str(model_js), str(rows),
+                                  str(ROOT.parent / "conformance/schema/public-v1.json")], cwd, env)
+                report[key] = json.loads(output)
+                print(f"PASS {domain}: {report[key]['combinations']:,} Rust comparisons match", flush=True)
         if args.report:
             args.report.parent.mkdir(parents=True, exist_ok=True)
             args.report.write_text(json.dumps(report, indent=2) + "\n")

@@ -96,7 +96,8 @@ Run `cargo xtask schema` after a public contract change. Commit the generated sc
 The managed workspace provides its tools through `/workspace/.remote-session-tools/env.sh`. Source that file before development commands in this environment.
 
 The [Bend specification suite](specs/README.md) checks selected product laws and compares
-authorization with Rust. Follow the [verification instructions](specs/VERIFY.md) to run it.
+authorization and selected SDK decisions with Rust. Follow the
+[verification instructions](specs/VERIFY.md) to run it.
 These model checks complement the Rust, native process, and deployment tests.
 
 See the [transport API](crates/qgenie-remote-transport/README.md), [native Codex proof](docs/integration/codex-capabilities.md), [gateway setup](crates/qgenie-remote-gateway/README.md), and [development deployment](docs/runbooks/development-deployment.md). The CLI supports local and authenticated remote PTY workflows.

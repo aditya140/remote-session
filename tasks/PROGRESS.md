@@ -36,6 +36,11 @@ discarded native turn outcomes and connection error classification. The
 focused, managed Codex, native, keyboard, schema and lint results. Launch profiles and naming
 remain after pilot feedback. Task 030 retains enterprise, service, pilot and resource gates.
 
+[Task 034](034-integrate-work-and-bend.md) brings the implementation and Bend specifications
+onto one `main` branch. It extends client laws for completion evidence, recovery eligibility,
+and credential validity. The specification runner compares those decisions with the actual
+SDK and records separate model-proof and implementation-comparison evidence.
+
 ## Completed milestone — core journey repairs
 
 [Task 029](029-stabilize-core-journey.md) records the user-authorized repair plan and its

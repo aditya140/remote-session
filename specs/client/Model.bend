@@ -32,3 +32,53 @@ def success(o: Outcome) -> Bool:
 
 def reconnect_resends(o: Outcome) -> Bool:
   False{}
+
+# This classifies connection recovery, never application-operation retries.
+type ConnectionFailure is Data:
+  AccessStale{}
+  Overloaded{}
+  Fatal{}
+
+def can_reconnect(failure: ConnectionFailure) -> Bool:
+  match failure:
+    case AccessStale{}: True{}
+    case Overloaded{}: True{}
+    case Fatal{}: False{}
+
+# Caller-owned credential channels. Fixed injection retains its own publisher.
+def credential_valid(publisher_live: Bool, sign_in_required: Bool, expired: Bool) -> Bool:
+  Bool.and(publisher_live, Bool.and(Bool.not(sign_in_required), Bool.not(expired)))
+
+type TurnStatus is Data:
+  NativeCompleted{}
+  NativeFailed{}
+  NativeInterrupted{}
+  LegacyUnknown{}
+
+type TurnResult is Data:
+  Completed{}
+  Failed{}
+  Interrupted{}
+  HistoryUnavailable{}
+
+type Completion is Data:
+  Completion{turn: Nat, status: TurnStatus}
+
+def terminal_result(status: TurnStatus) -> TurnResult:
+  match status:
+    case NativeCompleted{}: Completed{}
+    case NativeFailed{}: Failed{}
+    case NativeInterrupted{}: Interrupted{}
+    case LegacyUnknown{}: HistoryUnavailable{}
+
+def choose_completion(matches: Bool, status: TurnStatus, older: Maybe<TurnResult>) -> Maybe<TurnResult>:
+  match matches:
+    case True{}: Some{terminal_result(status)}
+    case False{}: older
+
+# The list contains terminal evidence, newest first, within one verified session.
+def latest_completion(+target: Nat, events: List<&2, Completion>) -> Maybe<TurnResult>:
+  match events:
+    case Nil{}: None{}
+    case Con{Completion{turn, status}, tail}:
+      choose_completion(C.eq(target, turn), status, latest_completion(target, tail))
