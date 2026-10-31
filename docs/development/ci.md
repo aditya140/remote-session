@@ -4,6 +4,8 @@ Both workflows run for pushes, pull requests, and manual dispatches. A newer run
 cancels an older run for the same branch or pull request. Each job has a timeout.
 Actions use exact commit pins. Dependabot checks action updates each week.
 Workflow tokens have read-only repository access.
+Rust jobs retain dependency caches after a failed test, so the next correction can
+reuse compiled dependencies.
 
 ## Required results
 

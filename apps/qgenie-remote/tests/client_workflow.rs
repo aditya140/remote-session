@@ -152,7 +152,10 @@ async fn cli(
     args: &[&str],
 ) -> std::process::Output {
     let token = identity::private(b"synthetic-client-workflow-token");
-    let root = tempfile::tempdir().unwrap();
+    let root = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"));
     command
         .arg("--state-dir")
@@ -279,7 +282,10 @@ async fn event_recovery_resumes_after_the_last_observed_sequence() {
 #[tokio::test]
 async fn host_setup_validates_roots_writes_private_settings_and_does_not_replace_them() {
     use std::os::unix::fs::MetadataExt;
-    let root = tempfile::tempdir().unwrap();
+    let root = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let allowed = tempfile::tempdir().unwrap();
     let run = || {
         let mut c = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"));
@@ -332,7 +338,10 @@ async fn saved_setup_device_sign_in_and_new_invocation_never_persist_user_creden
         .await;
     let config = provider.config(&server.origin, tls.ca.path().into());
     let config=identity::private(&serde_json::to_vec(&json!({"client_id":config.client_id,"remote_scope":config.remote_scope,"authorization_endpoint":config.authorization_endpoint,"token_endpoint":config.token_endpoint,"device_endpoint":config.device_endpoint,"ca_bundle":config.ca_bundle})).unwrap());
-    let root = tempfile::tempdir().unwrap();
+    let root = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let mut setup = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"));
     let output = setup
         .arg("--state-dir")

@@ -521,7 +521,12 @@ async fn slow_event_subscriber_is_disconnected_with_explicit_resync_state() {
 #[tokio::test]
 async fn lost_start_reply_keeps_original_scoped_key_without_resending() {
     for agent in [false, true] {
-        let journal = tempfile::tempdir().unwrap();
+        let journal = tempfile::Builder::new()
+            .permissions(
+                <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700),
+            )
+            .tempdir()
+            .unwrap();
         let location = journal.path().to_owned();
         let machine = MachineId::new();
         let owner = UserId::new();
@@ -759,7 +764,10 @@ async fn unnegotiated_agent_input_sends_no_frame_and_does_not_poison_the_lease()
         ));
     }
     assert!(!control.input_uncertain());
-    let journal = tempfile::tempdir().unwrap();
+    let journal = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let result = handle
         .start(
             journal.path(),

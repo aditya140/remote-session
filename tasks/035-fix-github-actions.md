@@ -25,3 +25,29 @@ The Linux matrix job was cancelled by fail-fast. The deployment job passed.
 The separate [specification run](https://github.com/aditya140/remote-session/actions/runs/41214716393)
 also passed. Actions job reads work through the connector even though commit-status
 reads and the CLI API route deny access.
+
+## Changes and local evidence
+
+- The macOS elapsed clock uses `mach2` bindings. The dependency is optional and
+  macOS-only. The clock still counts sleep and rejects a failed or backward clock.
+  A native smoke test checks that the clock advances. The macOS cross-target
+  Clippy check passes with warnings denied.
+- The recording failure reproduces with `umask 0022`. Private identity, native
+  state, and start-journal fixtures now request `0700` when they create directories.
+  Product permission checks remain in place.
+- The first hosted rerun passes macOS Clippy and then exposes the same fixture
+  defect in saved setup. Inspection also found it in client start-journal and
+  native approval tests. Those fixtures now use explicit private permissions.
+- Workflow actions use verified commit pins and Node 24 runtimes. Jobs use fixed
+  runner images, timeouts, read-only tokens, and independent matrix results.
+  Superseded runs cancel. Dependency caches survive test failures. The `CI` job
+  requires every Rust workflow job to pass. Both workflows run for every change.
+- Actionlint and the Python tool tests pass. The specification suite passes all
+  115 laws, 32 mutation checks, 18,432 authorization comparisons, and 4,274 SDK
+  comparisons. The checked-in report is refreshed after the final source changes.
+
+The first local recording rerun reached a later correlated-response timeout while
+another build used the same machine. A separate run passed the session workflow,
+native Codex approval delivery, and managed start crash checks. The timeout has
+not reproduced in that run. The test assertions and deadlines were not changed.
+Final hosted results remain pending.

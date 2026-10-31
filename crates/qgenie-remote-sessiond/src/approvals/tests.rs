@@ -47,7 +47,10 @@ fn known(result: NativeApprovalReservation) -> ApplicationOutcome {
 }
 #[test]
 fn concurrent_delivery_reserves_one_native_write_and_reconciles_unknown_after_restart() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let journal = NativeApprovals::open(directory.path()).unwrap();
     let source = source();
     journal.register_source(&source).unwrap();
@@ -101,7 +104,10 @@ fn concurrent_delivery_reserves_one_native_write_and_reconciles_unknown_after_re
 }
 #[test]
 fn intent_loss_pending_restart_policy_timeout_and_native_resolution_never_approve() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let journal = NativeApprovals::open(directory.path()).unwrap();
     let source = source();
     journal.register_source(&source).unwrap();
@@ -199,7 +205,10 @@ fn intent_loss_pending_restart_policy_timeout_and_native_resolution_never_approv
 }
 #[test]
 fn immutable_sources_owner_machine_request_hash_and_native_menu_are_enforced() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let journal = NativeApprovals::open(directory.path()).unwrap();
     let source = source();
     journal.register_source(&source).unwrap();

@@ -391,7 +391,11 @@ mod tests {
     }
     #[test]
     fn gateway_override_does_not_reuse_saved_identity_and_settings_are_private() {
-        let root = tempfile::tempdir().unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()
+            .unwrap();
         let saved = Profile {
             gateway: "https://first.example".into(),
             ca_bundle: None,

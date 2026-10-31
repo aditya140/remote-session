@@ -176,7 +176,10 @@ pub(super) async fn prove(
     let handle = first.as_ref().unwrap().handle();
     let mut observation = None;
     assert!(handle.approvals_available());
-    let starts = tempfile::tempdir().unwrap();
+    let starts = tempfile::Builder::new()
+        .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     tokio::time::timeout(Duration::from_secs(10), async {
         loop {
             let machines = sdk.machines(token).await.unwrap();

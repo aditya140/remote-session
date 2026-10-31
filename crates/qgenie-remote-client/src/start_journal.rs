@@ -242,7 +242,12 @@ mod tests {
 
     #[test]
     fn legacy_identities_survive_migration_and_history_does_not_fill_pending_work() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::Builder::new()
+            .permissions(
+                <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700),
+            )
+            .tempdir()
+            .unwrap();
         let spec = StartSpec {
             key: IdempotencyKey::new(),
             command: vec!["/bin/sh".into(), "private-argv".into()],
