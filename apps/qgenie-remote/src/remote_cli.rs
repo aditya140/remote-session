@@ -12,6 +12,8 @@ use std::path::Path;
 #[derive(Subcommand)]
 pub(crate) enum Action {
     #[command(flatten)]
+    WaitSet(super::remote_wait::Action),
+    #[command(flatten)]
     Observe(super::remote_observe::Action),
     Machines,
     /// Resolve an exact name within this gateway owner and machine. Reject duplicates.
@@ -192,6 +194,9 @@ pub(crate) async fn run_authenticated(
     action: Action,
 ) -> Result<()> {
     let api = GatewayClient::new(config)?;
+    if let Action::WaitSet(action) = action {
+        return super::remote_wait::run(api, credentials, action).await;
+    }
     if let Action::Observe(action) = action {
         return super::remote_observe::run(api, credentials, action).await;
     }
@@ -330,7 +335,7 @@ pub(crate) async fn run_authenticated(
     let mut wait_target = None;
     let result:Result<Value,RemoteError>=draining(&mut live, async {
         Ok(match action {
-            Action::Observe(_) => unreachable!("observation dispatch returns before mutations"),
+            Action::Observe(_) | Action::WaitSet(_) => unreachable!("observation dispatch returns before mutations"),
             Action::Machines|Action::Rename{..}|Action::Label{..}|Action::RemoveLabel{..}|Action::Revoke{..}|Action::HistoryStreams{..}|Action::History{..}=>unreachable!(),
             Action::Sessions{machine,after,active,filter,..}=>{let(mut sessions,next)=handle.session_page(machine,after,64,active).await?;filter_sessions(&mut sessions,filter.as_deref());json!({"sessions":sessions,"next":next})},
             Action::FindSession{machine,name}=>json!(handle.resolve_session_name(machine,&name).await?),

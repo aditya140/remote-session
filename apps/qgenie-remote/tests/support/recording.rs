@@ -603,6 +603,45 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
     assert!(
         matches!(handle.replay(binding.machine,started.id,snapshot.seq).await.unwrap(),qgenie_remote_client::RemoteAttachment::Replay(page) if !page.more && page.events.is_empty())
     );
+    let wait_state = private_directory();
+    let literal_wait = tokio::time::timeout(
+        std::time::Duration::from_secs(12),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"))
+            .arg("--state-dir")
+            .arg(wait_state.path())
+            .args(["remote", "--gateway"])
+            .arg(&origin)
+            .arg("--token-file")
+            .arg(token_file.path())
+            .arg("--ca-bundle")
+            .arg(tls.ca.path())
+            .arg("wait-output")
+            .arg(binding.machine.to_string())
+            .arg(started.id.to_string())
+            .args(["--after", "0", "--literal", "READY", "--timeout", "10"])
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        literal_wait.status.success(),
+        "{}",
+        String::from_utf8_lossy(&literal_wait.stderr)
+    );
+    let literal_wait: serde_json::Value = serde_json::from_slice(&literal_wait.stdout).unwrap();
+    assert_eq!(literal_wait["outcome"], "matched");
+    assert_eq!(literal_wait["session"], started.id.to_string());
+    assert!(
+        local
+            .sessions()
+            .await
+            .unwrap()
+            .iter()
+            .any(|session| session.id == started.id
+                && matches!(session.state, SessionState::Running))
+    );
     let mut first = handle
         .take_control(binding.machine, started.id, false)
         .await
@@ -1016,8 +1055,8 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
     .await
     .unwrap();
     assert_eq!(
-        observed, 1,
-        "continuations must not create another attachment audit"
+        observed, 2,
+        "SDK and literal wait each attach once; continuations must not add attachment audits"
     );
     let service_session = handle.start(starts.path(),binding.owner,binding.machine,Launch{
         key:IdempotencyKey::new(),kind:LaunchKind::Pty{command:vec!["/bin/sh".into(),"-c".into(),"stty -echo; printf 'CLI_PROCESS_READY\\n'; while IFS= read -r value; do printf '%s\\n' \"$value\"; done".into()]},cwd:native_path.to_str().unwrap().into(),rows:24,cols:80,

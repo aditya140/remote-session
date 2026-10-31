@@ -53,6 +53,7 @@ thiserror = "2.0"
 time = { version = "0.3", features = ["parsing", "formatting"] }
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "sync", "signal", "process"] }
 uuid = { version = "1.18", features = ["v4", "serde"] }
+vte = "=0.15.0"
 vt100 = { version = "=0.16.2", features = ["checkpoint"] }
 zeroize = { version = "1.8", features = ["derive"] }
 zstd = { version = "0.13", default-features = false }

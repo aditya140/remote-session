@@ -26,6 +26,7 @@ use std::{
 struct Peer {
     session: Session,
     agent: AgentState,
+    output: Option<Vec<SequencedEvent>>,
     connections: Arc<AtomicUsize>,
     after: Arc<Mutex<Vec<Counter>>>,
     reconnect: bool,
@@ -70,6 +71,7 @@ impl Peer {
                 .unwrap();
         }
         Self {
+            output: None,
             session: Session {
                 metadata: Default::default(),
                 id: SessionId::new(),
@@ -183,6 +185,15 @@ async fn endpoint(State(peer): State<Peer>, upgrade: WebSocketUpgrade) -> axum::
                 Message::SessionGet{..} if peer.wait_disconnect && connection==1=>{let _=socket.close().await;return;},
                 Message::SessionGet{session}=>{assert_eq!(*session,peer.session.id);send(&mut socket,reply(&request,Message::SessionFound(peer.session.clone()))).await;},
                 Message::ApprovalIndex{..}=>send(&mut socket,reply(&request,Message::ApprovalPage{states:Vec::new(),next:None})).await,
+                Message::Attach{after}|Message::ReplayRequest{after} if peer.output.is_some()=>{
+                    if matches!(request.message,Message::Attach{..}) {peer.after.lock().unwrap().push(*after);}
+                    let output=peer.output.as_ref().unwrap();
+                    let available=if peer.reconnect && connection==0 {&output[..2]} else {output.as_slice()};
+                    let events=available.iter().filter(|event|event.seq>*after).cloned().collect();
+                    let head=available.last().map_or(Counter(0),|event|event.seq);
+                    send(&mut socket,reply(&request,Message::Replay{floor:Counter(1),head,events,more:false,history_truncated:false})).await;
+                    if peer.reconnect && connection==0 {let _=socket.close().await;return;}
+                },
                 Message::Attach{after} if peer.reconnect=>{
                     peer.after.lock().unwrap().push(*after);
                     let seq=Counter(connection as u64+1);
@@ -772,3 +783,6 @@ async fn cancelling_exact_wait_emits_result_and_leaves_native_work_alone() {
     assert_eq!(peer.leases.load(Ordering::SeqCst), 0);
     assert_eq!(peer.inputs.load(Ordering::SeqCst), 0);
 }
+
+#[path = "support/waits.rs"]
+mod waits;

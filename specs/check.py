@@ -164,7 +164,11 @@ def main():
             report["rustc"] = checked(["rustc", "--version"], ROOT.parent, env)
             harness = cwd / "rust"
             (harness / "src/bin").mkdir(parents=True)
-            dependencies = tomllib.loads((ROOT.parent / "Cargo.toml").read_text())["workspace"]["dependencies"]
+            workspace = tomllib.loads((ROOT.parent / "Cargo.toml").read_text())
+            dependencies = workspace["workspace"]["dependencies"]
+            patches = "\n[patch.crates-io]\n" + "".join(
+                name + " = { path = " + json.dumps(str(ROOT.parent / value["path"])) + " }\n"
+                for name, value in workspace["patch"]["crates-io"].items())
             paths = "".join(
                 f'qgenie-remote-{crate} = {{ path = '
                 + json.dumps(str(ROOT.parent / "crates" / ("qgenie-remote-" + crate))) + ' }\n'
@@ -174,7 +178,7 @@ def main():
                 '[profile.dev]\ndebug = 0\nincremental = false\n[dependencies]\n' + paths
                 + 'serde_json = ' + json.dumps(dependencies["serde_json"]) + '\n'
                 + 'tokio = { version = ' + json.dumps(dependencies["tokio"]["version"])
-                + ', features = ["time"] }\n')
+                + ', features = ["time"] }\n' + patches)
             # Preserve the product's dependency versions; Cargo adds only this harness.
             shutil.copy2(ROOT.parent / "Cargo.lock", harness / "Cargo.lock")
             for name in ("policy", "client"):

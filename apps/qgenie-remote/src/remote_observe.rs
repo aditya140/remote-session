@@ -69,7 +69,7 @@ impl Action {
     }
 }
 
-async fn drain<T>(
+pub(crate) async fn drain<T>(
     client: &mut LiveClient,
     read: impl Future<Output = Result<T, RemoteError>>,
 ) -> Result<T, RemoteError> {
@@ -81,7 +81,7 @@ async fn drain<T>(
         }
     }
 }
-async fn checkpoint(
+pub(crate) async fn checkpoint(
     handle: &LiveHandle,
     machine: MachineId,
     session: SessionId,
@@ -97,7 +97,7 @@ async fn checkpoint(
         },
     }
 }
-fn emit(value: serde_json::Value) -> Result<()> {
+pub(crate) fn emit(value: serde_json::Value) -> Result<()> {
     let mut stdout = std::io::stdout().lock();
     serde_json::to_writer(&mut stdout, &value)?;
     writeln!(stdout)?;
