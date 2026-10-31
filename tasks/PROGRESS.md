@@ -54,8 +54,9 @@ separate.
 [Task 036](036-optimize-ci-runtime.md) reduces the full repeat CI run from 15m34s
 to 5m51s. Both cached images build in 12 seconds. Platform, feature, database,
 native, recording, deployment, and specification suites pass on `874572e`. The
-work adds parallel suites, complete dependency caches, and a conservative
-prose-only path. Hosted verification of that prose-only path is in progress.
+completed work adds parallel suites, complete dependency caches, and a
+conservative prose-only path. The prose-only push passes in 17 seconds, with both
+required results present. The task records rebuild costs, measurements, and limits.
 
 ## Completed milestone — core journey repairs
 

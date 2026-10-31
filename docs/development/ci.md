@@ -71,8 +71,9 @@ queue time affect duration.
 
 On 2026-10-31, a full repeat run with cached image inputs took 5m51s. The previous
 workflow took 15m34s. Both cached image steps took 12 seconds combined. The full
-suite passed. See [task 036](../../tasks/036-optimize-ci-runtime.md) for run links,
-rebuild timings, cache sizes, and measurement limits.
+suite passed. A documentation-only push completed in 17 seconds, with both
+required results present. See [task 036](../../tasks/036-optimize-ci-runtime.md) for
+run links, rebuild timings, cache sizes, and measurement limits.
 
 ## Diagnose a failure
 

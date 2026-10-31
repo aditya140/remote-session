@@ -1,6 +1,6 @@
 # Reduce CI duration
 
-Status: Full suite verified. Documentation-only validation is in progress.
+Status: Complete.
 
 ## Goal and implementation sequence
 
@@ -93,5 +93,12 @@ cannot retain its compiler outputs.
 
 ## Documentation-only verification
 
-Pending. The next push changes only this task, the progress record, and the CI
-guide. It must skip runtime jobs, keep `CI` and `laws` present, and pass the gate.
+The Markdown-only push at `929797e` passes. The [CI workflow](https://github.com/aditya140/remote-session/actions/runs/41234562372)
+finishes in 17 seconds. The [laws workflow](https://github.com/aditya140/remote-session/actions/runs/41234562330)
+finishes in 7 seconds. Both classifiers identify all three paths as approved prose.
+The routing tests and aggregate gate pass. Workspace, feature, database, recording,
+and deployment jobs are intentionally skipped. No Rust toolchain, proof toolchain,
+or runtime service is started. The required `CI` and `laws` results remain present.
+
+All five implementation steps and their hosted validation are complete. This work
+changes CI scheduling and builds. It does not close external release gates.
