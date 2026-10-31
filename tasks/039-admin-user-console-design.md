@@ -38,3 +38,25 @@ The Beautiful UI site was accessible through the web research tool at its `www`
 URL. The direct executor request was denied by network policy. No network policy
 was changed. The reference informed interaction patterns; no source assets were
 copied. Production UI, APIs, browser identity, and deployment remain proposed.
+
+## Revision 2: response to visual feedback
+
+The user rejected the first visual pass and requested designeer.xyz as another
+reference. The live domain was unavailable through both the executor policy and
+the web reader. Indexed references described its curated design-resource model.
+We inspected the maker's Product Hunt page, Tremor, and Refactoring UI. We did not
+claim to inspect the live Designeer gallery or treat another domain as a verified
+replacement.
+
+Studio now uses a charcoal navigation rail, open metrics, a lilac histogram, and
+an attention column. Signal uses a unified dark monitoring canvas, gateway tracks,
+and an event stream. Atlas uses top navigation, a fleet map, and an investigation
+inspector. User screens use task cards, a terminal detail layout, or project rows.
+The original prototype is preserved under `design/admin-console/archive/v1.html`.
+
+The six desktop screens and six mobile layouts passed Chromium checks. Filters,
+required confirmation, role navigation, Escape, and keyboard search passed.
+Direction switching and all admin navigation views also passed. No script errors
+occurred. A mobile Atlas navigation overflow was corrected before final capture.
+The review package and images now contain revision 2. The API and authority
+proposal retains its design-only scope.

@@ -12,9 +12,9 @@ a service. This design extends the PRD's later browser and admin UI scope.
 
 | Option | Admin experience | User experience | Tradeoff |
 | --- | --- | --- | --- |
-| A: Workspace — recommended | Light neutral surfaces, compact navigation, fleet table, recording warnings, and recent access decisions. | Work inbox, exact task outcomes, a separate approval card, machines, and history. | Best starting point for daily work. Deep incident analysis opens a focused view. |
-| B: Operations | Dark, dense overview of gateways, recording backlog, freshness, and incident signals. | The same personal workflow in a denser dark shell. Session observation remains explicit. | Best for an operator on call. Governance work takes more navigation. |
-| C: Governance | Warm surfaces, a strong navigation rail, subject context, investigation timeline, and reason-gated content access. | A quiet personal workspace with owned sessions and explicit recording warnings. | Best for investigations. Persistent case storage would add scope and is deferred. |
+| A: Studio — recommended | A charcoal sidebar, open metric strip, lilac activity histogram, fleet records, and a focused attention rail. | Work inbox, exact task outcomes, a separate approval card, machines, and history. | Best starting point for daily work. Deep incident analysis opens a focused view. |
+| B: Signal | A dark monitoring canvas with an integrated latency plot, gateway health tracks, and a timestamped event stream. | A terminal-focused split view with exact outcomes, tool events, and an independent approval panel. | Best for an operator on call. Governance work takes more navigation. |
+| C: Atlas | Warm surfaces, horizontal navigation, a fleet relationship map, and a subject inspector beside the audit trail. | A project list with session detail, independent approval decisions, and recording warnings. | Best for investigations. Persistent case storage would add scope and is deferred. |
 
 Use A as the shared product shell. Offer B as the System health workspace and C as
 the Audit workspace. Build one navigation and permission system. Do not implement
@@ -27,6 +27,30 @@ task status rows, and focused decision cards. We inspected
 [Beautiful UI](https://www.beautifului.dev/) on 2026-10-31. This prototype adapts
 those interaction ideas to QGenie. It does not copy the site's code or assets.
 The site's chat and reasoning components are not required for governance work.
+
+## Revision 2: visual direction
+
+The first concept did not meet the user’s visual expectations. Revision 2 changes
+the composition as well as the color palette. It reduces repeated card borders,
+uses a more deliberate type scale, gives navigation consistent vector icons, and
+makes each direction use a different information layout. User views now differ
+by task cards, a terminal workspace, or a project list.
+
+The user requested [designeer.xyz](https://designeer.xyz). Direct access and the
+web reader could not open the live site. We used indexed descriptions and the
+[maker’s product discussion](https://www.producthunt.com/products/designeer)
+to understand its curated design-resource approach. We did not inspect its live
+visual gallery or claim that another domain is its verified replacement.
+
+The revision also draws from [Tremor](https://www.tremor.so/) for compact analytic
+signals and [Refactoring UI](https://refactoringui.com/) for grouping through
+spacing and contrast. The latter explicitly discusses reducing excess borders.
+No library, commercial component, source code, or third-party image was copied.
+Beautiful UI remains the reference for task and decision interactions.
+
+The API proposal and permission model below keep their previous scope. The
+prototype remains synthetic. The first version is retained in
+[the design archive](../../design/admin-console/archive/v1.html).
 
 ## Core admin journeys
 
