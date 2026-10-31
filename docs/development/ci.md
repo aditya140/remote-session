@@ -48,9 +48,10 @@ was removed; the bounded adapter step runs the full adapter suite once.
 
 Development and test builds omit debug symbols to reduce compilation, linking,
 and cache size. Debug assertions and the production release profile remain as
-configured in `Cargo.toml`. Only successful jobs save Rust dependency caches. This prevents cancelled or
-failed compiles from creating incomplete immutable cache entries.
-Platform suites and integration groups use separate keys to avoid overwriting different feature artifacts.
+configured in `Cargo.toml`. Only successful jobs save Rust dependency caches.
+This prevents cancelled or failed compiles from creating incomplete immutable
+cache entries. Platform suites and integration groups use separate keys to avoid
+overwriting different feature artifacts.
 Specification comparisons use an explicit target directory for their temporary
 Cargo project, so the cache retains its dependency artifacts.
 
@@ -63,10 +64,15 @@ with the same package set as the dependency layer. Each runtime image receives
 only its own binary. Runtime images retain the pinned base images, UID/GID 10001,
 CA trust, and separate gateway/fixture-identity contents.
 
-The first run populates new caches. Later runs can reuse them. Cargo.lock,
-toolchain, vendored source, or dependency recipe changes require rebuilding the
-relevant layers. Cache eviction and runner queue time can still affect duration.
-See [task 036](../../tasks/036-optimize-ci-runtime.md) for measurements.
+The first run populates new caches. Later runs can reuse them. Source changes
+rebuild application layers. `Cargo.lock`, toolchain, vendored source, or dependency
+recipe changes can also rebuild dependency layers. Cache eviction and runner
+queue time affect duration.
+
+On 2026-10-31, a full repeat run with cached image inputs took 5m51s. The previous
+workflow took 15m34s. Both cached image steps took 12 seconds combined. The full
+suite passed. See [task 036](../../tasks/036-optimize-ci-runtime.md) for run links,
+rebuild timings, cache sizes, and measurement limits.
 
 ## Diagnose a failure
 

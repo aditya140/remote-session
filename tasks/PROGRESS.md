@@ -51,10 +51,11 @@ and sanitized acceptance artifacts. See the [CI guide](../docs/development/ci.md
 for workflow coverage and required results. External release qualification remains
 separate.
 
-[Task 036](036-optimize-ci-runtime.md) measures and reduces CI duration. The work
-adds a conservative prose-only path, parallel platform/integration suites, and
-persistent image dependency caching. Hosted cold, warm, and prose-only measurements
-are in progress.
+[Task 036](036-optimize-ci-runtime.md) reduces the full repeat CI run from 15m34s
+to 5m51s. Both cached images build in 12 seconds. Platform, feature, database,
+native, recording, deployment, and specification suites pass on `874572e`. The
+work adds parallel suites, complete dependency caches, and a conservative
+prose-only path. Hosted verification of that prose-only path is in progress.
 
 ## Completed milestone — core journey repairs
 
