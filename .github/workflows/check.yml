@@ -1,92 +1,165 @@
 name: Rust checks
-on: [push, pull_request, workflow_dispatch]
-
+on:
+- push
+- pull_request
+- workflow_dispatch
 permissions:
   contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 2
+    - name: Test CI routing and tools
+      run: python3 -m unittest discover -s tests/tools -v
+    - name: Select required checks
+      id: scope
+      run: python3 .github/scripts/ci_scope.py
   development-deployment:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: 1.99.1
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          cache-on-failure: true
-      - run: cargo build --locked --package qgenie-remote
-      - run: cargo build --locked --package qgenie-remote-client --example remote_load
-      - run: python3 deploy/compose/stack.py init
-      - run: python3 deploy/compose/stack.py build
-      - run: python3 deploy/compose/stack.py up
-      - run: python3 deploy/compose/stack.py monitor-smoke
-      - run: python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote smoke
-      - run: python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote --load-bin target/debug/examples/remote_load baseline
-      - run: python3 deploy/compose/stack.py restore-smoke
-      - run: python3 deploy/compose/stack.py fault-smoke
-      - name: Stop only the owned development project
-        if: always()
-        run: python3 deploy/compose/stack.py down
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # pinned toolchain action
+      with:
+        toolchain: 1.99.1
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        cache-on-failure: true
+    - run: cargo build --locked --package qgenie-remote
+    - run: cargo build --locked --package qgenie-remote-client --example remote_load
+    - run: python3 deploy/compose/stack.py init
+    - name: Set up cached image builder
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - name: Build gateway image
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: deploy/images/Dockerfile
+        target: gateway
+        load: true
+        tags: qgenie-remote-gateway:development
+        cache-from: type=gha,scope=qgr-gateway-v1
+        cache-to: type=gha,mode=max,scope=qgr-gateway-v1
+        provenance: false
+    - name: Build fixture-identity image
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: deploy/images/Dockerfile
+        target: fixture-identity
+        load: true
+        tags: qgenie-remote-fixture-identity:development
+        cache-from: type=gha,scope=qgr-fixture-identity-v1
+        cache-to: type=gha,mode=max,scope=qgr-fixture-identity-v1
+        provenance: false
+    - run: python3 deploy/compose/stack.py up
+    - run: python3 deploy/compose/stack.py monitor-smoke
+    - run: python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote smoke
+    - run: python3 deploy/compose/stack.py --client-bin target/debug/qgenie-remote --load-bin target/debug/examples/remote_load
+        baseline
+    - run: python3 deploy/compose/stack.py restore-smoke
+    - run: python3 deploy/compose/stack.py fault-smoke
+    - name: Stop only the owned development project
+      if: always()
+      run: python3 deploy/compose/stack.py down
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
   check:
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        os:
+        - ubuntu-24.04
+        - macos-15
+        suite:
+        - workspace
+        - features
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: 1.99.1
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          cache-on-failure: true
-      - run: cargo fmt --all -- --check
-      - run: python3 -m unittest discover -s tests/tools -v
-      - run: cargo check --workspace --all-targets --locked
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Adapter lifecycle
-        timeout-minutes: 4
-        run: cargo test --package qgenie-remote-adapters --all-features --lib --locked -- --nocapture
-      - run: cargo test --workspace --locked --no-fail-fast
-      - run: cargo xtask boundaries
-      - run: cargo xtask schema --check
-      - run: cargo xtask rest-schema --check
-      - run: cargo xtask recording-schema --check
-      - run: cargo check --package qgenie-remote-proto --no-default-features --locked
-      - run: cargo check --package qgenie-remote-transport --no-default-features --locked
-      - run: cargo check --package qgenie-remote-transport --no-default-features --features elapsed-clock --locked
-      - run: cargo check --package qgenie-remote-transport --no-default-features --features client-ws --locked
-      - run: cargo check --package qgenie-remote-transport --no-default-features --features server-ws --locked
-      - run: cargo clippy --package qgenie-remote-transport --all-targets --all-features --locked -- -D warnings
-      - run: cargo test --package qgenie-remote-transport --all-features --locked
-      - run: cargo check --package qgenie-remote-adapters --no-default-features --locked
-      - run: cargo check --package qgenie-remote-host --no-default-features --locked
-      - run: cargo check --package qgenie-remote-adapters --no-default-features --features codex --locked
-      - run: cargo test --package qgenie-remote-adapters --all-features --locked
-      - run: cargo clippy --package qgenie-remote-adapters --all-features --all-targets --locked -- -D warnings
-      - run: cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings
-      - run: cargo test --package qgenie-remote-sessiond --all-features --locked
-      - run: cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings
-      - run: cargo build --package qgenie-remote --locked
-      - run: python3 tests/e2e/local_tui_smoke.py target/debug/qgenie-remote
-      - run: python3 tests/e2e/history_capacity_smoke.py target/debug/qgenie-remote
-      - if: runner.os == 'Linux'
-        run: bash tests/e2e/foreign_uid_ipc.sh
-      - if: runner.os == 'Linux'
-        run: bash tests/e2e/recording_disk_full.sh
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # pinned toolchain action
+      with:
+        toolchain: 1.99.1
+        components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        cache-on-failure: true
+        key: ${{ matrix.suite }}-v2
+    - run: cargo fmt --all -- --check
+      if: matrix.suite == 'workspace'
+    - run: python3 -m unittest discover -s tests/tools -v
+      if: matrix.suite == 'workspace'
+    - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      if: matrix.suite == 'workspace'
+    - run: cargo test --workspace --locked --no-fail-fast
+      if: matrix.suite == 'workspace'
+    - run: cargo xtask boundaries
+      if: matrix.suite == 'workspace'
+    - run: cargo xtask schema --check
+      if: matrix.suite == 'workspace'
+    - run: cargo xtask rest-schema --check
+      if: matrix.suite == 'workspace'
+    - run: cargo xtask recording-schema --check
+      if: matrix.suite == 'workspace'
+    - run: cargo build --package qgenie-remote --locked
+      if: matrix.suite == 'workspace'
+    - run: python3 tests/e2e/local_tui_smoke.py target/debug/qgenie-remote
+      if: matrix.suite == 'workspace'
+    - run: python3 tests/e2e/history_capacity_smoke.py target/debug/qgenie-remote
+      if: matrix.suite == 'workspace'
+    - if: matrix.suite == 'workspace' && (runner.os == 'Linux')
+      run: bash tests/e2e/foreign_uid_ipc.sh
+    - if: matrix.suite == 'workspace' && (runner.os == 'Linux')
+      run: bash tests/e2e/recording_disk_full.sh
+    - run: cargo check --package qgenie-remote-proto --no-default-features --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-transport --no-default-features --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-transport --no-default-features --features elapsed-clock --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-transport --no-default-features --features client-ws --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-transport --no-default-features --features server-ws --locked
+      if: matrix.suite == 'features'
+    - run: cargo clippy --package qgenie-remote-transport --all-targets --all-features --locked -- -D warnings
+      if: matrix.suite == 'features'
+    - run: cargo test --package qgenie-remote-transport --all-features --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-adapters --no-default-features --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-host --no-default-features --locked
+      if: matrix.suite == 'features'
+    - run: cargo check --package qgenie-remote-adapters --no-default-features --features codex --locked
+      if: matrix.suite == 'features'
+    - run: cargo test --package qgenie-remote-adapters --all-features --locked -- --nocapture
+      name: Adapter lifecycle and contracts
+      timeout-minutes: 4
+      if: matrix.suite == 'features'
+    - run: cargo clippy --package qgenie-remote-adapters --all-features --all-targets --locked -- -D warnings
+      if: matrix.suite == 'features'
+    - run: cargo clippy --package qgenie-remote-sessiond --all-features --all-targets --locked -- -D warnings
+      if: matrix.suite == 'features'
+    - run: cargo test --package qgenie-remote-sessiond --all-features --locked
+      if: matrix.suite == 'features'
+    - run: cargo clippy --package qgenie-remote --features managed-codex --all-targets --locked -- -D warnings
+      if: matrix.suite == 'features'
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
   postgres:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -94,108 +167,142 @@ jobs:
       redis:
         image: redis:8-alpine
         ports:
-          - 56379:6379
+        - 56379:6379
       postgres:
         image: postgres:17-alpine
         env:
           POSTGRES_PASSWORD: qgr-local-test-only
           POSTGRES_DB: qgr_test
         ports:
-          - 55432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+        - 55432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: 1.99.1
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          cache-on-failure: true
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '22'
-          package-manager-cache: false
-      - name: Install the pinned native Codex fixture
-        run: |
-          npm install --prefix "$RUNNER_TEMP/qgr-codex" --no-audit --no-fund --ignore-scripts --save-exact @openai/codex@0.159.2
-          binary="$RUNNER_TEMP/qgr-codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex"
-          test "$("$binary" --version)" = 'codex-cli 0.159.2'
-          echo "QGR_CODEX_BINARY=$binary" >> "$GITHUB_ENV"
-      - name: Create private synthetic PostgreSQL test binding
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('/tmp/qgr-postgres-test-url')
-          path.write_text('postgres://postgres:qgr-local-test-only@127.0.0.1:55432/qgr_test?sslmode=disable\n')
-          path.chmod(0o600)
-          path = Path('/tmp/qgr-redis-test-url')
-          path.write_text('redis://127.0.0.1:56379/\n')
-          path.chmod(0o600)
-          PY
-      - run: cargo build --package qgenie-remote-gateway --locked
-      - run: 'cargo test --package qgenie-remote-gateway --lib --locked -- --include-ignored --skip transcripts::durability::'
-        env:
-          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
-          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
-          QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway
-      - run: cargo test --package qgenie-remote --test host_enrollment --locked scoped_pkce_device_enrollment_lost_ack_credentials_and_unenrollment -- --ignored
-        env:
-          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
-      - run: cargo test --package qgenie-remote --test host_enrollment --locked actual_connector_enforces_roots_refreshes_in_place_and_survives_replacement -- --ignored
-        env:
-          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
-          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
-      - run: cargo test --package qgenie-remote --test host_enrollment --locked actual_native_connector_activates_original_nonces_across_gateways_and_survives_revocation -- --ignored
-        env:
-          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
-          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
-      - run: cargo test --package qgenie-remote-host --lib --locked -- --include-ignored
-        env:
-          QGR_EXPECT_MISSING_KEYRING: "yes"
-          DBUS_SESSION_BUS_ADDRESS: unix:path=/tmp/qgr-no-session-bus
-      - name: Install transaction-pooling test dependency
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y pgbouncer
-      - name: Synchronous receipts and primary-volume loss
-        run: python3 tests/e2e/recording_durability.py --require-managed-codex --report target/validation/synchronous-report.json
-      - name: Native Codex adapter contract
-        run: cargo test --package qgenie-remote-adapters --all-features --test codex_native --locked -- --ignored
-      - name: Preserve sanitized acceptance result
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: synchronous-acceptance
-          path: target/validation/synchronous-report.json
-          if-no-files-found: warn
-          retention-days: 14
-      - run: python3 tests/e2e/pgbouncer_recordings.py
-        env:
-          QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
-          QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
-          QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway
-
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # pinned toolchain action
+      with:
+        toolchain: 1.99.1
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        cache-on-failure: true
+        key: ${{ matrix.suite }}-v2
+    - name: Create private synthetic PostgreSQL test binding
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        path = Path('/tmp/qgr-postgres-test-url')
+        path.write_text('postgres://postgres:qgr-local-test-only@127.0.0.1:55432/qgr_test?sslmode=disable\n')
+        path.chmod(0o600)
+        path = Path('/tmp/qgr-redis-test-url')
+        path.write_text('redis://127.0.0.1:56379/\n')
+        path.chmod(0o600)
+        PY
+    - run: cargo build --package qgenie-remote-gateway --locked
+      if: matrix.suite == 'gateway'
+    - run: 'cargo test --package qgenie-remote-gateway --lib --locked -- --include-ignored --skip transcripts::durability::'
+      env:
+        QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+        QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+        QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway
+      if: matrix.suite == 'gateway'
+    - run: cargo test --package qgenie-remote --test host_enrollment --locked scoped_pkce_device_enrollment_lost_ack_credentials_and_unenrollment
+        -- --ignored
+      env:
+        QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+      if: matrix.suite == 'enrollment'
+    - run: cargo test --package qgenie-remote --test host_enrollment --locked actual_connector_enforces_roots_refreshes_in_place_and_survives_replacement
+        -- --ignored
+      env:
+        QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+        QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+      if: matrix.suite == 'enrollment'
+    - run: cargo test --package qgenie-remote --test host_enrollment --locked actual_native_connector_activates_original_nonces_across_gateways_and_survives_revocation
+        -- --ignored
+      env:
+        QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+        QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+      if: matrix.suite == 'enrollment'
+    - run: cargo test --package qgenie-remote-host --lib --locked -- --include-ignored
+      env:
+        QGR_EXPECT_MISSING_KEYRING: 'yes'
+        DBUS_SESSION_BUS_ADDRESS: unix:path=/tmp/qgr-no-session-bus
+      if: matrix.suite == 'enrollment'
+    - name: Install transaction-pooling test dependency
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y pgbouncer
+      if: matrix.suite == 'gateway'
+    - run: python3 tests/e2e/pgbouncer_recordings.py
+      env:
+        QGR_PG_TEST_URL_FILE: /tmp/qgr-postgres-test-url
+        QGR_REDIS_TEST_URL_FILE: /tmp/qgr-redis-test-url
+        QGR_GATEWAY_BINARY: ${{ github.workspace }}/target/debug/qgenie-remote-gateway
+      if: matrix.suite == 'gateway'
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+        - gateway
+        - enrollment
+  recording:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # pinned toolchain action
+      with:
+        toolchain: 1.99.1
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        cache-on-failure: true
+        key: recording-v2
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '22'
+        package-manager-cache: false
+    - name: Install the pinned native Codex fixture
+      run: |
+        npm install --prefix "$RUNNER_TEMP/qgr-codex" --no-audit --no-fund --ignore-scripts --save-exact @openai/codex@0.159.2
+        binary="$RUNNER_TEMP/qgr-codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex"
+        test "$("$binary" --version)" = 'codex-cli 0.159.2'
+        echo "QGR_CODEX_BINARY=$binary" >> "$GITHUB_ENV"
+    - name: Synchronous receipts and primary-volume loss
+      run: python3 tests/e2e/recording_durability.py --require-managed-codex --report target/validation/synchronous-report.json
+    - name: Native Codex adapter contract
+      run: cargo test --package qgenie-remote-adapters --all-features --test codex_native --locked -- --ignored
+    - name: Preserve sanitized acceptance result
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: synchronous-acceptance
+        path: target/validation/synchronous-report.json
+        if-no-files-found: warn
+        retention-days: 14
   ci:
     name: CI
     if: always()
-    needs: [check, postgres, development-deployment]
+    needs:
+    - changes
+    - check
+    - postgres
+    - recording
+    - development-deployment
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - name: Require every job to pass
-        env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: |
-          python3 - <<'PY'
-          import json, os, sys
-          results = json.loads(os.environ['RESULTS'])
-          for name, job in results.items():
-              print(f"{name}: {job['result']}")
-          sys.exit(any(job['result'] != 'success' for job in results.values()))
-          PY
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 2
+    - name: Require the selected jobs to pass
+      env:
+        CODE: ${{ needs.changes.outputs.code }}
+        RESULTS: ${{ toJSON(needs) }}
+      run: python3 .github/scripts/ci_scope.py gate

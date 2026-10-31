@@ -1,66 +1,80 @@
 name: Specification laws
-on: [push, pull_request, workflow_dispatch]
-
+on:
+- push
+- pull_request
+- workflow_dispatch
 permissions:
   contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   laws:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Read pinned toolchain
-        id: pins
-        run: |
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          pins = json.loads(Path('specs/toolchain.json').read_text())
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for name in ('bun_version', 'lean_version', 'lean_linux_sha256',
-                           'bend_repository', 'bend_commit'):
-                  print(f'{name}={pins[name]}', file=output)
-          PY
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: ${{ steps.pins.outputs.bun_version }}
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: 1.99.1
-      - name: Install pinned Lean and Bend
-        env:
-          LEAN_VERSION: ${{ steps.pins.outputs.lean_version }}
-          LEAN_SHA256: ${{ steps.pins.outputs.lean_linux_sha256 }}
-          BEND_REPOSITORY: ${{ steps.pins.outputs.bend_repository }}
-          BEND_COMMIT: ${{ steps.pins.outputs.bend_commit }}
-        run: |
-          archive="$RUNNER_TEMP/lean.tar.zst"
-          curl --fail --location --retry 3 \
-            "https://github.com/leanprover/lean4/releases/download/v$LEAN_VERSION/lean-$LEAN_VERSION-linux.tar.zst" \
-            --output "$archive"
-          echo "$LEAN_SHA256  $archive" | sha256sum --check --strict
-          tar --zstd -xf "$archive" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/lean-$LEAN_VERSION-linux/bin" >> "$GITHUB_PATH"
-          git init "$RUNNER_TEMP/qgr-bend"
-          git -C "$RUNNER_TEMP/qgr-bend" remote add origin "$BEND_REPOSITORY"
-          git -C "$RUNNER_TEMP/qgr-bend" fetch --depth 1 origin "$BEND_COMMIT"
-          git -C "$RUNNER_TEMP/qgr-bend" checkout --detach FETCH_HEAD
-      - run: cargo fetch --locked
-      - name: Check laws, mutations, and Rust conformance
-        run: >-
-          python3 specs/check.py --bend-source "$RUNNER_TEMP/qgr-bend"
-          --mutations --compare-rust --report "$RUNNER_TEMP/spec-verification.json"
-      - name: Preserve successful verification evidence
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: spec-verification
-          path: ${{ runner.temp }}/spec-verification.json
-          if-no-files-found: error
-          retention-days: 14
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 2
+    - name: Select required checks
+      id: scope
+      run: python3 .github/scripts/ci_scope.py
+    - name: Read pinned toolchain
+      id: pins
+      run: |
+        python3 - <<'PY'
+        import json, os
+        from pathlib import Path
+        pins = json.loads(Path('specs/toolchain.json').read_text())
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+            for name in ('bun_version', 'lean_version', 'lean_linux_sha256',
+                         'bend_repository', 'bend_commit'):
+                print(f'{name}={pins[name]}', file=output)
+        PY
+      if: steps.scope.outputs.code == 'true'
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: ${{ steps.pins.outputs.bun_version }}
+      if: steps.scope.outputs.code == 'true'
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # pinned toolchain action
+      with:
+        toolchain: 1.99.1
+      if: steps.scope.outputs.code == 'true'
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        cache-on-failure: true
+        key: specifications-v1
+      if: steps.scope.outputs.code == 'true'
+    - name: Install pinned Lean and Bend
+      env:
+        LEAN_VERSION: ${{ steps.pins.outputs.lean_version }}
+        LEAN_SHA256: ${{ steps.pins.outputs.lean_linux_sha256 }}
+        BEND_REPOSITORY: ${{ steps.pins.outputs.bend_repository }}
+        BEND_COMMIT: ${{ steps.pins.outputs.bend_commit }}
+      run: |
+        archive="$RUNNER_TEMP/lean.tar.zst"
+        curl --fail --location --retry 3 \
+          "https://github.com/leanprover/lean4/releases/download/v$LEAN_VERSION/lean-$LEAN_VERSION-linux.tar.zst" \
+          --output "$archive"
+        echo "$LEAN_SHA256  $archive" | sha256sum --check --strict
+        tar --zstd -xf "$archive" -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/lean-$LEAN_VERSION-linux/bin" >> "$GITHUB_PATH"
+        git init "$RUNNER_TEMP/qgr-bend"
+        git -C "$RUNNER_TEMP/qgr-bend" remote add origin "$BEND_REPOSITORY"
+        git -C "$RUNNER_TEMP/qgr-bend" fetch --depth 1 origin "$BEND_COMMIT"
+        git -C "$RUNNER_TEMP/qgr-bend" checkout --detach FETCH_HEAD
+      if: steps.scope.outputs.code == 'true'
+    - run: cargo fetch --locked
+      if: steps.scope.outputs.code == 'true'
+    - name: Check laws, mutations, and Rust conformance
+      run: python3 specs/check.py --bend-source "$RUNNER_TEMP/qgr-bend" --mutations --compare-rust --report "$RUNNER_TEMP/spec-verification.json"
+      if: steps.scope.outputs.code == 'true'
+    - name: Preserve successful verification evidence
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: spec-verification
+        path: ${{ runner.temp }}/spec-verification.json
+        if-no-files-found: error
+        retention-days: 14
+      if: steps.scope.outputs.code == 'true'

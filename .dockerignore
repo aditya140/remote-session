@@ -1,7 +1,27 @@
-.git
-target
-deploy/compose/secrets
-.env
+# Only build inputs enter the context. Prose, reports and private runtime state
+# must not invalidate the application image or enter its intermediate layers.
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!.cargo/
+!.cargo/**
+!crates/
+!crates/**
+!apps/
+!apps/**
+!xtask/
+!xtask/**
+!vendor/
+!vendor/**
+!tests/
+!tests/fixtures/
+!tests/fixtures/identity/
+!tests/fixtures/identity/**
+!deploy/
+!deploy/images/
+!deploy/images/Dockerfile
+**/target
 **/*.db
 **/*.db-shm
 **/*.db-wal

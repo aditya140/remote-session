@@ -51,6 +51,11 @@ and sanitized acceptance artifacts. See the [CI guide](../docs/development/ci.md
 for workflow coverage and required results. External release qualification remains
 separate.
 
+[Task 036](036-optimize-ci-runtime.md) measures and reduces CI duration. The work
+adds a conservative prose-only path, parallel platform/integration suites, and
+persistent image dependency caching. Hosted cold, warm, and prose-only measurements
+are in progress.
+
 ## Completed milestone — core journey repairs
 
 [Task 029](029-stabilize-core-journey.md) records the user-authorized repair plan and its
