@@ -28,6 +28,10 @@ def main():
             view.send(b"v")
             until(lambda: view.sees("Activity: turn complete"))
             assert view.sees("OBSERVING")
+            request = urllib.request.Request(origin + "/stale-startup", data=b"", method="POST")
+            with urllib.request.urlopen(request, context=ssl.create_default_context(cafile=ca), timeout=3):
+                pass
+            until(lambda: view.sees("Approval pending"))
             view.send(b"\x1bOQ")
             until(lambda: view.sees("Control granted"))
             assert view.sees("CONTROLLING")

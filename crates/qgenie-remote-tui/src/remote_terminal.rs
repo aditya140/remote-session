@@ -74,7 +74,23 @@ enum Checkpoint {
     Agent(AgentState),
 }
 impl Pane {
-    fn metadata(&mut self, session: &Session) {
+    fn metadata(&mut self, current: &mut Session, session: &Session) {
+        use SessionState::*;
+        // Start replies and inventory notifications travel independently. A late
+        // startup snapshot must not replace capabilities from a running session.
+        // Running and Idle can alternate; current capability changes still apply.
+        if matches!(
+            (&self.state, &session.state),
+            (Launching, Accepted)
+                | (Running | Idle, Accepted | Launching)
+                | (
+                    Exited | Failed | Lost | OutcomeUnknown,
+                    Accepted | Launching | Running | Idle
+                )
+        ) {
+            return;
+        }
+        *current = session.clone();
         if !self.stopped
             || matches!(
                 session.state,
@@ -500,7 +516,7 @@ pub(crate) async fn run(
             }},
             read=reads.join_next(),if !reads.is_empty()=>{match read {Some(Ok(result))=>pane.attachment(result),_=>{pane.message="Native read stopped; F8 retries this read.".into();pane.read_paused=true;}}pane.next_read=Instant::now()+if matches!(pane.output.read_plan(),ReadPlan::Idle){Duration::from_millis(250)}else{Duration::from_millis(10)};},
             result=metadata.join_next(),if !metadata.is_empty()=>{match result {
-                Some(Ok(Ok(current)))=>{if current.owner==session.owner {pane.metadata(&current);session=current;}else{pane.message="Native session is absent from current inventory; displayed output is retained.".into();}},
+                Some(Ok(Ok(current)))=>{if current.owner==session.owner {pane.metadata(&mut session,&current);}else{pane.message="Native session is absent from current inventory; displayed output is retained.".into();}},
                 Some(Ok(Err(error)))=>pane.message=format!("Session status unavailable: {:?}. Displayed output is retained.",error.code),
                 _=>{},
             }},
@@ -518,7 +534,7 @@ pub(crate) async fn run(
                 Some(event)=>{
                     if let LiveFrame::Text(envelope)=&event.frame
                         && let Message::Sessions{sessions}|Message::SessionUpdates{sessions}=&envelope.message
-                        && let Some(current)=sessions.iter().find(|current|current.id==id && current.machine==machine && current.owner==session.owner) {pane.metadata(current);session=current.clone();}
+                        && let Some(current)=sessions.iter().find(|current|current.id==id && current.machine==machine && current.owner==session.owner) {pane.metadata(&mut session,current);}
                     if let LiveFrame::Text(envelope)=&event.frame && let Message::ApprovalRequested(request)=&envelope.message && request.session==id {pane.message="Approval pending · F7 reviews owner approvals without taking control.".into();}
                     match pane.output.frame(&event.frame){Ok(update)=>{if let Err(error)=pane.paint_update(update,None){pane.read_paused=true;pane.message=error.message;}},Err(error)=>pane.message=error.message}
                     if !matches!(pane.output.read_plan(),ReadPlan::Idle|ReadPlan::UnconfirmedTail) {pane.next_read=Instant::now();}

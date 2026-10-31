@@ -165,3 +165,46 @@ forwarding deadline. A concurrent client read now reports an early error directl
 Gateway Clippy also passes. Two fresh runs of the exact CI database command
 pass all 26 tests in 68.72 and 69.03 seconds. Hosted verification of this fixture
 correction remains in progress.
+
+## TUI startup follow-up
+
+The routing correction passes on hosted Linux. The recording job on `24688d6`
+then times out while requesting control in a newly created terminal. The displayed
+terminal remains in observe mode. Before changing behavior, trace the initial
+session metadata, capability updates, and F2 handling. Reproduce the ordering,
+repair the responsible boundary, and rerun the composed native recording proof.
+
+A local trace confirms `Running → Accepted → Running` delivery for the new
+terminal. The old `Accepted` update has `input=false`. The TUI replaces the current
+capabilities and silently ignores F2 during that interval.
+
+Repair sequence:
+
+1. Deliver both stale startup states to the actual TLS-connected TUI. Use a visible
+   ordered event as a barrier before the test sends one F2. Establish failure on
+   the original code.
+2. Apply lifecycle state and capabilities together. Ignore metadata from an earlier
+   startup phase. Continue to apply current capabilities and terminal outcomes.
+3. Remove diagnostic instrumentation. Run the CLI/TUI regressions, Clippy, and the
+   composed native recording proof. Push the repair and verify hosted CI.
+
+The ordered TLS/TUI regression fails on the original code at F2 and passes after
+the repair. All seven CLI workflow tests pass. Formatting and managed-feature
+Clippy pass. The complete recording proof also passes: native start and control,
+approvals, managed-start crash recovery, synchronous receipts, and primary-volume
+loss. The sanitized local report is `target/validation/ci-tui-recording-after.json`.
+
+## Deployment dispatch follow-up
+
+The deployment job on `24688d6` passes monitoring and dependency-loss recovery,
+then fails its cross-node dispatch assertion. The probe calls `sessions`, which
+reads the gateway's durable projection. That command does not dispatch to the host.
+Earlier native operations can mask this defect when they use different gateways.
+
+Repair sequence:
+
+1. Use the original start-key lookup for each probe. Verify the returned session
+   identity. This read requires actual native dispatch and does not replay a start.
+2. Keep the measured cross-node counter, bounded attempts, and token-affinity
+   changes. Preserve the deployment assertion.
+3. Run Python validation and verify the actual four-gateway deployment in CI.

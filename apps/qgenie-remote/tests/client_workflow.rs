@@ -33,6 +33,7 @@ struct Peer {
     protocol_error: bool,
     leases: Arc<AtomicUsize>,
     drop_connection: Arc<tokio::sync::Notify>,
+    stale_startup: Arc<tokio::sync::Notify>,
 }
 impl Peer {
     fn new(reconnect: bool) -> Self {
@@ -88,6 +89,7 @@ impl Peer {
             protocol_error: false,
             leases: Default::default(),
             drop_connection: Default::default(),
+            stale_startup: Default::default(),
         }
     }
 }
@@ -112,13 +114,39 @@ async fn endpoint(State(peer): State<Peer>, upgrade: WebSocketUpgrade) -> axum::
         let Some(Ok(WsMessage::Text(text)))=socket.recv().await else {panic!("hello expected")};
         let hello:Envelope=serde_json::from_str(&text).unwrap();
         let Message::Hello(hello)=hello.message else {panic!("hello expected")};
-        let available=["routing-v1","machine-pages-v1","auth-refresh-v1","session-pages-v1","session-replay-v1","agent-events-v1","approval-status-v1","session-control-v1","durable-approvals-v1"].into_iter().map(String::from).collect();
+        let available=["routing-v1","machine-pages-v1","auth-refresh-v1","session-pages-v1","session-changes-v1","session-replay-v1","agent-events-v1","approval-status-v1","session-control-v1","durable-approvals-v1"].into_iter().map(String::from).collect();
         send(&mut socket,Envelope::new(Message::Welcome(negotiate(&hello,&[Version{major:1,minor:0}],&available).unwrap()))).await;
         let client_id=ClientId::new();
         send(&mut socket,Envelope::new(Message::ConnectionReady{client:client_id,host_generation:None,activated:false})).await;
         if peer.protocol_error {socket.send(WsMessage::Text("{}".into())).await.unwrap();return;}
         loop {
-            let incoming=tokio::select! {value=socket.recv()=>value,_=peer.drop_connection.notified(),if peer.ui && connection==0=>{let _=socket.close().await;return;}};
+            let incoming=tokio::select! {
+                value=socket.recv()=>value,
+                _=peer.drop_connection.notified(),if peer.ui && connection==0=>{let _=socket.close().await;return;},
+                _=peer.stale_startup.notified(),if peer.ui && connection==0=>{
+                    for state in [SessionState::Accepted, SessionState::Launching] {
+                        let mut stale=peer.session.clone();
+                        stale.state=state;
+                        stale.capabilities.input=false;
+                        let mut update=Envelope::new(Message::SessionUpdates{sessions:vec![stale]});
+                        update.machine=Some(peer.session.machine);
+                        send(&mut socket,update).await;
+                    }
+                    // This visible message follows both updates on the same event queue.
+                    // The Python driver waits for it before sending its single F2.
+                    let mut barrier=Envelope::new(Message::ApprovalRequested(ApprovalRequest {
+                        id:ApprovalId::new(),session:peer.session.id,owner:peer.session.owner,
+                        native_id:"fixture-startup-barrier".into(),kind:"command".into(),
+                        summary:"Synthetic ordering barrier".into(),request_hash:"a".repeat(64),
+                        policy_revision:Counter(1),requested_at:Timestamp::from_unix_millis(1).unwrap(),
+                        expires_at:None,allowed_decisions:vec![ApprovalDecision::Deny],
+                    }));
+                    barrier.machine=Some(peer.session.machine);
+                    barrier.session=Some(peer.session.id);
+                    send(&mut socket,barrier).await;
+                    continue;
+                },
+            };
             let Some(Ok(frame))=incoming else {break};
             let WsMessage::Text(text)=frame else {continue};
             let request:Envelope=serde_json::from_str(&text).unwrap();
@@ -465,6 +493,12 @@ async fn actual_tui_recovers_output_discards_control_and_restores_terminal_on_si
             Router::new()
                 .route("/v1/connect/client", get(endpoint))
                 .route("/v1/machines", get(machines))
+                .route(
+                    "/stale-startup",
+                    axum::routing::post(|State(peer): State<Peer>| async move {
+                        peer.stale_startup.notify_one();
+                    }),
+                )
                 .route(
                     "/drop",
                     axum::routing::post(|State(peer): State<Peer>| async move {
