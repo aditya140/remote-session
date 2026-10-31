@@ -52,8 +52,16 @@ pub struct SpoolStatus {
 pub struct RecordingSpool {
     config: SpoolConfig,
     db: Connection,
-    _lock: File,
+    _lock: OwnerLock,
     unknown: bool,
+}
+// Fields drop in declaration order: SQLite closes before this lock releases.
+// Explicit unlock also releases a descriptor duplicated during concurrent fork.
+struct OwnerLock(File);
+impl Drop for OwnerLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.0);
+    }
 }
 impl RecordingSpool {
     pub fn open(config: SpoolConfig, now: Timestamp) -> Result<Self> {
@@ -66,6 +74,7 @@ impl RecordingSpool {
         let lock = private_file(&config.directory.join("owner.lock"))?;
         lock.try_lock_exclusive()
             .context("recording spool already owned")?;
+        let lock = OwnerLock(lock);
         let path = config.directory.join("metadata.sqlite");
         private_file(&path)?;
         let db = Connection::open(path)?;

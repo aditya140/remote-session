@@ -552,3 +552,17 @@ fn actual_enospc_recovers_with_durable_uncertainty_and_live_pty_control() {
     assert!(spool.status().unwrap().warning.is_some());
     runtime.shutdown(true).unwrap();
 }
+
+#[test]
+fn closing_owner_releases_lock_even_if_a_child_inherited_a_descriptor() {
+    let directory = tempdir();
+    let spool = RecordingSpool::open(config(directory.path()), time(1)).unwrap();
+    let inherited = spool._lock.0.try_clone().unwrap();
+    assert!(RecordingSpool::open(config(directory.path()), time(2)).is_err());
+    drop(spool);
+    let replacement = RecordingSpool::open(config(directory.path()), time(3))
+        .expect("a duplicate descriptor must not keep a closed owner's lock");
+    drop(inherited);
+    assert!(RecordingSpool::open(config(directory.path()), time(4)).is_err());
+    drop(replacement);
+}
