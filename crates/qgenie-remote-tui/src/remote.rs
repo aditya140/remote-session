@@ -4,7 +4,9 @@ use crate::display::multiline as clean;
 use anyhow::Result;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use qgenie_remote_client::{GatewayClient, GatewayConfig, LiveClient, LiveFrame, LiveStatus};
+use qgenie_remote_client::{
+    GatewayClient, GatewayConfig, LiveClient, LiveFrame, UserCredentials, observation_can_reconnect,
+};
 use qgenie_remote_proto::{
     rest::{AccessToken, HistoryQuery, HistoryStream, HistoryStreamsQuery},
     wire::{Machine, Message, Session},
@@ -34,6 +36,7 @@ struct App {
     session_after: Option<SessionId>,
     session_next: Option<SessionId>,
     active_only: bool,
+    attention_only: bool,
     selected: usize,
     streams: Vec<HistoryStream>,
     stream: usize,
@@ -95,10 +98,19 @@ impl App {
             .get(self.machine)
             .filter(|machine| Self::matches_machine(machine, &self.machine_filter.to_lowercase()))
     }
+    fn needs_attention(&self, session: &Session) -> bool {
+        self.approvals.pending(session.id) > 0
+            || session.recording_warning.is_some()
+            || matches!(
+                session.state,
+                SessionState::Failed | SessionState::Lost | SessionState::OutcomeUnknown
+            )
+    }
     fn selected_session(&self) -> Option<&Session> {
         self.sessions.get(self.selected).filter(|session| {
             Some(session.machine) == self.machine_id()
                 && Self::matches_session(session, &self.session_filter.to_lowercase())
+                && (!self.attention_only || self.needs_attention(session))
         })
     }
     fn refilter(&mut self) {
@@ -119,8 +131,10 @@ impl App {
             .iter()
             .enumerate()
             .filter_map(|(index, session)| {
-                (Some(session.machine) == machine && Self::matches_session(session, &query))
-                    .then_some(index)
+                (Some(session.machine) == machine
+                    && Self::matches_session(session, &query)
+                    && (!self.attention_only || self.needs_attention(session)))
+                .then_some(index)
             })
             .collect();
         if !self.visible_sessions.contains(&self.selected) {
@@ -176,7 +190,7 @@ impl App {
                     .unwrap_or(0);
                 self.mode = Mode::Sessions;
                 self.message =
-                    "v live view · Enter recordings · b live/all history · n next page · Home first page".into();
+                    "v live view · Enter recordings · ! attention · b live/all history · n next page · Home first page".into();
             }
             Update::Streams(session, mut streams, next, append)
                 if Some(session) == self.session_id() =>
@@ -288,9 +302,14 @@ impl App {
                     .map(|index| {
                         let s = &self.sessions[*index];
                         ListItem::new(format!(
-                            "{:?} · {}{}",
+                            "{:?} · {}{}{}",
                             s.state,
                             clean(&s.cwd),
+                            if self.approvals.pending(s.id) > 0 {
+                                format!(" · {} approval(s) pending", self.approvals.pending(s.id))
+                            } else {
+                                String::new()
+                            },
                             s.recording_warning
                                 .as_ref()
                                 .map(|w| format!(" · {}", clean(w)))
@@ -300,15 +319,15 @@ impl App {
                     .collect();
                 frame.render_stateful_widget(
                     List::new(items)
-                        .block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .title(if self.active_only {
-                                    "Sessions · live"
-                                } else {
-                                    "Sessions · history"
-                                }),
-                        )
+                        .block(Block::default().borders(Borders::ALL).title(
+                            if self.attention_only {
+                                "Sessions · needs attention (! shows all)"
+                            } else if self.active_only {
+                                "Sessions · live"
+                            } else {
+                                "Sessions · history"
+                            },
+                        ))
                         .highlight_style(Style::default().fg(Color::Cyan))
                         .highlight_symbol("› "),
                     areas[1],
@@ -496,9 +515,9 @@ fn push_line(
     }
 }
 /// Credentials are injected by the caller. This view stores no token and owns no native
-/// sessions. An expired credential is replaced by reopening with the caller's new token.
+/// sessions. Use `run_remote_authenticated` for credentials that change during a session.
 pub async fn run_remote(config: GatewayConfig, token: AccessToken) -> Result<()> {
-    run_remote_inner(config, token, None).await
+    run_remote_inner(config, UserCredentials::fixed(token), None).await
 }
 /// Caller-owned private state holds start identities, never access credentials or argv.
 pub async fn run_remote_with_state(
@@ -506,16 +525,24 @@ pub async fn run_remote_with_state(
     token: AccessToken,
     state: &Path,
 ) -> Result<()> {
-    run_remote_inner(config, token, Some(state)).await
+    run_remote_inner(config, UserCredentials::fixed(token), Some(state)).await
+}
+/// Use caller-owned credential updates; this view never persists user credentials.
+pub async fn run_remote_authenticated(
+    config: GatewayConfig,
+    credentials: UserCredentials,
+    state: &Path,
+) -> Result<()> {
+    run_remote_inner(config, credentials, Some(state)).await
 }
 async fn run_remote_inner(
     config: GatewayConfig,
-    token: AccessToken,
+    credentials: UserCredentials,
     state: Option<&Path>,
 ) -> Result<()> {
     let api = GatewayClient::new(config.clone())?;
-    let machines = api.machines(&token).await?;
-    let mut live = Some(api.connect(&token).await?);
+    let machines = api.machines(&credentials.current()?).await?;
+    let mut live = Some(api.connect_authenticated(&credentials).await?);
     let mut app = App {
         origin: config.origin,
         approvals: crate::remote_badge::Badge::default(),
@@ -525,6 +552,7 @@ async fn run_remote_inner(
         session_after: None,
         session_next: None,
         active_only: true,
+        attention_only: false,
         selected: 0,
         streams: Vec::new(),
         stream: 0,
@@ -546,6 +574,7 @@ async fn run_remote_inner(
     let mut terminal = TerminalGuard::enter()?;
     let signals = SignalGuard::start()?;
     let mut jobs: JoinSet<Result<Update, RemoteError>> = JoinSet::new();
+    let mut recovery: JoinSet<Result<LiveClient, RemoteError>> = JoinSet::new();
     let mut ticks = tokio::time::interval(Duration::from_millis(30));
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
@@ -553,6 +582,7 @@ async fn run_remote_inner(
             _=ticks.tick()=>{
                 if signals.requested.load(Ordering::Acquire) {break;}
                 app.approvals.tick(live.as_ref().map(LiveClient::handle));
+                app.refilter();
                 if event::poll(Duration::ZERO)? && let Event::Key(key)=event::read()? && key.kind!=KeyEventKind::Release {
                     if app.filter_backup.is_some() {
                         match key.code {
@@ -571,19 +601,20 @@ async fn run_remote_inner(
                         jobs.abort_all();while jobs.join_next().await.is_some() {}
                     }
                     match key.code {
+                        KeyCode::Char('!') if app.mode==Mode::Sessions=>{app.attention_only = !app.attention_only;app.refilter();},
                         KeyCode::Char('/') if jobs.is_empty() && matches!(app.mode,Mode::Machines|Mode::Sessions)=>{app.filter_backup=Some(app.filter().clone());},
                         KeyCode::Char('a') if jobs.is_empty()=>{if let Some(client)=live.as_mut(){match crate::remote_approvals::run(&mut terminal,&signals.requested,client).await {Ok(message)=>app.message=message,Err(error)=>app.message=error.to_string()}app.approvals.changed();}},
                         KeyCode::F(2|3|6) if jobs.is_empty() && app.mode==Mode::Machines=>{
                             if let Some(machine)=app.selected_machine().cloned() {
                                 let action=match key.code {KeyCode::F(2)=>crate::remote_machine::Action::Rename,KeyCode::F(3)=>crate::remote_machine::Action::Label,_=>crate::remote_machine::Action::Revoke};
-                                match crate::remote_dialog::drain(live.as_mut(),crate::remote_machine::run(&mut terminal,&signals.requested,api.clone(),token.clone(),machine,action)).await {Ok(message)=>app.message=message,Err(error)=>app.message=error.to_string()}
+                                match crate::remote_dialog::drain(live.as_mut(),crate::remote_machine::run(&mut terminal,&signals.requested,api.clone(),credentials.current()?,machine,action)).await {Ok(message)=>app.message=message,Err(error)=>app.message=error.to_string()}
                                 app.reload=true;
                             }
                         },
                         KeyCode::Esc=>{jobs.abort_all();app.mode=match app.mode {Mode::History=>Mode::Streams,Mode::Streams=>Mode::Sessions,_=>Mode::Machines};},
                         KeyCode::Up=>match app.mode {Mode::Machines=>App::move_filtered(&app.visible_machines,&mut app.machine,false),Mode::Sessions=>App::move_filtered(&app.visible_sessions,&mut app.selected,false),Mode::Streams=>app.stream=app.stream.saturating_sub(1),Mode::History=>app.scroll=app.scroll.saturating_sub(1)},
                         KeyCode::Down=>match app.mode {Mode::Machines=>App::move_filtered(&app.visible_machines,&mut app.machine,true),Mode::Sessions=>App::move_filtered(&app.visible_sessions,&mut app.selected,true),Mode::Streams=>app.stream=(app.stream+1).min(app.streams.len().saturating_sub(1)),Mode::History=>app.scroll=app.scroll.saturating_add(1)},
-                        KeyCode::Char('v') if jobs.is_empty() && app.mode==Mode::Sessions=>{if let (Some(session),Some(client))=(app.selected_session().cloned(),live.as_mut()){match crate::remote_terminal::run(&mut terminal,&signals.requested,client,session).await {Ok(())=>app.message="Detached from native view; session lifetime is unchanged.".into(),Err(error)=>app.message=error.to_string()}}},
+                        KeyCode::Char('v') if jobs.is_empty() && app.mode==Mode::Sessions=>{if let (Some(session),Some(client))=(app.selected_session().cloned(),live.as_mut()){match crate::remote_terminal::run(&mut terminal,&signals.requested,client,session,&api,&credentials).await {Ok(())=>app.message="Detached from native view; session lifetime is unchanged.".into(),Err(error)=>app.message=error.to_string()}}},
                         KeyCode::Char('c'|'k'|'u') if jobs.is_empty() && matches!(app.mode,Mode::Machines|Mode::Sessions) && (key.code!=KeyCode::Char('u') || app.mode==Mode::Sessions)=>{
                             if let (Some(machine),Some(client),Some(state))=(app.selected_machine().cloned(),live.as_mut(),state) {
                                 let initial=app.selected_session().map(|s|s.cwd.clone()).unwrap_or_else(||"/".into());
@@ -593,13 +624,13 @@ async fn run_remote_inner(
                                     crate::remote_dialog::drain(Some(client),crate::remote_start::run(&mut terminal,&signals.requested,handle,machine,state,start)).await
                                 };
                                 match result {
-                                    Ok(Some(session))=>{let machine=session.machine;app.active_only=true;app.session_after=None;app.mode=Mode::Sessions;app.selected=app.sessions.len();app.sessions.push(session.clone());app.refilter();if let Err(error)=crate::remote_terminal::run(&mut terminal,&signals.requested,client,session).await{app.message=error.to_string();}let handle=client.handle();jobs.spawn(session_page(handle,machine,None,true));},
+                                    Ok(Some(session))=>{let machine=session.machine;app.active_only=true;app.session_after=None;app.mode=Mode::Sessions;app.selected=app.sessions.len();app.sessions.push(session.clone());app.refilter();if let Err(error)=crate::remote_terminal::run(&mut terminal,&signals.requested,client,session,&api,&credentials).await{app.message=error.to_string();}let handle=client.handle();jobs.spawn(session_page(handle,machine,None,true));},
                                     Ok(None)=>app.message="Creation view closed. Submitted identities remain in your private start journal; uncertain launches are never resent.".into(),
                                     Err(error)=>app.message=error.to_string(),
                                 }
                             }else{app.message="Creation requires a connection and a caller-provided private state directory.".into();}
                         },
-                        KeyCode::Char('r') if jobs.is_empty()=>{let api=api.clone();let token=token.clone();jobs.spawn(async move {let machines=api.machines(&token).await?;Ok(Update::Connected(api.connect(&token).await?,machines))});},
+                        KeyCode::Char('r') if jobs.is_empty() && recovery.is_empty()=>{let api=api.clone();let credentials=credentials.clone();jobs.spawn(async move {let machines=api.machines(&credentials.current()?).await?;Ok(Update::Connected(api.connect_authenticated(&credentials).await?,machines))});},
                         KeyCode::Enter if jobs.is_empty() && app.mode==Mode::Machines=>{app.active_only=true;app.session_after=None;if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()) {let handle=client.handle();jobs.spawn(session_page(handle,machine,None,true));}},
                         KeyCode::Char('b')|KeyCode::Home|KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::Sessions=>{
                             if key.code==KeyCode::Char('b') {app.active_only = !app.active_only;app.session_after=None;}
@@ -607,26 +638,33 @@ async fn run_remote_inner(
                             else if let Some(next)=app.session_next {app.session_after=Some(next);}else{continue;}
                             if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()){jobs.spawn(session_page(client.handle(),machine,app.session_after,app.active_only));}
                         },
-                        KeyCode::Enter|KeyCode::Char('h') if jobs.is_empty() && app.mode==Mode::Sessions=>{if let Some(session)=app.session_id() {let api=api.clone();let token=token.clone();jobs.spawn(async move {let page=api.history_streams(&token,session,HistoryStreamsQuery{after:None,limit:64}).await?;Ok(Update::Streams(session,page.streams,page.next,false))});}},
-                        KeyCode::Enter if jobs.is_empty() && app.mode==Mode::Streams=>{if let (Some(session),Some(stream))=(app.session_id(),app.streams.get(app.stream)) {let api=api.clone();let token=token.clone();let epoch=stream.stream_epoch;jobs.spawn(history(api,token,session,epoch,None,false));}},
-                        KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::Streams=>{if let (Some(session),Some(after))=(app.session_id(),app.stream_next.clone()) {if app.streams.len()>=4096 {app.message="Stream display limit reached; reopen history to browse again.".into();}else{let api=api.clone();let token=token.clone();jobs.spawn(async move {let page=api.history_streams(&token,session,HistoryStreamsQuery{after:Some(after),limit:64}).await?;Ok(Update::Streams(session,page.streams,page.next,true))});}}},
-                        KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::History=>{if let (Some(session),Some(stream),Some(after))=(app.session_id(),app.streams.get(app.stream),app.history_next.clone()) {jobs.spawn(history(api.clone(),token.clone(),session,stream.stream_epoch,Some(after),true));}},
+                        KeyCode::Enter|KeyCode::Char('h') if jobs.is_empty() && app.mode==Mode::Sessions=>{if let Some(session)=app.session_id() {let api=api.clone();let token=credentials.current()?;jobs.spawn(async move {let page=api.history_streams(&token,session,HistoryStreamsQuery{after:None,limit:64}).await?;Ok(Update::Streams(session,page.streams,page.next,false))});}},
+                        KeyCode::Enter if jobs.is_empty() && app.mode==Mode::Streams=>{if let (Some(session),Some(stream))=(app.session_id(),app.streams.get(app.stream)) {let api=api.clone();let token=credentials.current()?;let epoch=stream.stream_epoch;jobs.spawn(history(api,token,session,epoch,None,false));}},
+                        KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::Streams=>{if let (Some(session),Some(after))=(app.session_id(),app.stream_next.clone()) {if app.streams.len()>=4096 {app.message="Stream display limit reached; reopen history to browse again.".into();}else{let api=api.clone();let token=credentials.current()?;jobs.spawn(async move {let page=api.history_streams(&token,session,HistoryStreamsQuery{after:Some(after),limit:64}).await?;Ok(Update::Streams(session,page.streams,page.next,true))});}}},
+                        KeyCode::Char('n') if jobs.is_empty() && app.mode==Mode::History=>{if let (Some(session),Some(stream),Some(after))=(app.session_id(),app.streams.get(app.stream),app.history_next.clone()) {jobs.spawn(history(api.clone(),credentials.current()?,session,stream.stream_epoch,Some(after),true));}},
                         _=>{},
                     }
                 }
-                if jobs.is_empty() && app.reload {app.reload=false;let api=api.clone();let token=token.clone();jobs.spawn(async move {Ok(Update::Machines(api.machines(&token).await?))});}
+                if jobs.is_empty() && app.reload {app.reload=false;let api=api.clone();let token=credentials.current()?;jobs.spawn(async move {Ok(Update::Machines(api.machines(&token).await?))});}
                 app.busy = !jobs.is_empty();terminal.terminal.draw(|frame|app.draw(frame))?;
             },
+            result=recovery.join_next(),if !recovery.is_empty()=>{match result {
+                Some(Ok(Ok(client)))=>{live=Some(client);app.reload=true;app.approvals.changed();app.message="Observation reconnected. Control requires an explicit request.".into();if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()) && app.mode==Mode::Sessions {jobs.spawn(session_page(client.handle(),machine,app.session_after,app.active_only));}},
+                Some(Ok(Err(error)))=>app.message=format!("{:?}: {}. Press r to retry after resolving access or connectivity.",error.code,error.message),
+                _=>app.message="Recovery stopped. Press r to retry.".into(),
+            }},
             update=jobs.join_next(),if !jobs.is_empty()=>{match update {Some(Ok(Ok(update)))=>{if let Some(replacement)=app.apply(update) {drop(live.replace(replacement));}},Some(Ok(Err(error)))=>app.message=format!("{:?}: {}. Replace an expired credential and reopen this view.",error.code,error.message),_=>app.message="Remote request stopped; press r to reconnect.".into()}},
             incoming=async {match &mut live {Some(client)=>client.next().await,None=>std::future::pending().await}}=>{
                 match incoming {Some(event)=>if let LiveFrame::Text(envelope)=&event.frame {app.approvals.event(&envelope.message);match &envelope.message {
                     Message::Sessions{..}|Message::SessionUpdates{..} if app.mode==Mode::Sessions && envelope.machine==app.machine_id() && jobs.is_empty()=>{if let (Some(machine),Some(client))=(app.machine_id(),live.as_ref()){jobs.spawn(session_page(client.handle(),machine,app.session_after,app.active_only));}},
-                    Message::MachineUpdated(_)=>app.reload=true,Message::MachinePage{page,total_pages,..} if page+1==*total_pages=>app.reload=true,Message::Error(error)=>app.message=format!("{:?}: {}",error.code,clean(&error.message)),_=>{}}},None=>{let status=live.as_ref().map(|l|l.status().borrow().clone()).unwrap_or(LiveStatus::Disconnected);app.message=format!("{status:?}; press r to reconnect.");live=None;}}
+                    Message::MachineUpdated(_)=>app.reload=true,Message::MachinePage{page,total_pages,..} if page+1==*total_pages=>app.reload=true,Message::Error(error)=>app.message=format!("{:?}: {}",error.code,clean(&error.message)),_=>{}}},None=>{if let Some(client)=live.take(){let error=client.disconnect_error();jobs.abort_all();while jobs.join_next().await.is_some(){}app.message=format!("{:?}: {}",error.code,error.message);if observation_can_reconnect(&error) && recovery.is_empty(){let api=api.clone();let credentials=credentials.clone();recovery.spawn(async move{api.reconnect_observation(&credentials).await});app.message="Connection lost. Reconnecting observation; native sessions continue.".into();}}}}
             }
         }
     }
     jobs.abort_all();
+    recovery.abort_all();
     while jobs.join_next().await.is_some() {}
+    while recovery.join_next().await.is_some() {}
     drop(terminal);
     if let Some(client) = live {
         client.close().await;

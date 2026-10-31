@@ -1,9 +1,8 @@
 //! Scriptable owner operations use the same SDK and persisted start identities as the TUI.
 use anyhow::Result;
 use clap::Subcommand;
-use qgenie_remote_client::{GatewayClient, GatewayConfig, RemoteAttachment};
+use qgenie_remote_client::{GatewayClient, GatewayConfig, RemoteAttachment, UserCredentials};
 use qgenie_remote_proto::{
-    rest::AccessToken,
     wire::{Launch, LaunchKind},
     *,
 };
@@ -12,6 +11,8 @@ use std::path::Path;
 
 #[derive(Subcommand)]
 pub(crate) enum Action {
+    #[command(flatten)]
+    Observe(super::remote_observe::Action),
     Machines,
     Rename {
         machine: MachineId,
@@ -135,13 +136,17 @@ pub(crate) enum Action {
         after: u64,
     },
 }
-pub(crate) async fn run(
+pub(crate) async fn run_authenticated(
     config: GatewayConfig,
-    token: AccessToken,
+    credentials: UserCredentials,
     state: &Path,
     action: Action,
 ) -> Result<()> {
     let api = GatewayClient::new(config)?;
+    if let Action::Observe(action) = action {
+        return super::remote_observe::run(api, credentials, action).await;
+    }
+    let token = credentials.current()?;
     if let Action::HistoryStreams { session } = &action {
         println!(
             "{}",
@@ -210,14 +215,14 @@ pub(crate) async fn run(
     if let Some(result) = direct {
         return finish(result);
     }
-    let live = api.connect(&token).await?;
+    let mut live = api.connect_authenticated(&credentials).await?;
     let handle = live.handle();
     // Preserve the original JSON array output while reading bounded pages.
     if matches!(
         &action,
         Action::Sessions { page: false, .. } | Action::Starts { page: false, .. }
     ) {
-        let result: Result<()> = async {
+        let result: Result<()> = draining(&mut live, async {
             let mut first = true;
             print!("[");
             match &action {
@@ -264,13 +269,14 @@ pub(crate) async fn run(
             }
             println!("]");
             Ok(())
-        }
+        })
         .await;
         live.close().await;
         return result;
     }
-    let result:Result<Value,RemoteError>=async {
+    let result:Result<Value,RemoteError>=draining(&mut live, async {
         Ok(match action {
+            Action::Observe(_) => unreachable!("observation dispatch returns before mutations"),
             Action::Machines|Action::Rename{..}|Action::Label{..}|Action::RemoveLabel{..}|Action::Revoke{..}|Action::HistoryStreams{..}|Action::History{..}=>unreachable!(),
             Action::Sessions{machine,after,active,..}=>{let(sessions,next)=handle.session_page(machine,after,64,active).await?;json!({"sessions":sessions,"next":next})},
             Action::Roots{machine}=>json!({"roots":handle.allowed_roots(machine).await?}),
@@ -299,7 +305,7 @@ pub(crate) async fn run(
                 RemoteAttachment::Snapshot(snapshot)=>{use base64::{Engine,engine::general_purpose::STANDARD};json!({"snapshot":{"epoch":snapshot.epoch,"seq":snapshot.seq,"rows":snapshot.rows,"cols":snapshot.cols,"format":snapshot.format,"data":STANDARD.encode(snapshot.data)},"floor":snapshot.floor,"head":snapshot.head})},
             },
         })
-    }.await;
+    }).await;
     live.close().await;
     finish(result)
 }
@@ -323,4 +329,20 @@ fn write_items<T: serde::Serialize>(items: &[T], first: &mut bool) -> Result<()>
         print!("{}", serde_json::to_string(item)?);
     }
     Ok(())
+}
+
+// The driver still resolves interrupted mutation requests with their original outcome.
+// Draining unsolicited traffic here does not retry or replace those requests.
+async fn draining<T>(
+    live: &mut qgenie_remote_client::LiveClient,
+    work: impl std::future::Future<Output = T>,
+) -> T {
+    tokio::pin!(work);
+    let mut connected = true;
+    loop {
+        tokio::select! { biased;
+            result = &mut work => return result,
+            event = live.next(), if connected => if event.is_none() { connected = false; }
+        }
+    }
 }

@@ -98,7 +98,34 @@ impl OAuth {
         if !response.status().is_success() {
             return Err(Error::Denied);
         }
-        self.tokens(http::response(response, 65536).await?, started)
+        let mut response: TokenResponse = http::response(response, 65536).await?;
+        // OAuth permits omission when a refresh keeps the originally requested scope.
+        if response.scope.is_none() && fields.contains(&("grant_type", "refresh_token")) {
+            response.scope = Some(self.config.remote_scope.clone());
+        }
+        self.tokens(response, started)
+    }
+
+    /// Exchanges one client-owned refresh credential without automatic retries.
+    ///
+    /// The caller serializes exchanges and replaces a returned rotated credential.
+    /// On an uncertain exchange, sign in again instead of resending the old token.
+    /// Machine enrollment and connector state must never receive this credential.
+    ///
+    /// # Errors
+    /// Returns a configuration error for invalid input, denied for provider refusal,
+    /// or unavailable/protocol when the exchange outcome cannot be established.
+    pub async fn refresh(&self, refresh: &str) -> Result<Tokens, Error> {
+        if refresh.is_empty() || refresh.len() > 16384 || refresh.chars().any(char::is_control) {
+            return Err(Error::Configuration);
+        }
+        self.exchange(&[
+            ("grant_type", "refresh_token"),
+            ("client_id", &self.config.client_id),
+            ("refresh_token", refresh),
+            ("scope", &self.scopes()),
+        ])
+        .await
     }
     fn tokens(&self, response: TokenResponse, started: Instant) -> Result<Tokens, Error> {
         if !response

@@ -68,7 +68,7 @@ fn public_network_fixtures_roundtrip_and_keep_full_precision() {
         );
         count += 1;
     }
-    assert_eq!(count, 30);
+    assert_eq!(count, 32);
 }
 
 #[test]

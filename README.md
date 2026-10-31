@@ -108,20 +108,24 @@ See the [transport API](crates/qgenie-remote-transport/README.md), [native Codex
 ### Remote terminals and owner history
 
 ```sh
-qgenie-remote remote --gateway https://your-gateway.example \
-  --token-file /private/path/current-user-token --ca-bundle /path/to/enterprise-ca.pem
+qgenie-remote remote setup --gateway https://your-gateway.example \
+  --oauth-config /private/oauth.json --ca-bundle /path/to/enterprise-ca.pem
+qgenie-remote remote
 ```
 
-The caller supplies a current dedicated remote user token in a private regular file owned by
-that OS user; this command stores no credential. `--ca-bundle` is optional when system roots
-already trust the gateway. Use Enter to browse machines, sessions and recorded streams;
+Setup saves connection settings in the selected `--state-dir`. Each new invocation signs
+in through browser PKCE, or a device code with `--device`. The running client refreshes its
+user credentials in memory. It never saves access or refresh tokens. Automation can still
+supply `--token-file /private/current-user-token`. The file must be a private regular file
+owned by the current OS user. `--ca-bundle` is optional when system roots already trust the gateway. Use Enter to browse machines, sessions and recorded streams;
 `v` opens a live terminal, `c` opens the allowed-directory picker for a new `/bin/sh`, and
 `k` looks up persisted start identities without resending launches. In the picker, Enter
 browses a path, `p` edits it, Backspace opens its parent and Ctrl-N submits one start in the
 current directory. Start identities use the global `--state-dir`; their journal contains
 scope/key/fingerprint metadata, without argv or credentials. `n` reads another history page,
-Esc goes back, `r` reconnects, and `q` exits. Expired tokens
-are replaced by reopening with a fresh injected credential. Protected gateway history must
+Esc goes back, `r` retries a connection, and `q` exits. Observation reconnects automatically
+after temporary loss, with at most six attempts per recovery. Denied access stops recovery.
+A failed credential refresh requires a new sign-in. Token-file users supply a new token. Protected gateway history must
 be configured and qualified. The view displays original gaps and redacted text with bounded
 memory and independent keyboard/signal handling. Local PTY workflows remain available.
 
@@ -137,7 +141,9 @@ labels (Ctrl-D confirms removal), and F6 confirms remote-access revocation. Revo
 native sessions and local capture alive. `/` filters machines by ID/name/hostname/labels and
 sessions by ID/cwd/state/agent/command. Enter applies, Esc cancels the edit and Ctrl-U clears;
 hidden rows cannot receive actions. The machine list shows host/platform/CLI/native-agent versions and last seen time; its
-owner approval badge reports pending, partial or unavailable status. In the creation picker,
+owner approval badge reports pending, partial or unavailable status. In the session list,
+`!` filters the current page to pending approvals, failed or uncertain lifetime, and recording
+warnings. The agent pane shows typed activity separately from process lifetime. In the creation picker,
 F5 selects an advertised agent. When no valid directory is selected, the picker offers the host's allowed roots.
 F1 returns to root selection; `p` accepts a manual path when an older peer cannot list roots.
 Session lists open on live work. In the remote list, `b` switches live/history, `n` advances
@@ -148,6 +154,12 @@ The agent pane renders structured messages/tools and accepts controlled prompt/s
 In the session list, `u` resumes eligible confirmed-ended agent history in a new session and
 selected directory; `k` remains read-only recovery of an original start identity. Lost or
 outcome-unknown history is not resumed automatically. See the [MVP evidence report](docs/validation/mvp-evidence.md).
+
+`remote read MACHINE SESSION` prints a bounded, safe text checkpoint. `remote events` emits
+bounded JSON lines. `remote activity` reports typed activity and durable approval status.
+`remote wait MACHINE SESSION --turn TURN_ID --timeout 300` waits for that exact turn;
+`--exit` waits for native exit. Timeout leaves work running. These commands never take control.
+See [remote commands](docs/integration/remote-commands.md) for bounds and result meanings.
 
 Scriptable `remote rename`, `label`, `remove-label` and `revoke --yes` use the same owner SDK.
 `remote send MACHINE SESSION --stdin [--enter]` sends piped input once, with a 32 KiB bound

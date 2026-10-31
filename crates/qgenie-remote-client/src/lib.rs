@@ -1,5 +1,11 @@
 //! Local and remote session clients. Connection retries never resend mutations.
+mod activity;
+mod credentials;
+mod recovery;
+pub use activity::{Activity, ApprovalSummary, WaitOutcome, WaitTarget};
+pub use recovery::observation_can_reconnect;
 mod gateway;
+pub use credentials::{CredentialUpdates, UserCredential, UserCredentials};
 mod live;
 mod observe;
 mod output;

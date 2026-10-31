@@ -31,7 +31,10 @@ Configure a dedicated native OAuth client with a registered loopback redirect, a
 }
 ```
 
-Endpoint origins must agree. HTTPS uses verified native trust plus an optional PEM CA bundle and standard HTTPS_PROXY/NO_PROXY behavior. Redirects are disabled. Dedicated remote scope is mandatory; inference scopes are rejected. Request/response/callback sizes and deadlines are bounded. Token Debug output redacts both access and refresh credentials. Refresh credentials are returned only to interactive client composition for its own protected storage.
+Endpoint origins must agree. HTTPS uses verified native trust plus an optional PEM CA bundle and standard HTTPS_PROXY/NO_PROXY behavior. Redirects are disabled. Dedicated remote scope is mandatory; inference scopes are rejected. Request/response/callback sizes and deadlines are bounded. Token Debug output redacts both access and refresh credentials. Refresh credentials are returned only to interactive client composition. `OAuth::refresh`
+performs one bounded exchange without retries. Composition serializes exchanges and replaces
+rotated credentials. The standalone remote client keeps them in memory; enrollment discards
+them. They never enter machine state.
 
 ## Native connector
 

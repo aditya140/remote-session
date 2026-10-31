@@ -1,6 +1,6 @@
 # Implementation goal and completion
 
-Updated: 2026-10-26 (UTC).
+Updated: 2026-10-31 (UTC).
 
 ## Current goal — overall Linux completion
 
@@ -21,6 +21,20 @@ measurement limits. Real enterprise access, user services, and the developer pil
 development workflow. It is installed and tested on Linux x86-64. Warm CLI edits measured
 0.33–0.43 seconds, with a slower 9.10-second first JIT edit. Normal Cargo and CI retain
 Rust 1.99.1. See the [development guide](../docs/development/ra-jit.md).
+
+[Task 032](032-review-herdr-core.md) reviews the separately cloned Herdr Core runtime.
+The [source comparison](../docs/validation/herdr-core-review-2026-10-31.md) recommends
+readable output, bounded waits/events, activity summaries, client observation recovery,
+and small launch profiles. The review kept setup, sign-in, real deployment, and the pilot as
+priorities. Upstream runtime tests were not executed. Task 032 changed documentation only.
+
+[Task 033](033-implement-daily-remote-workflow.md) implements the accepted local workflow.
+It adds saved setup, client-owned OAuth refresh, readable output, bounded events, typed
+activity and waits, an attention filter, and automatic observation recovery. It also fixes
+discarded native turn outcomes and connection error classification. The
+[validation report](../docs/validation/daily-remote-workflow-2026-10-31.md) records workspace,
+focused, managed Codex, native, keyboard, schema and lint results. Launch profiles and naming
+remain after pilot feedback. Task 030 retains enterprise, service, pilot and resource gates.
 
 ## Completed milestone — core journey repairs
 

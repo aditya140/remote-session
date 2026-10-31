@@ -124,6 +124,121 @@ where
 fn token() -> AccessToken {
     "synthetic-live-token".to_owned().try_into().unwrap()
 }
+
+#[tokio::test]
+async fn lost_wss_refresh_ack_allows_new_observation_but_never_resends_the_request() {
+    let server = fixture(move |mut connection| async move {
+        assert!(matches!(
+            read(&mut connection).await.message,
+            Message::Reauthenticate { .. }
+        ));
+        connection.close().await.unwrap();
+    })
+    .await;
+    let (updates, credentials) =
+        crate::UserCredentials::channel(crate::UserCredential::fixed(token()));
+    let mut client = server
+        .api
+        .connect_authenticated(&credentials)
+        .await
+        .unwrap();
+    updates.replace(crate::UserCredential::fixed(token()));
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while client.next().await.is_some() {}
+    })
+    .await
+    .unwrap();
+    tokio::task::yield_now().await;
+    assert_eq!(client.disconnect_error().code, ErrorCode::AccessStale);
+    assert!(credentials.current().is_ok());
+    client.close().await;
+}
+
+#[tokio::test]
+async fn injected_rotation_reauthenticates_and_sign_in_failure_stops_the_connection() {
+    let (seen, received) = oneshot::channel();
+    let server = fixture(move |mut connection| async move {
+        let request = read(&mut connection).await;
+        let Message::Reauthenticate { token } = &request.message else {
+            panic!("only reauthentication is expected")
+        };
+        assert_eq!(token.as_str(), "synthetic-rotated-token");
+        send(
+            &connection,
+            response(
+                &request,
+                Message::AuthRefreshed {
+                    expires_at: Timestamp::from_unix_millis(4102444800000).unwrap(),
+                },
+            ),
+        )
+        .await;
+        seen.send(()).unwrap();
+        assert!(
+            connection.recv().await.is_none(),
+            "rotation and failure must not send an application action"
+        );
+    })
+    .await;
+    let (updates, credentials) =
+        crate::UserCredentials::channel(crate::UserCredential::fixed(token()));
+    let mut client = server
+        .api
+        .connect_authenticated(&credentials)
+        .await
+        .unwrap();
+    updates.replace(crate::UserCredential::fixed(
+        "synthetic-rotated-token".to_owned().try_into().unwrap(),
+    ));
+    received.await.unwrap();
+    updates.require_sign_in();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while client.next().await.is_some() {}
+    })
+    .await
+    .unwrap();
+    assert_eq!(client.disconnect_error().code, ErrorCode::Unauthenticated);
+    assert!(!crate::observation_can_reconnect(
+        &client.disconnect_error()
+    ));
+    client.close().await;
+}
+
+#[tokio::test]
+async fn rejected_rotation_is_not_retried_and_cannot_restart_observation() {
+    let server = fixture(move |mut connection| async move {
+        let request = read(&mut connection).await;
+        assert!(matches!(request.message, Message::Reauthenticate { .. }));
+        send(
+            &connection,
+            response(
+                &request,
+                Message::Error(RemoteError::rejected(
+                    ErrorCode::Forbidden,
+                    "access revoked",
+                )),
+            ),
+        )
+        .await;
+        assert!(connection.recv().await.is_none());
+    })
+    .await;
+    let (updates, credentials) =
+        crate::UserCredentials::channel(crate::UserCredential::fixed(token()));
+    let mut client = server
+        .api
+        .connect_authenticated(&credentials)
+        .await
+        .unwrap();
+    updates.replace(crate::UserCredential::fixed(token()));
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while client.next().await.is_some() {}
+    })
+    .await
+    .unwrap();
+    assert_eq!(client.disconnect_error().code, ErrorCode::Forbidden);
+    client.close().await;
+}
 async fn read(connection: &mut Connection) -> Envelope {
     let frame = tokio::time::timeout(Duration::from_secs(3), connection.recv())
         .await

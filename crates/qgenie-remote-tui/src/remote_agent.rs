@@ -23,7 +23,8 @@ impl AgentView {
         self.state.push(event)
     }
     pub fn rebuild(&mut self) {
-        let mut rows: Vec<String> = Vec::new();
+        let activity = qgenie_remote_client::Activity::from_agent(&self.state);
+        let mut rows = vec![format!("Activity: {}", activity.label())];
         let mut messages = BTreeMap::new();
         let mut tools = BTreeMap::new();
         if self.state.history_truncated {
@@ -34,7 +35,7 @@ impl AgentView {
         }
         for item in &self.state.events {
             match &item.event {
-                AgentEvent::TurnStarted { .. } => rows.push("Turn started".into()),
+                AgentEvent::TurnStarted { turn } => rows.push(format!("Turn started: {turn}")),
                 AgentEvent::MessageDelta { message, text } => {
                     let index = *messages.entry(message).or_insert_with(|| {
                         rows.push(String::new());
@@ -72,10 +73,17 @@ impl AgentView {
                 AgentEvent::TurnCompleted {
                     input_tokens,
                     output_tokens,
-                    ..
+                    turn,
+                    outcome,
                 } => rows.push(format!(
-                    "Turn complete · {} input / {} output tokens",
-                    input_tokens.0, output_tokens.0
+                    "Turn {turn}: {} · {} input / {} output tokens",
+                    outcome.map_or("outcome unknown", |outcome| match outcome {
+                        qgenie_remote_proto::wire::TurnOutcome::Completed => "completed",
+                        qgenie_remote_proto::wire::TurnOutcome::Failed => "failed",
+                        qgenie_remote_proto::wire::TurnOutcome::Interrupted => "interrupted",
+                    }),
+                    input_tokens.0,
+                    output_tokens.0
                 )),
                 AgentEvent::ReasoningSummary { text } => rows.push(format!("Reasoning: {text}")),
                 AgentEvent::FileDiff { path, diff } => rows.push(format!("File {path}\n{diff}")),

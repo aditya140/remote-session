@@ -10,6 +10,21 @@ UI-independent Rust SDK for private local sessions and verified remote sessions.
 
 `LiveClient` owns a WSS read driver. Its cloneable `LiveHandle` provides machine/session inventory, scoped browse, original-key lookup, attach/capture/replay, approvals and explicit reauthentication. Call `next` to drain unsolicited events. Dropping the connection owner stops its driver; pending mutations remain uncertain.
 
+`connect_authenticated(&UserCredentials)` accepts caller-owned credential updates. Use
+`UserCredential::expiring` with a conservative monotonic deadline, then publish rotations
+through `CredentialUpdates`. The connection sends reauthentication on an update. Expiry,
+owner loss, or `require_sign_in` ends authenticated access. The SDK stores no credentials and
+performs no OAuth exchange. Fixed-token APIs remain available.
+
+`reconnect_observation` opens a new connection with at most six attempts and capped backoff.
+It stops on denied access or protocol failure. Callers retain output cursors and discard old
+controller objects before using it. It accepts no application operation to retry.
+
+`Activity::from_agent` derives current activity from typed events. `WaitTarget::outcome`
+checks exact turn or native-exit evidence without guessing from screen text. A turn completion
+must carry its final native outcome; older events remain uncertain. `approval_summary`
+returns pending counts and an explicit completeness flag from a bounded durable scan.
+
 ## Own an output observer
 
 `GatewayClient::observe_session(token, machine, session)` opens a dedicated connection. Alternatively, `LiveClient::into_observer(machine, session)` transfers an existing connection. The returned `RemoteObserver` installs a verified checkpoint, deduplicates continuation output and reports gaps, truncated history and unconfirmed tails. It reacts immediately to pushed native head/session changes and performs read-only continuation checks, including a 250 ms idle check to discover a lost final notification. Supporting peers negotiate `session-changes-v1`; `session_changes_available()` exposes that support. Native content still crosses bounded checkpoint/replay reads.

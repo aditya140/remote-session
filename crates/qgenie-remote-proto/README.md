@@ -16,6 +16,12 @@ The `schema` feature exports public JSON Schema. Administrative IPC types stay o
 
 JSON is capped at 1 MiB and 64 nesting levels. PTY payloads are capped at 32 KiB. Counters serialize as canonical decimal strings. This crate owns no persistent state or retry loop.
 
+`AgentEvent::TurnCompleted` includes an optional typed `outcome`: `completed`, `failed`,
+or `interrupted`. The event means that a turn ended. Successful completion requires
+`outcome: completed`. Old events omit the field and remain readable with an unknown outcome.
+Native lifetime is separate. Additive event fields do not change public protocol v1.
+The conformance fixtures retain both old and new event shapes.
+
 ## Verification
 
 ```sh

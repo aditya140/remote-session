@@ -1,6 +1,6 @@
 //! One owned WSS connection with bounded requests/events. Reconnect is caller-owned;
 //! an interrupted request is never resent by this driver.
-use crate::GatewayClient;
+use crate::{GatewayClient, UserCredentials};
 use qgenie_remote_proto::{
     rest::AccessToken,
     wire::{DirectoryEntry, Envelope, Message, Session, StartStage},
@@ -11,7 +11,7 @@ use qgenie_remote_transport::ws::{
 };
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use tokio::{
@@ -57,6 +57,8 @@ pub struct LiveClient {
     status_sender: watch::Sender<LiveStatus>,
     stop: watch::Sender<bool>,
     task: Option<JoinHandle<()>>,
+    refresh: Option<JoinHandle<()>>,
+    credential_failure: Arc<Mutex<Option<RemoteError>>>,
 }
 struct Command {
     one_way: bool,
@@ -104,6 +106,35 @@ fn protocol() -> RemoteError {
     )
 }
 impl GatewayClient {
+    /// Connects with caller-supplied credentials and renews this connection on updates.
+    ///
+    /// # Errors
+    /// Returns authentication, transport, or negotiation errors. No application request
+    /// is retried. Dropping the returned client stops its credential-update task.
+    pub async fn connect_authenticated(
+        &self,
+        credentials: &UserCredentials,
+    ) -> Result<LiveClient, RemoteError> {
+        let mut updates = credentials.clone();
+        let mut client = self.connect(&updates.current()?).await?;
+        let handle = client.handle();
+        let stop = client.stop.clone();
+        let failure = client.credential_failure.clone();
+        client.refresh = Some(tokio::spawn(async move {
+            loop {
+                let result = match updates.changed().await {
+                    Ok(token) => handle.reauthenticate(token).await.map(|_| ()),
+                    Err(error) => Err(error),
+                };
+                if let Err(error) = result {
+                    *failure.lock().expect("credential failure lock poisoned") = Some(error);
+                    stop.send_replace(true);
+                    break;
+                }
+            }
+        }));
+        Ok(client)
+    }
     pub async fn connect(&self, token: &AccessToken) -> Result<LiveClient, RemoteError> {
         let mut config = ClientConfig::new(&format!(
             "{}/v1/connect/client",
@@ -250,10 +281,42 @@ impl GatewayClient {
             status_sender: status,
             stop,
             task: Some(task),
+            refresh: None,
+            credential_failure: Arc::new(Mutex::new(None)),
         })
     }
 }
 impl LiveClient {
+    /// Explains a closed connection without exposing credential material.
+    pub fn disconnect_error(&self) -> RemoteError {
+        let status = self.status.borrow().clone();
+        if status == LiveStatus::ProtocolError {
+            return refused(ErrorCode::InvalidFrame, "gateway protocol failed");
+        }
+        if let Some(error) = self
+            .credential_failure
+            .lock()
+            .expect("credential failure lock poisoned")
+            .clone()
+        {
+            if status == LiveStatus::Disconnected && error.code == ErrorCode::Internal {
+                // A lost WSS refresh acknowledgment is safe to replace with a new
+                // authenticated connection. Application actions remain uncertain.
+                return refused(
+                    ErrorCode::AccessStale,
+                    "gateway connection lost during reauthentication",
+                );
+            }
+            return error;
+        }
+        match status {
+            LiveStatus::ResyncRequired => refused(
+                ErrorCode::Overloaded,
+                "connection consumer fell behind; install a new checkpoint",
+            ),
+            _ => refused(ErrorCode::AccessStale, "gateway connection lost"),
+        }
+    }
     pub fn handle(&self) -> LiveHandle {
         self.handle.clone()
     }
@@ -261,9 +324,26 @@ impl LiveClient {
         self.status.clone()
     }
     pub async fn next(&mut self) -> Option<LiveEvent> {
-        self.events.recv().await
+        let event = self.events.recv().await?;
+        if let Frame::Text(envelope) = &event.frame
+            && let Message::Error(error) = &envelope.message
+            && matches!(
+                error.code,
+                ErrorCode::Unauthenticated | ErrorCode::Forbidden
+            )
+        {
+            *self
+                .credential_failure
+                .lock()
+                .expect("credential failure lock poisoned") = Some(error.clone());
+        }
+        Some(event)
     }
     pub async fn close(mut self) {
+        if let Some(task) = self.refresh.take() {
+            task.abort();
+            let _ = task.await;
+        }
         self.stop.send_replace(true);
         if let Some(mut task) = self.task.take()
             && tokio::time::timeout(Duration::from_secs(2), &mut task)
@@ -277,6 +357,9 @@ impl LiveClient {
 }
 impl Drop for LiveClient {
     fn drop(&mut self) {
+        if let Some(task) = self.refresh.take() {
+            task.abort();
+        }
         self.status_sender.send_replace(LiveStatus::Stopped);
         self.stop.send_replace(true);
         if let Some(task) = self.task.take() {
@@ -649,7 +732,13 @@ async fn run(
                 pending.insert(id,Pending{machine,session,deadline:command.deadline,reply:command.reply,frames:Vec::new(),snapshot:None,attach,_request:command._request,_bytes:command._bytes,_snapshot:command._snapshot,response_bytes:Vec::new()});
             },
             incoming=connection.recv()=>{
-                let Some(incoming)=incoming else {break LiveStatus::Disconnected;};
+                let Some(incoming)=incoming else {
+                    break match connection.closed().await {
+                        Err(ws::Error::Protocol(_)) => LiveStatus::ProtocolError,
+                        Err(ws::Error::SlowConsumer) => LiveStatus::ResyncRequired,
+                        _ => LiveStatus::Disconnected,
+                    };
+                };
                 let frame=incoming.frame.clone();
                 if let Frame::Text(envelope)=&frame && let Some(re)=envelope.re {
                     if let Some(mut request)=pending.remove(&re) {

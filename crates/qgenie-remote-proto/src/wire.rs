@@ -259,7 +259,12 @@ types! {
         ToolOutput { tool: String,text: String },
         ToolCompleted { tool: String,success: bool },
         FileDiff { path: String,diff: String },
-        TurnCompleted { turn: String,input_tokens: Counter,output_tokens: Counter },
+        TurnCompleted {
+            turn: String,input_tokens: Counter,output_tokens: Counter,
+            /// Older peers and retained history can omit the final native outcome.
+            #[serde(default,skip_serializing_if="Option::is_none")]
+            outcome: Option<TurnOutcome>,
+        },
         Idle,
         Error { message: String },
         PtyOutput { data: String },
@@ -268,6 +273,9 @@ types! {
         Gap { from: Counter,to: Counter,reason: String },
         Opaque { native_kind: String,payload: serde_json::Value },
     }
+    #[derive(Copy,PartialEq,Eq)]
+    #[serde(rename_all="snake_case")]
+    pub enum TurnOutcome { Completed,Failed,Interrupted }
     #[derive(PartialEq, Eq)]
     pub struct ApprovalRequest {
         pub id: ApprovalId,pub session: SessionId,pub owner: UserId,pub native_id: String,

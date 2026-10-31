@@ -2207,6 +2207,17 @@
                 "input_tokens": {
                   "$ref": "#/$defs/Counter"
                 },
+                "outcome": {
+                  "description": "Older peers and retained history can omit the final native outcome.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TurnOutcome"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "output_tokens": {
                   "$ref": "#/$defs/Counter"
                 },
@@ -3674,6 +3685,14 @@
     "Timestamp": {
       "description": "Canonical UTC timestamp with exactly millisecond precision.",
       "type": "string"
+    },
+    "TurnOutcome": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "failed",
+        "interrupted"
+      ]
     },
     "UserId": {
       "type": "string"

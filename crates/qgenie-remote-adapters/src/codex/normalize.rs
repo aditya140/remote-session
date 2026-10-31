@@ -1,7 +1,7 @@
 use super::{CodexError, NativeApproval, NativeEvent};
 use qgenie_remote_proto::{
     Counter,
-    wire::{AgentEvent, ApprovalDecision},
+    wire::{AgentEvent, ApprovalDecision, TurnOutcome},
 };
 use serde_json::Value;
 pub(super) fn text(value: &Value, key: &str) -> Result<String, CodexError> {
@@ -59,6 +59,12 @@ pub(super) fn event(method: &str, params: &Value) -> Result<Option<NativeEvent>,
             turn: text(&params["turn"], "id")?,
             input_tokens: Counter(0),
             output_tokens: Counter(0),
+            outcome: match params["turn"]["status"].as_str() {
+                Some("completed") => Some(TurnOutcome::Completed),
+                Some("failed") => Some(TurnOutcome::Failed),
+                Some("interrupted") => Some(TurnOutcome::Interrupted),
+                _ => None,
+            },
         },
         "item/agentMessage/delta" => AgentEvent::MessageDelta {
             message: text(params, "itemId")?,
@@ -97,4 +103,35 @@ pub(super) fn event(method: &str, params: &Value) -> Result<Option<NativeEvent>,
         thread: text(params, "threadId")?,
         event,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn completion_preserves_failed_interrupted_and_unknown_native_outcomes() {
+        for (status, expected) in [
+            ("completed", Some(TurnOutcome::Completed)),
+            ("failed", Some(TurnOutcome::Failed)),
+            ("interrupted", Some(TurnOutcome::Interrupted)),
+            ("future-status", None),
+        ] {
+            let result = event(
+                "turn/completed",
+                &json!({"threadId":"thread","turn":{"id":"turn","status":status}}),
+            )
+            .unwrap()
+            .unwrap();
+            let NativeEvent::Event {
+                event: AgentEvent::TurnCompleted { turn, outcome, .. },
+                ..
+            } = result
+            else {
+                panic!("turn outcome")
+            };
+            assert_eq!(turn, "turn");
+            assert_eq!(outcome, expected);
+        }
+    }
 }

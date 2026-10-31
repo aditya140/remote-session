@@ -8,8 +8,8 @@ use anyhow::Result;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use qgenie_remote_client::{
-    LiveClient, LiveFrame, LiveHandle, OutputCursor, OutputUpdate, ReadPlan, RemoteAttachment,
-    RemoteController,
+    GatewayClient, LiveClient, LiveFrame, LiveHandle, OutputCursor, OutputUpdate, ReadPlan,
+    RemoteAttachment, RemoteController, UserCredentials, observation_can_reconnect,
 };
 use qgenie_remote_proto::{
     wire::{AgentEvent, LaunchKind, Message, Session},
@@ -380,12 +380,14 @@ pub(crate) async fn run(
     terminal: &mut TerminalGuard,
     signal: &AtomicBool,
     client: &mut LiveClient,
-    session: Session,
+    mut session: Session,
+    api: &GatewayClient,
+    credentials: &UserCredentials,
 ) -> Result<()> {
     let agent = matches!(session.kind, LaunchKind::Agent { .. });
     let machine = session.machine;
     let id = session.id;
-    let handle = client.handle();
+    let mut handle = client.handle();
     let mut pane = Pane {
         agent,
         agent_view: agent.then(|| crate::remote_agent::AgentView::new(AgentState::default())),
@@ -422,6 +424,7 @@ pub(crate) async fn run(
         read_paused: false,
     };
     let mut reads = JoinSet::new();
+    let mut recovery: JoinSet<Result<LiveClient, RemoteError>> = JoinSet::new();
     let mut metadata = JoinSet::new();
     let mut next_metadata = Instant::now();
     let mut mutations: JoinSet<Result<Mutation, RemoteError>> = JoinSet::new();
@@ -454,7 +457,7 @@ pub(crate) async fn run(
                                 pane.message=crate::remote_approvals::run(terminal,signal,client).await?;
                                 pane.force_capture=true;pane.read_paused=false;pane.next_read=Instant::now();
                             },
-                            KeyCode::F(8)=>{reads.abort_all();while reads.join_next().await.is_some(){}pane.read_paused=false;pane.force_capture=true;pane.next_read=Instant::now();},
+                            KeyCode::F(8)=>{if !pane.connected && recovery.is_empty(){let api=api.clone();let credentials=credentials.clone();recovery.spawn(async move{api.reconnect_observation(&credentials).await});pane.message="Reconnecting observation.".into();}reads.abort_all();while reads.join_next().await.is_some(){}pane.read_paused=false;pane.force_capture=true;pane.next_read=Instant::now();},
                             _ if pane.agent=>{
                                 if pane.owned && !pane.stopped {
                                     match key.code {
@@ -490,9 +493,14 @@ pub(crate) async fn run(
                 }
                 terminal.terminal.draw(|frame|pane.draw(frame,&session))?;
             },
+            result=recovery.join_next(),if !recovery.is_empty()=>{match result {
+                Some(Ok(Ok(replacement)))=>{*client=replacement;handle=client.handle();pane.connected=true;pane.read_paused=false;pane.force_capture=false;pane.next_read=Instant::now();let reader=handle.clone();metadata.spawn(async move{reader.session(machine,id).await});pane.message="Observation reconnected. F2 requests new control; previous actions were not resent.".into();},
+                Some(Ok(Err(error)))=>pane.message=format!("{:?}: {}. F8 retries observation; F10 returns.",error.code,error.message),
+                _=>pane.message="Recovery stopped. F8 retries observation.".into(),
+            }},
             read=reads.join_next(),if !reads.is_empty()=>{match read {Some(Ok(result))=>pane.attachment(result),_=>{pane.message="Native read stopped; F8 retries this read.".into();pane.read_paused=true;}}pane.next_read=Instant::now()+if matches!(pane.output.read_plan(),ReadPlan::Idle){Duration::from_millis(250)}else{Duration::from_millis(10)};},
             result=metadata.join_next(),if !metadata.is_empty()=>{match result {
-                Some(Ok(Ok(current)))=>{if current.owner==session.owner {pane.metadata(&current);}else{pane.message="Native session is absent from current inventory; displayed output is retained.".into();}},
+                Some(Ok(Ok(current)))=>{if current.owner==session.owner {pane.metadata(&current);session=current;}else{pane.message="Native session is absent from current inventory; displayed output is retained.".into();}},
                 Some(Ok(Err(error)))=>pane.message=format!("Session status unavailable: {:?}. Displayed output is retained.",error.code),
                 _=>{},
             }},
@@ -510,19 +518,21 @@ pub(crate) async fn run(
                 Some(event)=>{
                     if let LiveFrame::Text(envelope)=&event.frame
                         && let Message::Sessions{sessions}|Message::SessionUpdates{sessions}=&envelope.message
-                        && let Some(current)=sessions.iter().find(|current|current.id==id && current.machine==machine && current.owner==session.owner) {pane.metadata(current);}
+                        && let Some(current)=sessions.iter().find(|current|current.id==id && current.machine==machine && current.owner==session.owner) {pane.metadata(current);session=current.clone();}
                     if let LiveFrame::Text(envelope)=&event.frame && let Message::ApprovalRequested(request)=&envelope.message && request.session==id {pane.message="Approval pending · F7 reviews owner approvals without taking control.".into();}
                     match pane.output.frame(&event.frame){Ok(update)=>{if let Err(error)=pane.paint_update(update,None){pane.read_paused=true;pane.message=error.message;}},Err(error)=>pane.message=error.message}
                     if !matches!(pane.output.read_plan(),ReadPlan::Idle|ReadPlan::UnconfirmedTail) {pane.next_read=Instant::now();}
                 },
-                None=>{let status=client.status().borrow().clone();pane.connected=false;pane.owned=false;pane.controller=None;pane.clear_input();pane.output.disconnected();reads.abort_all();mutations.abort_all();pane.message=format!("{status:?}. F10 returns to reconnect; input is never resent.");},
+                None=>{let error=client.disconnect_error();pane.connected=false;pane.owned=false;pane.controller=None;pane.action=None;pane.confirm=None;pane.clear_input();pane.output.disconnected();reads.abort_all();metadata.abort_all();mutations.abort_all();while reads.join_next().await.is_some(){}while metadata.join_next().await.is_some(){}while mutations.join_next().await.is_some(){}pane.message=format!("{:?}: {}. F10 returns.",error.code,error.message);if observation_can_reconnect(&error) && recovery.is_empty(){let api=api.clone();let credentials=credentials.clone();recovery.spawn(async move{api.reconnect_observation(&credentials).await});pane.message="Connection lost. Reconnecting observation; control and queued input were discarded. Previous actions may have an unknown outcome.".into();}},
             }
         }
     }
     reads.abort_all();
+    recovery.abort_all();
     metadata.abort_all();
     mutations.abort_all();
     while reads.join_next().await.is_some() {}
+    while recovery.join_next().await.is_some() {}
     while metadata.join_next().await.is_some() {}
     while mutations.join_next().await.is_some() {}
     pane.clear_input();
