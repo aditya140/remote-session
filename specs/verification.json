@@ -1,0 +1,174 @@
+{
+  "checked_at_utc": "2026-10-31T14:21:35.088917+00:00",
+  "toolchain": {
+    "bend_repository": "https://github.com/bendlang/bend.git",
+    "bend_commit": "9e8d7b7958ebb3bb72464dfb6b6b5f06949fbcad",
+    "bend_version": "2.0.39",
+    "bun_version": "1.4.4",
+    "lean_version": "4.34.0",
+    "domains": [
+      "access",
+      "approval",
+      "authorization",
+      "bounds",
+      "capabilities",
+      "client",
+      "control",
+      "lifetime",
+      "privacy",
+      "protocol",
+      "recording",
+      "replay",
+      "retention",
+      "start"
+    ]
+  },
+  "mode": "kernel",
+  "source_sha256": {
+    "Common.bend": "924fb37d6bf4acee250dbfb145f9c9bb86921ffea06d5b1cd2e8bc44e93bdfca",
+    "README.md": "927af326e5781b538f6fe461203cbdf526f379a66cc9e612a11495854018a5d0",
+    "VERIFY.md": "eb6d2295a5700506311de4ec43c1f375bf36e31856dc49f62c0a81dc19324e04",
+    "access/LAWS.bend": "e7f5f9d084189d7a0d9a9e0a5d919c6ec550289eab1cccb8d406b0597556a84e",
+    "access/Model.bend": "ab8c5220b9b3393d30e89e24d996fb2b7acfbe7af75d6a9db52dba416e50ef05",
+    "access/PROOF.bend": "d2881f01a934e974fc6eeb53839f401a8b3c546cf3cfe3527cbf9bcb69d9994a",
+    "approval/LAWS.bend": "bc5d7b320fafddca392e510d876aac6b4aa4eb990ea51829a1a6aca15926f1e8",
+    "approval/Model.bend": "212dec5296a7e680b17a2fcfb6b3822dc7efee6795120961e5bf81174c38a0a4",
+    "approval/PROOF.bend": "ce3cf692e6ae5ff5b6f3c354902c6f023d9c8d652bd7f01b076fc65d3ac8e04f",
+    "authorization/LAWS.bend": "9ba8f31e99d7fb8021c59860ccf9ed54300419713a4d1dbe99334c8b5d0cca97",
+    "authorization/Model.bend": "cf28c2faafb725189ca30a63cbb73508a1bf9386d7abdb6335c7c86310149276",
+    "authorization/PROOF.bend": "59ef19a1ee05985f7e474d932ccf0427c3f6886b64482391511506c7f8975c6c",
+    "authorization.md": "581f2ad1d824081fce829c4065d72d32a1d67848523f0e7c46415d37e36a6ccd",
+    "bounds/LAWS.bend": "22905259efa26d204f0052cad5f44e2922a25eac6ee1948efb2b0a166e2fcb60",
+    "bounds/Model.bend": "7b6e64efc0ed698f814dcd7946af157663b817a0bcfe0c50a7d438e52376e784",
+    "bounds/PROOF.bend": "3981af46a746a91182a4b64dbaf165281d670498f6ac0433250989dd85084b93",
+    "capabilities/LAWS.bend": "4a3589787668c06ac3ca8c90f1ecee9e886e0b94238aa52f76154ca57588c2e4",
+    "capabilities/Model.bend": "b8e4f485bbd2d6869c04c48a5a8056a0d605765c67e93f1af95e4c97b062d01e",
+    "capabilities/PROOF.bend": "80553171fa27767cbaa39c72028a408db5651fa71dded1d3d8fe3eea0d0e4dc6",
+    "catalog.md": "eff701a7273ca4aaa59f0cee06c9b8efb51e78db554bcf00af3118ba12ec253f",
+    "check.py": "6e7e131790dfc8f45eeeff19f50a7d1f24f0ee1cf303e1da9ffe1bae3fba8ea7",
+    "client/LAWS.bend": "7b0d4595a3c8633285174f3ca179e475b7205d4c676efeeda2be2985c081c698",
+    "client/Model.bend": "7e7740edde47263c26dd6ae15c389d1136424f314138b70dc36e01546a9697ac",
+    "client/PROOF.bend": "c574cd98c965501f1e4ef1317436ebc83174a255f2772ee6d730698a0f8fc5a5",
+    "conformance/policy.mjs": "0e8af7511b494c8c5a5caad923ada2bf3cf48b8d5cb2246a3e1a24e538623be1",
+    "conformance/policy.rs": "04dc6e31b44c0a287156aaaef5be6c1b93541a1483ddf35a9776851e9b71ed23",
+    "control/LAWS.bend": "4e9faf8e400b880cb29970d989e5b7dc77714f2cbe9002a2d3c8c8129184f72a",
+    "control/Model.bend": "f4ef337ac031fedf909a164c4c88f29988f93b37d8bb2de90bb41b61d5c1a8ba",
+    "control/PROOF.bend": "d3b88d3f2a67dcc2b7d9b37530c9c2d77824f5dda39cb6c12a51283099fac998",
+    "lifetime/LAWS.bend": "de515302998e668326caef95f3dfa0fb1e7b83adae40df41c3ed905e89976794",
+    "lifetime/Model.bend": "ed3766489bb96a4180f1ec6f73994256cffb319626356a183aaf006cc668db3a",
+    "lifetime/PROOF.bend": "38dc24f95c2de298f978c3f97c67f3c442a429bd1ec3b742bd3237034d8d39ab",
+    "models.md": "c1b2c1b79af42c4d28f300aae4b71803e9c8e4359cc410bba9c9a32b41e5ef0e",
+    "privacy/LAWS.bend": "5e9b84c9d6126fd543103d0552f8d72e0e4eaf3ffd4a383d23e7d510ee11108f",
+    "privacy/Model.bend": "77893bc1300bd62d8d749f74067c170163af50057393f739a3d76cc439082adb",
+    "privacy/PROOF.bend": "7aafad292e1489f92ef8f27f3be57dbc197dd3264facaecfb8a4471ed15fec82",
+    "protocol/LAWS.bend": "b52281c0a4a34a56a4c7da03f4cdc10d74fe644db1f3487f5bf842ae36568fc3",
+    "protocol/Model.bend": "96e9db874ef833c15ccbdd357b5aed4ca2db8050a221556f42bbd82531c5d28d",
+    "protocol/PROOF.bend": "f3e7df2b2f68ea805b540ab20e68da15373e3d10bbcf35e7f23bb565c4814ca6",
+    "recording/LAWS.bend": "2b4e87e69e9deaedd1022ef4102c947f1a0e206087d96e35bb21e1dc63c9e48c",
+    "recording/Model.bend": "e90dbda68dc07a7948c9c2a2321bc88468df741bf56be9e6c1639fa9071b6779",
+    "recording/PROOF.bend": "7ccd7209b74b7cd4e52b61f744679925db2efdf14bd6c244c2c4874ec8dc0ac6",
+    "replay/LAWS.bend": "fe385b3d7a3ab55323240bd836e6d0f9f6b793b5d0684382a88d5e893888afc2",
+    "replay/Model.bend": "e3301ead1e64c9a3d05b23da47e79e7ed5422c1a7c7fe7569ca1bc38f96c2702",
+    "replay/PROOF.bend": "c88c227af0b974a81e3f1f910791e757176d4ba4844c2501e05ca513418ac1ac",
+    "retention/LAWS.bend": "90610f2d924fcfe9be7118187b7e52c2c06c743dd1d7342f48104753199ad9c3",
+    "retention/Model.bend": "d536e8d5e5eb95e8f8bd0824add15a612f9c9a6be6c4e35c29760e6f56f374f6",
+    "retention/PROOF.bend": "02c190a2859dd49fcad5853fa3d2372966e56fcc31131a4f392389c9656b9147",
+    "start/LAWS.bend": "c2ff3b0ab147154249cd732cf57bdf99b270f6306bcfd1e075729b37829029c6",
+    "start/Model.bend": "d81e5ecd86a2ae00af4b290406ac52221c742761a561dabf54cc83053c5598cc",
+    "start/PROOF.bend": "11848e6528a289160eda47168024e3b1d2b3501cdcee639e5caad7e60100eed2",
+    "toolchain.json": "5b665afd3e9dfe1ecadfe838224dfaf419e6d0d8f41b6920e7b3436114c70f64"
+  },
+  "laws": {
+    "access": {
+      "status": "passed",
+      "count": 7
+    },
+    "approval": {
+      "status": "passed",
+      "count": 8
+    },
+    "authorization": {
+      "status": "passed",
+      "count": 11
+    },
+    "bounds": {
+      "status": "passed",
+      "count": 4
+    },
+    "capabilities": {
+      "status": "passed",
+      "count": 5
+    },
+    "client": {
+      "status": "passed",
+      "count": 6
+    },
+    "control": {
+      "status": "passed",
+      "count": 8
+    },
+    "lifetime": {
+      "status": "passed",
+      "count": 5
+    },
+    "privacy": {
+      "status": "passed",
+      "count": 5
+    },
+    "protocol": {
+      "status": "passed",
+      "count": 4
+    },
+    "recording": {
+      "status": "passed",
+      "count": 7
+    },
+    "replay": {
+      "status": "passed",
+      "count": 6
+    },
+    "retention": {
+      "status": "passed",
+      "count": 5
+    },
+    "start": {
+      "status": "passed",
+      "count": 9
+    }
+  },
+  "mutations": {
+    "access": "rejected_by_law",
+    "approval": "rejected_by_law",
+    "authorization": "rejected_by_law",
+    "bounds": "rejected_by_law",
+    "capabilities": "rejected_by_law",
+    "client": "rejected_by_law",
+    "control": "rejected_by_law",
+    "lifetime": "rejected_by_law",
+    "privacy": "rejected_by_law",
+    "protocol": "rejected_by_law",
+    "recording": "rejected_by_law",
+    "replay": "rejected_by_law",
+    "retention": "rejected_by_law",
+    "start": "rejected_by_law"
+  },
+  "rust_comparison": {
+    "combinations": 18432,
+    "mismatches": 0,
+    "compared": [
+      "allowance",
+      "error_code",
+      "outcome",
+      "retryable"
+    ],
+    "permission_definition": "AUTH-001 exhaustive comparison passed"
+  },
+  "lean": "Lean (version 4.34.0, x86_64-unknown-linux-gnu, commit 293d5d0c0c3f3dded4688b3ccd6a33939ac5102b, Release)",
+  "implementation_sha256": {
+    "Cargo.lock": "bf2c9096b90d5a5894cdb2339080ea0ff3ca7746b8ec7793a0607da0bffccea7",
+    "rust-toolchain.toml": "d13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33",
+    "crates/qgenie-remote-policy/src/lib.rs": "d3d36dabc948a5fdda2c93f2fccfff9284025492d36705e65b15e3a0d9089cf5",
+    "crates/qgenie-remote-proto/src/model.rs": "bc847673d29e6517f49faa1f8da9f80fb6d5d4907a9a079c57f161d3b667d112"
+  },
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+}
