@@ -247,7 +247,7 @@ impl Broker {
         connection: ClientId,
         generation: Counter,
         access: Option<qgenie_remote_proto::wire::HostAccess>,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<(), Error> {
         let packet = Packet {
             id: MessageId::new(),
             source: node.into(),
@@ -273,16 +273,16 @@ impl Broker {
             .invoke_async(&mut connection)
             .await
             .map_err(|_| self.failed(&active))?;
-        Ok(bytes)
+        Ok(())
     }
-    pub async fn clear_hint(&self, machine: MachineId, expected: &[u8]) -> Result<(), Error> {
+    pub async fn clear_hint(&self, machine: MachineId, generation: Counter) -> Result<(), Error> {
         let (mut connection, active) = self.connection(0).await?;
         let script = redis::Script::new(
-            "if redis.call('HGET',KEYS[1],'value')==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0",
+            "if redis.call('HGET',KEYS[1],'generation')==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0",
         );
         let _: u8 = script
             .key(hint_key(machine))
-            .arg(expected)
+            .arg(format!("{:020}", generation.0))
             .invoke_async(&mut connection)
             .await
             .map_err(|_| self.failed(&active))?;

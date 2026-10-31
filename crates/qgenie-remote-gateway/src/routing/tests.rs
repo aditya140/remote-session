@@ -334,6 +334,7 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
         )
         .unwrap()
     };
+    presence_refresh_cleanup(&routing_config("presence-fixture")).await;
     let (acceptor, ca) = tls();
     let issuer = issuer(acceptor.clone()).await;
     let mut identity = jwt::config();
@@ -1057,6 +1058,43 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     drop(foreign);
     drop(server_a);
     drop(server_b);
+}
+
+async fn presence_refresh_cleanup(config: &RoutingConfig) {
+    let broker = broker::Broker::new(config);
+    let (sender, _inbox) = tokio::sync::mpsc::channel(1);
+    let _subscriber = broker.connect(sender, &[]).await.unwrap();
+    let owner = qgenie_remote_proto::UserId::new();
+    let machine = qgenie_remote_proto::MachineId::new();
+    let first = qgenie_remote_proto::ClientId::new();
+    // Every refresh has different signed bytes. Disconnect must clear the
+    // whole connection generation, including a refresh that just completed.
+    for _ in 0..2 {
+        broker
+            .set_hint(&config.node, owner, machine, first, Counter(1), None)
+            .await
+            .unwrap();
+    }
+    assert!(broker.hint(machine).await.unwrap().is_some());
+    broker.clear_hint(machine, Counter(1)).await.unwrap();
+    assert!(broker.hint(machine).await.unwrap().is_none());
+    let replacement = qgenie_remote_proto::ClientId::new();
+    broker
+        .set_hint(&config.node, owner, machine, replacement, Counter(2), None)
+        .await
+        .unwrap();
+    // A late old refresh and its cleanup cannot replace or erase the successor.
+    broker
+        .set_hint(&config.node, owner, machine, first, Counter(1), None)
+        .await
+        .unwrap();
+    broker.clear_hint(machine, Counter(1)).await.unwrap();
+    let hint = broker.hint(machine).await.unwrap().unwrap();
+    assert!(
+        matches!(hint.body, message::Body::Hint { connection, generation: Counter(2), .. } if connection == replacement)
+    );
+    broker.clear_hint(machine, Counter(2)).await.unwrap();
+    broker.disconnect().await;
 }
 fn config_for(server: &Server, ca: &std::path::Path, token: &str) -> ClientConfig {
     ClientConfig::new(&format!(

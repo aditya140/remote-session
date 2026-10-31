@@ -396,9 +396,14 @@ async fn serve_host(
         driver: connection.cancellation(),
         gate: gate.clone(),
         stop,
-        hint: None,
     };
-    if let Some(old) = hub.peers.lock().unwrap().hosts.insert(actor.machine, host) {
+    if let Some(old) = hub
+        .peers
+        .lock()
+        .unwrap()
+        .hosts
+        .insert(actor.machine, host.clone())
+    {
         old.gate.deny();
         old.stop.send_replace(true);
         old.driver.cancel();
@@ -420,15 +425,7 @@ async fn serve_host(
         )
         .map_err(|_| Error::Overloaded)?;
     // Presence can rebuild from the authenticated live connection after Redis reconnects.
-    if let Ok(bytes) = hub
-        .broker
-        .set_hint(&hub.node, actor.owner, actor.machine, id, generation, None)
-        .await
-        && let Some(host) = hub.peers.lock().unwrap().hosts.get_mut(&actor.machine)
-        && host.id == id
-    {
-        host.hint = Some(bytes);
-    }
+    let _ = hub.publish_hint(&host).await;
     hub.changed(actor.owner, actor.machine).await;
     let (metadata_send, mut metadata_receive) =
         mpsc::channel::<qgenie_remote_transport::ws::ReceivedFrame>(4);
@@ -467,18 +464,8 @@ async fn serve_host(
     }}.await;
     metadata.abort_all();
     while metadata.join_next().await.is_some() {}
-    let hint = {
-        let peers = hub.peers.lock().unwrap();
-        peers
-            .hosts
-            .get(&actor.machine)
-            .filter(|host| host.id == id)
-            .and_then(|host| host.hint.clone())
-    };
-    if let Some(hint) = hint {
-        let _ = hub.broker.clear_hint(actor.machine, &hint).await;
-    }
     drop(_registration);
+    let _ = hub.broker.clear_hint(actor.machine, generation).await;
     hub.changed(actor.owner, actor.machine).await;
     let _ = connection.close().await;
     result

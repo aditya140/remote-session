@@ -5,20 +5,26 @@ use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 struct Owned(PtyProcess);
 impl Drop for Owned {
     fn drop(&mut self) {
-        eprintln!("PTY cleanup: terminate");
-        let _ = self.0.control.terminate();
-        eprintln!("PTY cleanup: drain and reap");
-        let deadline = Instant::now() + Duration::from_secs(5);
-        let mut bytes = [0; 32768];
-        while self.0.child.try_wait().is_ok_and(|status| status.is_none()) {
-            let _ = self.0.reader.try_read(&mut bytes);
-            if Instant::now() >= deadline {
-                eprintln!("PTY cleanup: child did not exit after termination");
-                break;
+        let result = (|| -> Result<()> {
+            self.0.control.terminate()?;
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let mut bytes = [0; 32768];
+            while self.0.child.try_wait()?.is_none() {
+                // Darwin can retain a closing slave while output is pending.
+                // Keep draining after termination instead of waiting alone.
+                let _ = self.0.reader.try_read(&mut bytes);
+                anyhow::ensure!(Instant::now() < deadline, "PTY cleanup timed out");
+                thread::sleep(Duration::from_millis(2));
             }
-            thread::sleep(Duration::from_millis(2));
+            Ok(())
+        })();
+        if let Err(error) = result {
+            if thread::panicking() {
+                eprintln!("PTY cleanup failed: {error}");
+            } else {
+                panic!("PTY cleanup failed: {error}");
+            }
         }
-        eprintln!("PTY cleanup: complete");
     }
 }
 fn process(command: &str) -> Owned {
@@ -34,7 +40,14 @@ fn process(command: &str) -> Owned {
     )
 }
 fn until(process: &mut Owned, predicate: impl Fn(&[u8]) -> bool) -> Vec<u8> {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    until_with_timeout(process, predicate, Duration::from_secs(5))
+}
+fn until_with_timeout(
+    process: &mut Owned,
+    predicate: impl Fn(&[u8]) -> bool,
+    timeout: Duration,
+) -> Vec<u8> {
+    let deadline = Instant::now() + timeout;
     let mut output = Vec::new();
     let mut bytes = vec![0; qgenie_remote_proto::MAX_PTY_BYTES * 2];
     while !predicate(&output) {
@@ -75,14 +88,17 @@ fn interrupt_keeps_the_owned_shell_usable_until_explicit_termination() {
 }
 #[test]
 fn output_burst_is_lossless_bounded_and_does_not_block_resize() {
-    eprintln!("PTY burst: spawn");
     let mut child = process(
         "stty -echo; awk 'BEGIN { for(i=0;i<16384;i++) printf \"0123456789abcdef0123456789abcdef\"; printf \"BURST_DONE\" }'; read -r value; printf AFTER_BURST",
     );
-    eprintln!("PTY burst: resize");
     child.0.control.resize(40, 120).unwrap();
-    eprintln!("PTY burst: drain output");
-    let output = until(&mut child, |bytes| bytes.ends_with(b"BURST_DONE"));
+    // macOS hosted runners take about five seconds for this 512 KiB burst.
+    // This checks lossless bounded capture, not a platform throughput target.
+    let output = until_with_timeout(
+        &mut child,
+        |bytes| bytes.ends_with(b"BURST_DONE"),
+        Duration::from_secs(30),
+    );
     assert_eq!(output.len(), 16384 * 32 + b"BURST_DONE".len());
     assert!(
         output[..16384 * 32]
@@ -91,12 +107,9 @@ fn output_burst_is_lossless_bounded_and_does_not_block_resize() {
             .iter()
             .all(|chunk| chunk == b"0123456789abcdef0123456789abcdef")
     );
-    eprintln!("PTY burst: continue input");
     child.0.control.input(b"continue\n").unwrap();
     until(&mut child, |bytes| bytes.ends_with(b"AFTER_BURST"));
-    eprintln!("PTY burst: wait for exit");
     assert!(child.0.child.wait().unwrap().success());
-    eprintln!("PTY burst: complete");
 }
 #[test]
 fn dropping_the_output_observer_preserves_control_and_native_execution() {

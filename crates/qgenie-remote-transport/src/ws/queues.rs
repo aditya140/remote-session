@@ -34,6 +34,11 @@ impl Transmission {
     }
 }
 impl Sender {
+    /// True after the driver drops its outbound queues. Unlike a full queue,
+    /// this condition cannot recover on the same connection.
+    pub fn is_closed(&self) -> bool {
+        self.lanes[0].sender.is_closed()
+    }
     pub fn try_send(&self, priority: Priority, frame: Frame) -> Result<Transmission, RemoteError> {
         let message = frame.encode()?;
         let lane = &self.lanes[index(priority)];

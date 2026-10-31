@@ -50,9 +50,28 @@ reads and the CLI API route deny access.
   can reject the foreign peer before that write. The fixture accepts that disconnect
   and retains the independent server-side and client-side permission assertions.
   Its Docker harness now uses the local daemon explicitly and builds with `--locked`.
-- The macOS workspace test stalled in the PTY output-burst test. The workflow now
-  runs adapter lifecycle tests first with a four-minute limit. Phase output will
-  identify the blocked native operation. Investigation remains in progress.
+- The macOS PTY burst reached the five-second fixture deadline and cleanup then
+  stalled. Native phase output later measured 4.83 seconds for a passing 512 KiB
+  burst. The bulk-read fixture now allows 30 seconds. All byte-count, content,
+  frame-size, resize, and subsequent-input assertions remain. Cleanup continues
+  draining output while it reaps the terminated child and has a ten-second limit.
+  The workflow bounds the adapter lifecycle step to four minutes.
+- The macOS roots fixture compared canonical output with `/var` input paths.
+  macOS resolves those paths through `/private/var`. The assertion now compares
+  canonical paths, as the filesystem contract requires.
+- A later database run missed the offline update after a host disconnected.
+  Background presence refresh can replace the bytes that disconnect cleanup uses
+  for comparison. Cleanup can also race a refresh already in flight. The repair
+  removes local registration first, clears by the unique connection generation,
+  and clears a late refresh if its connection is no longer registered. A Redis
+  regression check preserves a newer connection while clearing old refreshes.
+  The full PostgreSQL/Redis integration test passes locally with this change.
+- The malformed-frame CLI test reproduced an extra reconnect locally. A command
+  can observe the transport queue closing before the SDK records its protocol
+  failure. The repair records the terminal transport result before returning
+  that command error. The deterministic regression fails without the repair.
+  All 38 SDK tests, seven CLI workflow tests, and 100 repeated malformed-frame CLI
+  invocations pass. Workspace Clippy and the specification suite also pass.
 - Workflow actions use verified commit pins and Node 24 runtimes. Jobs use fixed
   runner images, timeouts, read-only tokens, and independent matrix results.
   Superseded runs cancel. Dependency caches survive test failures. The `CI` job

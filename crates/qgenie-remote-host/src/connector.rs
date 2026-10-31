@@ -731,7 +731,10 @@ mod discovery_tests {
         };
         assert_eq!(
             roots,
-            vec![first.display().to_string(), second.display().to_string()]
+            vec![
+                first.canonicalize().unwrap().display().to_string(),
+                second.canonicalize().unwrap().display().to_string(),
+            ]
         );
         for (authority, allow) in [
             (

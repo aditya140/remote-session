@@ -727,17 +727,27 @@ async fn run(
                 if command.deadline<=Instant::now() {let _=command.reply.send(Err(refused(ErrorCode::AccessStale,"request expired before transmission")));continue;}
                 let machine=command.envelope.machine;let session=command.envelope.session;let attach=matches!(command.envelope.message,Message::Attach{..}|Message::Capture|Message::ReplayRequest{..});
                 correlations.insert(id);
-                if let Err(error)=connection.sender().try_send(Priority::Control,Frame::Text(Box::new(command.envelope))) {let _=command.reply.send(Err(error));continue;}
+                if let Err(error)=connection.sender().try_send(Priority::Control,Frame::Text(Box::new(command.envelope))) {
+                    if connection.sender().is_closed() {
+                        // The transport can fail before this task polls its
+                        // receive branch. Publish the cause before the caller
+                        // considers reconnecting after the failed submission.
+                        let ended=closed_status(&mut connection).await;
+                        status.send_replace(ended.clone());
+                        let error=if ended==LiveStatus::ProtocolError {
+                            refused(ErrorCode::InvalidFrame,"gateway protocol failed")
+                        } else {error};
+                        let _=command.reply.send(Err(error));
+                        break ended;
+                    }
+                    let _=command.reply.send(Err(error));continue;
+                }
                 if command.one_way {let _=command.reply.send(Ok(Vec::new()));continue;}
                 pending.insert(id,Pending{machine,session,deadline:command.deadline,reply:command.reply,frames:Vec::new(),snapshot:None,attach,_request:command._request,_bytes:command._bytes,_snapshot:command._snapshot,response_bytes:Vec::new()});
             },
             incoming=connection.recv()=>{
                 let Some(incoming)=incoming else {
-                    break match connection.closed().await {
-                        Err(ws::Error::Protocol(_)) => LiveStatus::ProtocolError,
-                        Err(ws::Error::SlowConsumer) => LiveStatus::ResyncRequired,
-                        _ => LiveStatus::Disconnected,
-                    };
+                    break closed_status(&mut connection).await;
                 };
                 let frame=incoming.frame.clone();
                 if let Frame::Text(envelope)=&frame && let Some(re)=envelope.re {
@@ -764,6 +774,14 @@ async fn run(
     }
     drop(commands);
     let _ = tokio::time::timeout(Duration::from_secs(1), connection.close()).await;
+}
+
+async fn closed_status(connection: &mut Connection) -> LiveStatus {
+    match connection.closed().await {
+        Err(ws::Error::Protocol(_)) => LiveStatus::ProtocolError,
+        Err(ws::Error::SlowConsumer) => LiveStatus::ResyncRequired,
+        _ => LiveStatus::Disconnected,
+    }
 }
 
 #[cfg(test)]

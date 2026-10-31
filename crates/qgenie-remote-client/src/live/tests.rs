@@ -126,6 +126,50 @@ fn token() -> AccessToken {
 }
 
 #[tokio::test]
+async fn queued_command_observes_protocol_failure_before_its_send_error() {
+    use tokio::io::AsyncWriteExt;
+    let (mut peer, socket) = tokio::io::duplex(4096);
+    let accept = tokio::spawn(ws::accept(socket, Limits::default(), None));
+    peer.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
+        .await
+        .unwrap();
+    let mut connection = accept.await.unwrap().unwrap();
+    // A valid masked WebSocket frame with an invalid public JSON envelope.
+    peer.write_all(&[0x81, 0x82, 0, 0, 0, 0, b'{', b'}'])
+        .await
+        .unwrap();
+    assert!(matches!(
+        connection.closed().await,
+        Err(ws::Error::Protocol(_))
+    ));
+    let (commands, receive) = mpsc::channel(1);
+    let (reply, response) = oneshot::channel();
+    let permit = || Arc::new(Semaphore::new(1)).try_acquire_owned().unwrap();
+    commands
+        .try_send(Command {
+            one_way: false,
+            envelope: Envelope::new(Message::SessionList),
+            deadline: Instant::now() + Duration::from_secs(10),
+            reply,
+            _request: permit(),
+            _bytes: permit(),
+            _snapshot: None,
+        })
+        .unwrap();
+    let (events, _events) = mpsc::channel(1);
+    let (status, observed) = watch::channel(LiveStatus::Connected {
+        client: ClientId::new(),
+    });
+    let (_stop, stopped) = watch::channel(false);
+    // Both command and EOF are ready. The command branch runs first.
+    run(connection, receive, events, status, stopped).await;
+    assert_eq!(*observed.borrow(), LiveStatus::ProtocolError);
+    let error = response.await.unwrap().unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidFrame);
+    assert!(matches!(error.outcome, OperationOutcome::NotSent));
+}
+
+#[tokio::test]
 async fn lost_wss_refresh_ack_allows_new_observation_but_never_resends_the_request() {
     let server = fixture(move |mut connection| async move {
         assert!(matches!(

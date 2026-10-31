@@ -51,7 +51,6 @@ pub(super) struct Host {
     pub sender: Sender,
     pub driver: qgenie_remote_transport::ws::ConnectionCancellation,
     pub stop: watch::Sender<bool>,
-    pub hint: Option<Vec<u8>>,
 }
 #[derive(Clone)]
 pub(super) struct Pending {
@@ -260,8 +259,7 @@ impl Drop for Routing {
 impl Hub {
     pub(super) async fn publish_hint(&self, host: &Host) -> Result<(), Error> {
         let access = host.grants.lock().unwrap().current().ok();
-        let bytes = self
-            .broker
+        self.broker
             .set_hint(
                 &self.node,
                 host.actor.owner,
@@ -271,15 +269,19 @@ impl Hub {
                 access,
             )
             .await?;
-        if let Some(current) = self
+        let registered = self
             .peers
             .lock()
             .unwrap()
             .hosts
-            .get_mut(&host.actor.machine)
-            && current.id == host.id
-        {
-            current.hint = Some(bytes);
+            .get(&host.actor.machine)
+            .is_some_and(|current| current.id == host.id && !*current.stop.borrow());
+        if !registered {
+            // A refresh can finish after disconnect cleanup. Clear only this
+            // generation, so an old connection cannot erase its replacement.
+            self.broker
+                .clear_hint(host.actor.machine, host.generation)
+                .await?;
         }
         Ok(())
     }
