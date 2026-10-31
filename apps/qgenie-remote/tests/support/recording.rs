@@ -934,6 +934,48 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
         )
         .await
         .unwrap();
+    let mut resize_controller = other
+        .take_control(binding.machine, ui_session.id, false)
+        .await
+        .unwrap();
+    resize_controller.resize(28, 100).await.unwrap();
+    let mut viewer_command = tokio::process::Command::new("python3");
+    viewer_command
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/e2e/remote_viewer_resize.py"
+        ))
+        .arg(env!("CARGO_BIN_EXE_qgenie-remote"))
+        .arg(&peer_server.origin)
+        .arg(token_file.path())
+        .arg(tls.ca.path())
+        .arg("ui-live")
+        .kill_on_drop(true);
+    let viewer = tokio::time::timeout(std::time::Duration::from_secs(30), viewer_command.output());
+    tokio::pin!(viewer);
+    let result = loop {
+        tokio::select! {
+            result = &mut viewer => break result.unwrap().unwrap(),
+            _ = tokio::time::sleep(std::time::Duration::from_secs(3)) => {
+                resize_controller.renew().await.unwrap();
+            }
+        }
+    };
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let snapshot = local.attach(ui_session.id).await.unwrap().snapshot;
+    assert_eq!(
+        (snapshot.rows, snapshot.cols),
+        (28, 100),
+        "observers changed native geometry"
+    );
+    resize_controller.resize(31, 101).await.unwrap();
+    let snapshot = local.attach(ui_session.id).await.unwrap().snapshot;
+    assert_eq!((snapshot.rows, snapshot.cols), (31, 101));
+    resize_controller.release().await.unwrap();
     let ui = tokio::process::Command::new("python3")
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -1058,6 +1100,16 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
         observed, 2,
         "SDK and literal wait each attach once; continuations must not add attachment audits"
     );
+    super::terminal_pressure::prove(
+        &remote_sdk,
+        &tokens.access,
+        binding.owner,
+        binding.machine,
+        &native_path,
+        &handle,
+        &local,
+    )
+    .await;
     let service_session = handle.start(starts.path(),binding.owner,binding.machine,Launch{
         key:IdempotencyKey::new(),kind:LaunchKind::Pty{command:vec!["/bin/sh".into(),"-c".into(),"stty -echo; printf 'CLI_PROCESS_READY\\n'; while IFS= read -r value; do printf '%s\\n' \"$value\"; done".into()]},cwd:native_path.to_str().unwrap().into(),rows:24,cols:80,
     }).await.unwrap();

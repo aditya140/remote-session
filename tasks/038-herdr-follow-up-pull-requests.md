@@ -241,3 +241,52 @@ main and release tags; feature PR updates have one run instead of two.
 The repository has no release tags. N-2 released-client qualification remains
 open. The preview revision, immutable file digests, and release procedure are
 explicit. These checks do not replace real released-client or platform evidence.
+
+## Issue 6 design
+
+- Audit current transport deadlines, replacement generations, control leases,
+  native lifetime, and recording tests. Add only missing composed scenarios.
+- Reproduce the observed spool lock race with a duplicate file descriptor.
+  Release the lock explicitly after SQLite closes. A descriptor inherited by a
+  concurrently created child must not retain authority after its owner closes.
+- Use the existing real deployment fixture for two native PTYs. Stall one SDK
+  consumer until its bounded queue reports overload. Prove progress in the other
+  PTY. Reconnect the first observer and close the old observer afterward.
+- Verify final output before exit in native replay and protected history.
+  Missing capture must be explicit. Keep all waits bounded and fixtures owned.
+- Reconnect a real observing TUI and change its window size while an SDK
+  controller holds the lease. Check native geometry. Then resize with the valid
+  controller. There is no remote terminal theme action to exercise.
+- Record existing versus new coverage and added local runtime. Do not infer
+  native-owner handoff or other-platform qualification from these tests.
+
+### Issue 6 implementation and evidence
+
+The deterministic spool descriptor regression failed before the fix and passed
+afterward. A private guard now unlocks only after SQLite closes. All nine selected
+spool tests passed; two environment-specific spool tests remained ignored.
+
+The new composed test proved progress with two real PTYs after one SDK observer
+stopped reading. The bounded observer reported overload. Its replacement received
+completion after the old observer closed. Native replay put final output before
+exit, and protected paginated history contained the final output. This block took
+6.51 seconds. Two real TUI observers resized their own windows without changing
+native geometry. The current controller then resized the terminal successfully.
+
+The first composed attempt used an invalid history page limit in the new fixture.
+The fixture now uses the public four-item maximum. The final five-phase Linux
+proof passed in 132 seconds: `target/validation/issue-6-native.json`. The native
+pipeline phase took 83.37 seconds. The warm prior issue 4 pipeline took 71.30
+seconds; this is a local comparison, not a controlled hosted CI benchmark.
+
+The default-parallel workspace suite passed 242 tests with 19 environment-gated
+tests ignored. The extended actual-process crash test then passed in 0.63 seconds.
+It verifies distinct fresh lifetimes and preserved old lost or unknown records.
+Workspace and managed application Clippy, formatting, 14 Python tool tests, and
+the viewer script syntax check passed. The full coverage audit is
+[terminal reliability coverage](../docs/validation/terminal-reliability-coverage.md).
+
+GitHub later reported new workflow jobs as failed before any steps ran. Those
+jobs have no available logs. The connector cannot read check annotations, and the
+CLI could not read the run. The underlying hosted-start failure remains unknown.
+These hosted failures are not reported as green local or hosted evidence.

@@ -8,6 +8,8 @@ mod fixture;
 mod managed;
 #[path = "support/recording.rs"]
 mod recording;
+#[path = "support/terminal_pressure.rs"]
+mod terminal_pressure;
 use axum::{
     body::Body,
     extract::{Request, State},

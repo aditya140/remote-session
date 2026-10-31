@@ -318,6 +318,35 @@ fn real_process_crashes_at_start_boundaries_preserve_keys_and_explicit_uncertain
         if matches!(phase, "accepted" | "launching") {
             assert!(count.is_empty());
         }
+        // A separately requested replacement is a new native lifetime. The
+        // original unknown/lost record must remain available under its old ID.
+        let fresh_key = IdempotencyKey::new();
+        let Reply::Started(fresh) = call(
+            &runtime,
+            ClientId::new(),
+            Operation::Start(spec(&path, fresh_key)),
+        ) else {
+            panic!("explicit fresh launch failed after {phase}");
+        };
+        assert_ne!(fresh.id, info.id);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let sessions = runtime.list().unwrap();
+            assert!(sessions.iter().any(|s| s.id == info.id
+                && matches!(s.state, SessionState::Lost | SessionState::OutcomeUnknown)));
+            if sessions
+                .iter()
+                .any(|s| s.id == fresh.id && matches!(s.state, SessionState::Exited))
+            {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "fresh native process did not finish"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        runtime.shutdown(false).unwrap();
     }
 }
 
