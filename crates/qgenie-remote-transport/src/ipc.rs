@@ -565,7 +565,17 @@ mod tests {
         stream
             .set_read_timeout(Some(Duration::from_secs(3)))
             .unwrap();
-        stream.write_all(b"fixture").unwrap();
+        // The server can reject the foreign UID before this first write.
+        if let Err(error) = stream.write_all(b"fixture") {
+            assert!(
+                matches!(
+                    error.kind(),
+                    io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe
+                ),
+                "unexpected foreign peer write error: {error}"
+            );
+            return;
+        }
         let mut byte = [0];
         match stream.read(&mut byte) {
             Ok(0) => {}

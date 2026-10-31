@@ -195,12 +195,20 @@ async fn actual_native_spawn_rechecks_authority_after_version_probe() {
 #[tokio::test]
 #[ignore = "requires actual pinned QGR_CODEX_BINARY; native process-tree qualification"]
 async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descendant_running() {
+    struct ReleaseTool(PathBuf);
+    impl Drop for ReleaseTool {
+        fn drop(&mut self) {
+            // Also release the fixture if an earlier assertion fails.
+            let _ = std::fs::write(&self.0, b"release");
+        }
+    }
     let binary = PathBuf::from(std::env::var_os("QGR_CODEX_BINARY").expect("set QGR_CODEX_BINARY"));
     let temp = tempfile::Builder::new()
         .permissions(<std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o700))
         .tempdir()
         .unwrap();
     let root = std::fs::canonicalize(temp.path()).unwrap();
+    let release = ReleaseTool(root.join("release_tool"));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let model = tokio::spawn(async move {
@@ -222,7 +230,7 @@ async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descenda
         assert!(length < 2 * 1024 * 1024);
         let mut request = vec![0; length];
         stream.read_exact(&mut request).await.unwrap();
-        let item = json!({"type":"function_call","id":"fc_tree","call_id":"call_tree","name":"exec_command","arguments":json!({"cmd":"(printf ready > tool_live; sleep 1; printf escaped > escaped_descendant) & wait","max_output_chars":1000}).to_string()});
+        let item = json!({"type":"function_call","id":"fc_tree","call_id":"call_tree","name":"exec_command","arguments":json!({"cmd":"(printf ready > tool_live; while [ ! -e release_tool ]; do sleep 0.01; done; printf escaped > escaped_descendant) & wait","max_output_chars":1000}).to_string()});
         let events = [
             json!({"type":"response.created","response":{"id":"tree"}}),
             json!({"type":"response.output_item.added","output_index":0,"item":item}),
@@ -263,6 +271,10 @@ async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descenda
     })
     .await
     .unwrap();
+    // A slow runner may pause longer than the old one-second marker timer.
+    // The descendant must wait for our explicit post-termination release instead.
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    assert!(!root.join("escaped_descendant").exists());
     adapter
         .process_control()
         .terminate(Arc::new(Current))
@@ -271,6 +283,7 @@ async fn actual_owned_codex_termination_does_not_leave_an_approved_tool_descenda
     let _ = adapter.closed().await;
     adapter.shutdown().await.unwrap();
     model.await.unwrap();
+    std::fs::write(&release.0, b"release").unwrap();
     tokio::time::sleep(Duration::from_millis(1200)).await;
     assert!(
         !root.join("escaped_descendant").exists(),

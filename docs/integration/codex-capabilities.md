@@ -85,7 +85,8 @@ request's acknowledgment stays uncertain. Explicit local owner shutdown/drop sti
 its child independently of cancellation. Actual pinned tests reject an expired termination,
 then admit a current one and observe exit; dropping a process-control clone has no effect.
 An additional actual approved background-tool test waits for the descendant's own ready
-marker, terminates the owner and verifies its delayed file effect never occurs. This is
+marker, terminates the owner, then releases a file gate and verifies that the tool
+cannot write its effect. A delay before termination cannot create a false escape result. This is
 Linux evidence for that controlled native tool path, not an arbitrary external daemon claim.
 
 Sessiond's optional `managed-codex` feature now binds its original host `Fence` to this

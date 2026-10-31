@@ -41,6 +41,15 @@ reads and the CLI API route deny access.
 - The next macOS run exposed a Linux-only hostname read in `host setup`.
   Setup now calls `gethostname` and checks the returned bytes. It no longer needs
   the Linux `/proc` filesystem to create a host configuration.
+- The native Codex test used a one-second timer to detect an escaped tool.
+  A deliberate runner delay reproduced a false failure: the marker already existed
+  before termination. The fixture now releases the tool only after termination.
+  It also tests a delay longer than the old timer. All five native Codex checks pass
+  locally with the same binary hash as the npm fixture used by GitHub.
+- The foreign-user IPC proof assumed that its first write would succeed. The server
+  can reject the foreign peer before that write. The fixture accepts that disconnect
+  and retains the independent server-side and client-side permission assertions.
+  Its Docker harness now uses the local daemon explicitly and builds with `--locked`.
 - Workflow actions use verified commit pins and Node 24 runtimes. Jobs use fixed
   runner images, timeouts, read-only tokens, and independent matrix results.
   Superseded runs cancel. Dependency caches survive test failures. The `CI` job
