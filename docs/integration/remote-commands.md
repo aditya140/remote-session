@@ -311,5 +311,6 @@ Transport, sign-in, and malformed-request failures exit with an error.
 Event and wait timeouts are 1–3,600 seconds. The defaults are ten and 300 seconds. The timeout
 includes connection recovery. Read and activity commands have a 30-second deadline.
 Ctrl+C or SIGTERM emits `cancelled` during a wait. Cancellation or timeout closes
-client observation and preserves native execution. Temporary
+client observation and preserves native execution. If cancellation occurs before a
+prompt receipt arrives, submission remains uncertain. Do not repeat the prompt. Temporary
 connection loss can repeat reads only. Recovery never repeats a mutation or restores control.

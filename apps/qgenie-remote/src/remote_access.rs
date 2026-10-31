@@ -288,13 +288,25 @@ pub(crate) async fn run(args: Args, state: &Path) -> Result<()> {
     let config = profile.gateway_config();
     match args.command {
         Some(Action::Operation(command)) => {
+            let wait_session = command.wait_session();
             let work = super::remote_cli::run_authenticated(
                 config,
                 login.credentials.clone(),
                 state,
                 command,
             );
-            tokio::select! { result = work => result, result = super::host::shutdown_signal() => { result?; anyhow::bail!("remote command cancelled; native sessions continue") } }
+            tokio::select! {
+                result = work => result,
+                result = super::host::shutdown_signal() => {
+                    result?;
+                    if let Some(session) = wait_session {
+                        println!("{}", serde_json::json!({"session":session,"outcome":qgenie_remote_client::WaitOutcome::Cancelled,"native_sessions":"retained"}));
+                        Ok(())
+                    } else {
+                        anyhow::bail!("remote command cancelled; native sessions continue")
+                    }
+                }
+            }
         }
         // The TUI owns keyboard/signal handling and terminal restoration.
         None => {

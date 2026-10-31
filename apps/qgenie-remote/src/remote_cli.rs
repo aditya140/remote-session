@@ -141,6 +141,20 @@ pub(crate) enum Action {
         after: u64,
     },
 }
+impl Action {
+    pub(crate) fn wait_session(&self) -> Option<SessionId> {
+        match self {
+            Self::Observe(super::remote_observe::Action::Wait { session, .. })
+            | Self::Send {
+                session,
+                wait: true,
+                ..
+            } => Some(*session),
+            _ => None,
+        }
+    }
+}
+
 pub(crate) async fn run_authenticated(
     config: GatewayConfig,
     credentials: UserCredentials,
