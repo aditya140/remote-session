@@ -1407,3 +1407,47 @@ fn session_fixture_without_metadata(machine: MachineId, id: SessionId) -> serde_
 }
 
 mod work_inbox;
+
+#[tokio::test]
+async fn legacy_prompt_ack_remains_valid_without_receipt_capability() {
+    let (holder_send, holder) = oneshot::channel();
+    let (done, observed) = oneshot::channel();
+    let server = fixture_with_agents(move |mut connection| async move {
+        let request = read(&mut connection).await;
+        send(&connection, response(&request, Message::LeaseGranted(ControlLease {
+            holder: holder.await.unwrap(), host_generation: Counter(1), generation: Counter(2),
+            expires_at: Timestamp::from_unix_millis(4102444800000).unwrap(), last_input: Counter(0),
+        }))).await;
+        let request = read(&mut connection).await;
+        assert!(matches!(&request.message, Message::Input { input_seq: Counter(1), input: SessionInput::Prompt(text), .. } if text == "legacy prompt"));
+        let ack = response(&request, Message::InputAck { generation: Counter(2), input_seq: Counter(1), outcome: ApplicationOutcome::Applied, turn: None });
+        // A missing optional field is the historical wire representation.
+        assert!(!serde_json::to_string(&ack).unwrap().contains("\"turn\""));
+        send(&connection, ack).await;
+        while let Some(frame) = connection.recv().await {
+            assert!(!matches!(&frame.frame, Frame::Text(envelope) if matches!(envelope.message, Message::Input { .. })), "receipt request must be refused before sending");
+        }
+        let _ = done.send(());
+    }, true).await;
+    let client = server.api.connect(&token()).await.unwrap();
+    let handle = client.handle();
+    holder_send.send(handle.id()).unwrap();
+    let mut controller = handle
+        .take_control(MachineId::new(), SessionId::new(), false)
+        .await
+        .unwrap();
+    let error = controller
+        .prompt_receipt("must not send")
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::UnsupportedCapability);
+    assert!(matches!(error.outcome, OperationOutcome::NotSent));
+    assert!(!controller.input_uncertain());
+    controller.prompt("legacy prompt").await.unwrap();
+    assert!(!controller.input_uncertain());
+    client.close().await;
+    tokio::time::timeout(Duration::from_secs(2), observed)
+        .await
+        .unwrap()
+        .unwrap();
+}

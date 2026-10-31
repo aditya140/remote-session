@@ -324,3 +324,6 @@ Press `w` in the remote TUI for the [cross-machine work inbox](work-inbox.md).
 
 Use [fresh output and multiple target waits](observation-waits.md) for explicit
 read-only observation conditions.
+
+See the [generated command reference](cli-reference.md) for all current options.
+See [interface checks](interface-checks.md) for documentation and compatibility checks.

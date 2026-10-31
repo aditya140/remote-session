@@ -34,6 +34,7 @@ class ScopeTests(unittest.TestCase):
         for code, expected in [("true", "success"), ("false", "skipped")]:
             results = {name: {"result": expected} for name in ci.HEAVY_JOBS}
             results["changes"] = {"result": "success"}
+            results["interface-docs"] = {"result": "skipped" if code == "true" else "success"}
             self.assertTrue(ci.gate(code, results))
             for name in results:
                 for bad in {"failure", "cancelled", "success", "skipped"} - {results[name]["result"]}:

@@ -1,0 +1,7065 @@
+{
+  "commands": [
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        },
+        {
+          "action": "Version",
+          "default": [],
+          "id": "version",
+          "index": null,
+          "long": "version",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "V"
+        }
+      ],
+      "path": "qgenie-remote",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "config",
+          "index": null,
+          "long": "config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host",
+      "subcommand_required": true
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "roots",
+          "index": null,
+          "long": "allow-root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": null,
+          "long": "name",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "allow_private_file",
+          "index": null,
+          "long": "allow-private-file",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host setup",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "no_service",
+          "index": null,
+          "long": "no-service",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host up",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host service",
+      "subcommand_required": true
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "directory",
+          "index": null,
+          "long": "directory",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host service install",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host service up",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host service pause",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "yes",
+          "index": null,
+          "long": "yes",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host service upgrade-native",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host service status",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "acknowledge_recording",
+          "index": null,
+          "long": "acknowledge-recording",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host enroll",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "acknowledge_recording",
+          "index": null,
+          "long": "acknowledge-recording",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host login",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host connect",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "keep_sessions",
+          "index": null,
+          "long": "keep-sessions",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "terminate_sessions",
+          "index": null,
+          "long": "terminate-sessions",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host down",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host status",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host doctor",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "yes",
+          "index": null,
+          "long": "yes",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote host unenroll",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote setup",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote profile",
+      "subcommand_required": true
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "cwd",
+          "index": null,
+          "long": "cwd",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "agent",
+          "index": null,
+          "long": "agent",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "task",
+          "index": null,
+          "long": "task",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "replace",
+          "index": null,
+          "long": "replace",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "command",
+          "index": 3,
+          "long": null,
+          "max_values": 18446744073709551615,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote profile save",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote profile list",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote profile show",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote profile remove",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": null,
+          "long": "key",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote profile run",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "literal",
+          "index": null,
+          "long": "literal",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "300"
+          ],
+          "id": "timeout",
+          "index": null,
+          "long": "timeout",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote wait-output",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [
+            "all"
+          ],
+          "id": "mode",
+          "index": null,
+          "long": "mode",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": [
+            "any",
+            "all"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "target",
+          "index": null,
+          "long": "target",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "300"
+          ],
+          "id": "timeout",
+          "index": null,
+          "long": "timeout",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote wait-many",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "100"
+          ],
+          "id": "lines",
+          "index": null,
+          "long": "lines",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote read",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "0"
+          ],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "100"
+          ],
+          "id": "limit",
+          "index": null,
+          "long": "limit",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "10"
+          ],
+          "id": "timeout",
+          "index": null,
+          "long": "timeout",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote events",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote activity",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "turn",
+          "index": null,
+          "long": "turn",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "exit",
+          "index": null,
+          "long": "exit",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "300"
+          ],
+          "id": "timeout",
+          "index": null,
+          "long": "timeout",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote wait",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote machines",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote find-session",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 3,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "clear",
+          "index": null,
+          "long": "clear",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote name-session",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": 3,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "value",
+          "index": 4,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote label-session",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": 3,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote remove-session-label",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "name",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote rename",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "value",
+          "index": 3,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote label",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote remove-label",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "yes",
+          "index": null,
+          "long": "yes",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote revoke",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote history-streams",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "stream_epoch",
+          "index": null,
+          "long": "stream-epoch",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "4"
+          ],
+          "id": "limit",
+          "index": null,
+          "long": "limit",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote history",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "page",
+          "index": null,
+          "long": "page",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "active",
+          "index": null,
+          "long": "active",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "filter",
+          "index": null,
+          "long": "filter",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote sessions",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote roots",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "path",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote browse",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "cwd",
+          "index": null,
+          "long": "cwd",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": null,
+          "long": "key",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "24"
+          ],
+          "id": "rows",
+          "index": null,
+          "long": "rows",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "80"
+          ],
+          "id": "cols",
+          "index": null,
+          "long": "cols",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "agent",
+          "index": null,
+          "long": "agent",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "resume_id",
+          "index": null,
+          "long": "resume-id",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "task",
+          "index": null,
+          "long": "task",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "command",
+          "index": 2,
+          "long": null,
+          "max_values": 18446744073709551615,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote run",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote reconcile",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "page",
+          "index": null,
+          "long": "page",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote starts",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "text",
+          "index": 3,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "stdin",
+          "index": null,
+          "long": "stdin",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "enter",
+          "index": null,
+          "long": "enter",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "prompt",
+          "index": null,
+          "long": "prompt",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "wait",
+          "index": null,
+          "long": "wait",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "300"
+          ],
+          "id": "timeout",
+          "index": null,
+          "long": "timeout",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "steer",
+          "index": null,
+          "long": "steer",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "takeover",
+          "index": null,
+          "long": "takeover",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote send",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "takeover",
+          "index": null,
+          "long": "takeover",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote interrupt",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "yes",
+          "index": null,
+          "long": "yes",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "external_confirmed",
+          "index": null,
+          "long": "external-confirmed",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote terminate",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "machine",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "0"
+          ],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "gateway",
+          "index": null,
+          "long": "gateway",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "token_file",
+          "index": null,
+          "long": "token-file",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "oauth_config",
+          "index": null,
+          "long": "oauth-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "ca_bundle",
+          "index": null,
+          "long": "ca-bundle",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "device",
+          "index": null,
+          "long": "device",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote remote replay",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": null,
+          "long": "session",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote tui",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote up",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "host_config",
+          "index": null,
+          "long": "host-config",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote sessiond",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "json",
+          "index": null,
+          "long": "json",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote status",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "json",
+          "index": null,
+          "long": "json",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote machines",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "page",
+          "index": null,
+          "long": "page",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "after",
+          "index": null,
+          "long": "after",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "active",
+          "index": null,
+          "long": "active",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "json",
+          "index": null,
+          "long": "json",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote list",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "cwd",
+          "index": null,
+          "long": "cwd",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": null,
+          "long": "key",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "24"
+          ],
+          "id": "rows",
+          "index": null,
+          "long": "rows",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [
+            "80"
+          ],
+          "id": "cols",
+          "index": null,
+          "long": "cols",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "command",
+          "index": 1,
+          "long": null,
+          "max_values": 18446744073709551615,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote run",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote attach",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "key",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote reconcile",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "text",
+          "index": 2,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "enter",
+          "index": null,
+          "long": "enter",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "takeover",
+          "index": null,
+          "long": "takeover",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote send",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "takeover",
+          "index": null,
+          "long": "takeover",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote interrupt",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "session",
+          "index": 1,
+          "long": null,
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": true,
+          "short": null
+        },
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "yes",
+          "index": null,
+          "long": "yes",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote terminate",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "SetTrue",
+          "default": [
+            "false"
+          ],
+          "id": "terminate_sessions",
+          "index": null,
+          "long": "terminate-sessions",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": [
+            "true",
+            "false"
+          ],
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote stop",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote doctor",
+      "subcommand_required": false
+    },
+    {
+      "arguments": [
+        {
+          "action": "Set",
+          "default": [],
+          "id": "state_dir",
+          "index": null,
+          "long": "state-dir",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Append",
+          "default": [],
+          "id": "root",
+          "index": null,
+          "long": "root",
+          "max_values": 1,
+          "min_values": 1,
+          "possible_values": null,
+          "required": false,
+          "short": null
+        },
+        {
+          "action": "Help",
+          "default": [],
+          "id": "help",
+          "index": null,
+          "long": "help",
+          "max_values": 0,
+          "min_values": 0,
+          "possible_values": null,
+          "required": false,
+          "short": "h"
+        }
+      ],
+      "path": "qgenie-remote logs",
+      "subcommand_required": false
+    }
+  ]
+}

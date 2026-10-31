@@ -209,3 +209,35 @@ The real CLI matched native PTY output without acquiring control or stopping the
 session. The fixture now accounts for both intentional observer attachments.
 The local report is `target/validation/issue-4-native.json`. External release
 gates remain unrun.
+
+## Issue 5 design
+
+- Generate help and CLI argument contracts from the real Clap definitions.
+  Parse documented shell examples without dispatch or shell expansion.
+- Pin the original preview revision and schema digests. Compare existing fields,
+  result types, commands, and required arguments. Retain the latest three released
+  baselines when releases exist. Do not claim N-2 evidence from a preview.
+- Keep schema freshness and behavioral capability tests. Add negative checker
+  tests so a changed contract cannot silently pass.
+- Run the focused CLI test for prose-only changes. Keep deployment jobs skipped.
+  Run full push CI on main and release tags. Run feature CI once per PR update.
+- Test routing failures and intentional skips. Measure local warm check cost.
+
+### Issue 5 implementation and evidence
+
+The actual Clap definitions generate the help reference and CLI shape. The test
+parsed 45 shell examples without dispatch. The checker accepted the pinned
+preview baseline and rejected removed fields, changed types, new constraints,
+new required values, removed commands, and renamed flags in negative tests.
+The old-peer WSS test accepted the historical prompt acknowledgment without a
+turn field and refused a receipt request before sending any input.
+
+All 14 Python tool tests passed in 0.40 seconds. The warm CLI test took 0.09
+seconds. The old-peer test took 0.13 seconds. Workspace Clippy and formatting
+passed. CI routing tests require the focused documentation job on prose changes
+and require the existing runtime jobs on code changes. Push triggers now select
+main and release tags; feature PR updates have one run instead of two.
+
+The repository has no release tags. N-2 released-client qualification remains
+open. The preview revision, immutable file digests, and release procedure are
+explicit. These checks do not replace real released-client or platform evidence.
