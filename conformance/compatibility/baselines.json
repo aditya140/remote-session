@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "baselines": [
+    {
+      "name": "preview-2026-10-31",
+      "status": "preview",
+      "revision": "9ea149b8dd3b113d5d73992e9b9b27c8affb917b",
+      "files": {
+        "cli.json": "781901c0b648d32b4d3306302d7d1c782e0e27707ecf2d8ed8734a561d6860d3",
+        "public-v1.json": "86f3ed95f4f82df1fb26deaffb9f4f050655b2b142f4ea6585f25716708a961a",
+        "recording-v1.json": "9046aab41bf103a247f4c2b26b063cbba6111a0961730effc0c655180908b121",
+        "rest-v1.json": "5bbb951ede3de8b2d5c0704671ad0adecc1217715b5e91cbd114cae3b0a87a4a"
+      },
+      "reviewed_enum_additions": {
+        "public-v1.json": {
+          "/$defs/ErrorCode": [
+            "ambiguous_name"
+          ]
+        },
+        "rest-v1.json": {
+          "/$defs/ErrorCode": [
+            "ambiguous_name"
+          ]
+        }
+      }
+    }
+  ]
+}

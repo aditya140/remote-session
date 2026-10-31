@@ -54,12 +54,14 @@ def scope(event_name, event):
 
 
 def gate(code, results):
-    if code not in {"true", "false"} or set(results) != HEAVY_JOBS | {"changes"}:
+    if code not in {"true", "false"} or set(results) != HEAVY_JOBS | {"changes", "interface-docs"}:
         return False
     if results["changes"].get("result") != "success":
         return False
     expected = "success" if code == "true" else "skipped"
-    return all(results[name].get("result") == expected for name in HEAVY_JOBS)
+    docs_expected = "skipped" if code == "true" else "success"
+    return (results["interface-docs"].get("result") == docs_expected
+            and all(results[name].get("result") == expected for name in HEAVY_JOBS))
 
 
 def main():

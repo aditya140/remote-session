@@ -417,3 +417,6 @@ async fn ensure_up(state_dir: &Path, roots: &[PathBuf]) -> Result<()> {
     }
     bail!("session daemon did not become ready; inspect qgenie-remote logs")
 }
+
+#[cfg(test)]
+mod cli_contract;
