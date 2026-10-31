@@ -70,6 +70,17 @@ Sessiond assigns one monotonically increasing output sequence per session across
 
 An input acknowledgment means that sessiond accepted the identified input and reports its adapter-write result. It does not prove that a shell executed a command. Duplicate accepted input IDs return the recorded result while that generation is active. Reconnect never automatically resends input.
 
+The optional `prompt-receipts-v1` capability permits `prompt_receipt` input.
+The gateway requires `host-prompt-receipts-v1` on the selected connector. The
+connector requires `native-prompt-receipts-v1` on the native IPC connection.
+The native owner stores the `turn/start` response ID with the input outcome.
+The `session.input.ack` reply includes this ID as `turn`. A duplicate input
+returns the stored ID. The ID does not establish completion. The legacy prompt
+variant keeps its existing reply without a turn field.
+
+Native SQLite schema 8 adds the optional turn column. The previous owner rejects
+this schema version. Keep a state backup before migration if downgrade is needed.
+
 An attach request supplies its last contiguous rendered cursor. The response identifies `floor`, `head`, and a stream epoch. Sessiond registers a bounded live subscription while capturing the replay boundary. Replay covers the requested suffix through that boundary; live delivery begins after it. Buffer overflow invalidates the attachment and requires another attach.
 
 For PTYs, a screen snapshot includes dimensions, modes, cursor, screen cells, bounded scrollback, and `snapshot_seq`. That snapshot already includes all output through its cursor. Apply only later output afterward. Structured replay that lacks earlier history must declare `history_truncated`; it cannot invent an equivalent complete transcript.

@@ -102,6 +102,7 @@ struct Negotiated {
     replay: bool,
     approvals: bool,
     agents: bool,
+    prompt_receipts: bool,
     session_pages: bool,
 }
 async fn hello(
@@ -141,6 +142,8 @@ async fn hello(
             caps.insert("session-changes-v1".into());
         }
         caps.insert("host-agent-v1".into());
+        caps.insert("host-prompt-receipts-v1".into());
+        caps.insert("prompt-receipts-v1".into());
         caps.insert("agent-events-v1".into());
         caps.insert("host-native-authority-v1".into());
         caps.insert("host-generation-floor-v1".into());
@@ -172,6 +175,7 @@ async fn hello(
     let replay = welcome.capabilities.contains("host-replay-v1");
     let approvals = welcome.capabilities.contains("host-approvals-v1");
     let agents = welcome.capabilities.contains("host-agent-v1");
+    let prompt_receipts = welcome.capabilities.contains("host-prompt-receipts-v1");
     let session_pages = welcome.capabilities.contains("session-pages-v1");
     connection
         .sender()
@@ -186,6 +190,7 @@ async fn hello(
         replay,
         approvals,
         agents,
+        prompt_receipts,
         session_pages,
     })
 }
@@ -374,6 +379,7 @@ async fn serve_host(
         replay,
         approvals,
         agents,
+        prompt_receipts,
         ..
     } = hello(
         &mut connection,
@@ -395,6 +401,7 @@ async fn serve_host(
     }
     let host = Host {
         agents,
+        prompt_receipts,
         approvals,
         native,
         controllers,

@@ -82,7 +82,8 @@ impl Runtime {
             } if authority.host == context.host_generation
                 && authority.controller == Some(generation) =>
             {
-                let outcome = self.agent_input(
+                let receipt_requested = matches!(input, SessionInput::PromptReceipt(_));
+                let receipt = self.agent_input(
                     context.client,
                     session,
                     generation,
@@ -93,7 +94,12 @@ impl Runtime {
                 Message::InputAck {
                     generation,
                     input_seq,
-                    outcome,
+                    outcome: receipt.outcome,
+                    turn: if receipt_requested {
+                        receipt.turn
+                    } else {
+                        None
+                    },
                 }
             }
             Message::Interrupt { authority }
@@ -156,7 +162,9 @@ impl Runtime {
             .and_then(|agent| agent.native_thread.clone())
             .ok_or_else(|| RemoteError::unknown("native thread correlation unavailable"))?;
         let action = match input {
-            Some(SessionInput::Prompt(text)) => ActionRequest::Prompt { thread, text },
+            Some(SessionInput::Prompt(text) | SessionInput::PromptReceipt(text)) => {
+                ActionRequest::Prompt { thread, text }
+            }
             Some(SessionInput::Steer(text)) => ActionRequest::Steer {
                 thread,
                 text,
@@ -206,9 +214,11 @@ impl Runtime {
         input_seq: Counter,
         input: SessionInput,
         remote: Option<&remote_effects::Execution<'_>>,
-    ) -> Result<ApplicationOutcome, RemoteError> {
+    ) -> Result<InputReceipt, RemoteError> {
         let text = match &input {
-            SessionInput::Prompt(text) | SessionInput::Steer(text) => text,
+            SessionInput::Prompt(text)
+            | SessionInput::PromptReceipt(text)
+            | SessionInput::Steer(text) => text,
             _ => {
                 return Err(RemoteError::rejected(
                     ErrorCode::UnsupportedCapability,
@@ -243,7 +253,7 @@ impl Runtime {
             let mut state = lock(&owned)?;
             check_control(&mut state, client, generation, Action::Input, remote)?;
             if let Some(outcome) = lock(&self.store)?
-                .input_lookup(id, generation, input_seq, &digest)
+                .input_receipt(id, generation, input_seq, &digest)
                 .map_err(|_| {
                     RemoteError::rejected(
                         ErrorCode::IdempotencyConflict,
@@ -276,22 +286,32 @@ impl Runtime {
         }
         // SQLite waits cannot refresh a queued original grant. Recheck and capture
         // both deadlines before dispatch; actual writes check them again.
-        let outcome = match request {
-            Ok((control, action, grant)) => match control.request(action, grant) {
+        let receipt = match request {
+            Ok((control, action, grant)) => match control.request_receipt(action, grant) {
                 Ok(outcome) => outcome,
-                Err(error) if matches!(error.outcome, OperationOutcome::Rejected) => {
-                    ApplicationOutcome::Cancelled
-                }
-                Err(_) => ApplicationOutcome::OutcomeUnknown,
+                Err(error) if matches!(error.outcome, OperationOutcome::Rejected) => InputReceipt {
+                    outcome: ApplicationOutcome::Cancelled,
+                    turn: None,
+                },
+                Err(_) => InputReceipt {
+                    outcome: ApplicationOutcome::OutcomeUnknown,
+                    turn: None,
+                },
             },
-            Err(_) => ApplicationOutcome::Cancelled,
+            Err(_) => InputReceipt {
+                outcome: ApplicationOutcome::Cancelled,
+                turn: None,
+            },
         };
         if lock(&self.store)?
-            .input_record(id, generation, input_seq, &digest, outcome.clone())
+            .record_input_receipt(id, generation, input_seq, &digest, receipt.clone())
             .is_err()
         {
-            return Ok(ApplicationOutcome::OutcomeUnknown);
+            return Ok(InputReceipt {
+                outcome: ApplicationOutcome::OutcomeUnknown,
+                turn: None,
+            });
         }
-        Ok(outcome)
+        Ok(receipt)
     }
 }

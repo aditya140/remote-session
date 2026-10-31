@@ -1,0 +1,4 @@
+BEGIN IMMEDIATE;
+ALTER TABLE input_ack ADD COLUMN turn TEXT CHECK(turn IS NULL OR (length(CAST(turn AS BLOB)) BETWEEN 1 AND 512));
+PRAGMA user_version=8;
+COMMIT;

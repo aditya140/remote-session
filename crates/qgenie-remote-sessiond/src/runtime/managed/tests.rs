@@ -277,26 +277,39 @@ async fn actual_managed_owner_deduplicates_records_replays_and_survives_caller_l
     ) else {
         panic!("agent control rejected");
     };
-    let input = qgenie_remote_proto::wire::SessionInput::Prompt("second prompt".into());
-    assert!(matches!(
-        runtime
-            .agent_input(
-                client,
-                id,
-                lease.generation,
-                Counter(1),
-                input.clone(),
-                None
-            )
-            .unwrap(),
-        ApplicationOutcome::Applied
-    ));
-    assert!(matches!(
-        runtime
-            .agent_input(client, id, lease.generation, Counter(1), input, None)
-            .unwrap(),
-        ApplicationOutcome::Applied
-    ));
+    let input = qgenie_remote_proto::wire::SessionInput::PromptReceipt("second prompt".into());
+    let receipt = runtime
+        .agent_input(
+            client,
+            id,
+            lease.generation,
+            Counter(1),
+            input.clone(),
+            None,
+        )
+        .unwrap();
+    assert!(matches!(receipt.outcome, ApplicationOutcome::Applied));
+    let turn = receipt
+        .turn
+        .expect("native request must return its exact turn");
+    let duplicate = runtime
+        .agent_input(client, id, lease.generation, Counter(1), input, None)
+        .unwrap();
+    assert!(matches!(duplicate.outcome, ApplicationOutcome::Applied));
+    assert_eq!(duplicate.turn.as_ref(), Some(&turn));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let (_, events, _) = lock(&runtime.store)
+            .unwrap()
+            .replay(id, Counter(0))
+            .unwrap();
+        if events.iter().any(|event| matches!(&event.body, EventBody::Agent(AgentEvent::TurnCompleted { turn: completed, .. }) if completed == &turn)) { break; }
+        assert!(
+            Instant::now() < deadline,
+            "receipt must identify the completed native turn"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     let deadline = Instant::now() + Duration::from_secs(5);
     while calls.load(Ordering::SeqCst) < 3 {
         assert!(Instant::now() < deadline);

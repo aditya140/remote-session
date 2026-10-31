@@ -155,7 +155,7 @@ types! {
         #[serde(rename="session.lease.release")] LeaseRelease { generation: Counter },
         #[serde(rename="session.lease.revoked")] LeaseRevoked { generation: Counter,reason: String },
         #[serde(rename="session.input")] Input { authority: Generations,input_seq: Counter,input: SessionInput },
-        #[serde(rename="session.input.ack")] InputAck { generation: Counter,input_seq: Counter,outcome: ApplicationOutcome },
+        #[serde(rename="session.input.ack")] InputAck { generation: Counter,input_seq: Counter,outcome: ApplicationOutcome, #[serde(default,skip_serializing_if="Option::is_none")] turn: Option<String> },
         #[serde(rename="session.resize")] Resize { authority: Generations,rows: u16,cols: u16 },
         #[serde(rename="session.interrupt")] Interrupt { authority: Generations },
         #[serde(rename="session.terminate")] Terminate { host_generation: Counter,confirmed: bool,external_confirmed: bool },
@@ -243,7 +243,8 @@ types! {
     #[serde(rename_all="snake_case")]
     pub enum SessionAction { Resize,Interrupt,Terminate }
     #[serde(tag="kind",content="data",rename_all="snake_case")]
-    pub enum SessionInput { Pty(String),Prompt(String),Steer(String) }
+    pub enum SessionInput { Pty(String),Prompt(String),PromptReceipt(String),Steer(String) }
+    pub struct InputReceipt { pub outcome: ApplicationOutcome, pub turn: Option<String> }
     pub struct SnapshotPage {
         pub epoch: String,pub seq: Counter,pub page: u16,pub total_pages: u16,
         pub rows: u16,pub cols: u16,pub format: crate::SnapshotFormat,pub data: String,
@@ -548,7 +549,9 @@ impl Envelope {
                     SessionInput::Pty(data) => {
                         decode_base64(data, MAX_PTY_BYTES)?;
                     }
-                    SessionInput::Prompt(text) | SessionInput::Steer(text)
+                    SessionInput::Prompt(text)
+                    | SessionInput::PromptReceipt(text)
+                    | SessionInput::Steer(text)
                         if text.len() > 256 * 1024 =>
                     {
                         return Err(invalid("prompt limit exceeded"));

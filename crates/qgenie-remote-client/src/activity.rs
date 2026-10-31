@@ -150,6 +150,7 @@ pub enum WaitOutcome {
     EndedBeforeTurn,
     HistoryUnavailable,
     Timeout,
+    Cancelled,
 }
 
 impl WaitTarget {

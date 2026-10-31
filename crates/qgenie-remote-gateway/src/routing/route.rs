@@ -622,6 +622,16 @@ impl Hub {
                 .unwrap()
                 .accepts(access.as_ref().ok_or(Error::Unavailable)?)?;
         }
+        if matches!(
+            envelope.message,
+            Message::Input {
+                input: qgenie_remote_proto::wire::SessionInput::PromptReceipt(_),
+                ..
+            }
+        ) && !host.prompt_receipts
+        {
+            return Err(Error::Unsupported);
+        }
         if let Message::Start(launch) = &envelope.message {
             if !host.native || envelope.session.is_some() {
                 return Err(Error::Forbidden);

@@ -186,6 +186,12 @@ impl Connector {
             if capabilities.iter().any(|cap| cap == "native-approvals-v1") {
                 optional.insert("host-approvals-v1".into());
             }
+            if capabilities
+                .iter()
+                .any(|cap| cap == "native-prompt-receipts-v1")
+            {
+                optional.insert("host-prompt-receipts-v1".into());
+            }
             if capabilities.iter().any(|cap| cap == "native-agent-v1") {
                 optional.insert("host-agent-v1".into());
             }

@@ -5,7 +5,7 @@ use qgenie_remote_adapters::{
     Codex, CodexConfig, CodexError, CodexHandle, NativeApproval, NativeEffectAuthorization,
     NativeEvent, Provider,
 };
-use qgenie_remote_proto::wire::{AgentEvent, Launch, LaunchKind};
+use qgenie_remote_proto::wire::{AgentEvent, InputReceipt, Launch, LaunchKind};
 use std::sync::{atomic::AtomicUsize, mpsc as channel};
 mod approvals;
 mod effects;
@@ -58,7 +58,7 @@ enum ActionRequest {
 struct Command {
     action: ActionRequest,
     authorization: Arc<dyn NativeEffectAuthorization>,
-    reply: channel::SyncSender<Result<ApplicationOutcome, RemoteError>>,
+    reply: channel::SyncSender<Result<InputReceipt, RemoteError>>,
 }
 impl Control {
     pub fn terminate(
@@ -73,6 +73,14 @@ impl Control {
         action: ActionRequest,
         authorization: Arc<dyn NativeEffectAuthorization>,
     ) -> Result<ApplicationOutcome, RemoteError> {
+        self.request_receipt(action, authorization)
+            .map(|receipt| receipt.outcome)
+    }
+    fn request_receipt(
+        &self,
+        action: ActionRequest,
+        authorization: Arc<dyn NativeEffectAuthorization>,
+    ) -> Result<InputReceipt, RemoteError> {
         let (reply, result) = channel::sync_channel(1);
         self.commands
             .try_send(Command {
@@ -83,14 +91,14 @@ impl Control {
             .map_err(|_| {
                 RemoteError::rejected(
                     ErrorCode::Overloaded,
-                    "native owner queue unavailable; no termination sent",
+                    "native owner queue unavailable; no command sent",
                 )
             })?;
         result
             .recv_timeout(Duration::from_secs(3))
             .unwrap_or_else(|_| {
                 Err(RemoteError::unknown(
-                    "native termination reply lost; do not infer process exit",
+                    "native command reply lost; do not repeat the command",
                 ))
             })
     }

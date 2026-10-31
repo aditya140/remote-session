@@ -339,6 +339,42 @@ pub(super) async fn prove(
             .unwrap();
     assert_eq!(controllers, 0, "approval took a controller lease");
     let token_file = private(token.as_str().as_bytes());
+    let receipt_cli = tokio::process::Command::new(env!("CARGO_BIN_EXE_qgenie-remote"))
+        .arg("--state-dir")
+        .arg(starts.path())
+        .args(["remote", "--gateway"])
+        .arg(sdk.origin())
+        .arg("--token-file")
+        .arg(token_file.path())
+        .arg("--ca-bundle")
+        .arg(ca)
+        .arg("send")
+        .arg(binding.machine.to_string())
+        .arg(launched[0].0.to_string())
+        .args(["RECEIPT_PROOF", "--prompt", "--wait", "--timeout", "15"])
+        .kill_on_drop(true)
+        .output();
+    let receipt_cli = tokio::time::timeout(Duration::from_secs(25), receipt_cli)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        receipt_cli.status.success(),
+        "{}",
+        String::from_utf8_lossy(&receipt_cli.stderr)
+    );
+    let values: Vec<serde_json::Value> = serde_json::Deserializer::from_slice(&receipt_cli.stdout)
+        .into_iter()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(values.len(), 2);
+    assert!(
+        values[0]["turn"]
+            .as_str()
+            .is_some_and(|turn| !turn.is_empty())
+    );
+    assert_eq!(values[0]["control_released"], true);
+    assert_eq!(values[1]["outcome"], "completed");
     let ui = tokio::process::Command::new("python3")
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),

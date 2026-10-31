@@ -38,6 +38,7 @@ pub(super) struct Client {
 #[derive(Clone)]
 pub(super) struct Host {
     pub agents: bool,
+    pub prompt_receipts: bool,
     pub approvals: bool,
     pub native: bool,
     pub controllers: bool,

@@ -238,3 +238,16 @@ fn native_control_messages_require_scoped_bounds_and_correlation() {
         assert!(wire::Envelope::decode(&serde_json::to_vec(&invalid).unwrap()).is_err());
     }
 }
+
+#[test]
+fn input_acknowledgments_decode_legacy_and_receipt_shapes() {
+    use qgenie_remote_proto::wire::Message;
+    let legacy = serde_json::json!({"type":"session.input.ack","body":{"generation":"1","input_seq":"2","outcome":"applied"}});
+    let decoded: Message = serde_json::from_value(legacy.clone()).unwrap();
+    assert!(matches!(&decoded, Message::InputAck { turn: None, .. }));
+    assert_eq!(serde_json::to_value(decoded).unwrap(), legacy);
+    let mut receipt = legacy;
+    receipt["body"]["turn"] = serde_json::json!("native-turn");
+    let decoded: Message = serde_json::from_value(receipt).unwrap();
+    assert!(matches!(decoded, Message::InputAck { turn: Some(turn), .. } if turn == "native-turn"));
+}

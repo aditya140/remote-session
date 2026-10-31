@@ -219,6 +219,23 @@ UTF-8 without NUL. Create with `run MACHINE --cwd PATH --agent codex`; add `--re
 for eligible confirmed-ended history in a new session. Both creation and
 text use the same durable identities and no automatic resend as their SDK counterparts.
 
+`send MACHINE SESSION --stdin --prompt` returns the native turn ID. Add `--wait`
+to observe that exact turn. Use `--timeout SECONDS` to set a 1–3,600 second wait
+budget. The default is 300 seconds. The command prints the receipt before it
+waits. It releases control after submission. A failed release appears as
+`control_released:false`; the wait does not renew the lease.
+
+Prompt receipts require a gateway, connector, and native owner with receipt
+support. An older peer returns `unsupported_capability` before prompt dispatch.
+The SDK `prompt` method and the TUI retain the earlier acknowledgment behavior.
+Use the SDK `prompt_receipt` method when the caller needs the exact turn ID.
+An uncertain acknowledgment cannot supply a trustworthy turn ID. The command
+does not start a wait or repeat the prompt in that case.
+
+The wait emits a second JSON result. Read its `outcome` field as described below.
+A timeout leaves the task running. To observe it later, use the printed turn ID
+with `remote wait`. A completed task can already appear in the first checkpoint.
+
 ## Verification boundary
 
 The owned synchronous fixture exercises actual CLI connector processes, native PTY ownership,
@@ -286,12 +303,14 @@ budget. An incomplete zero is not a confirmed empty inbox.
 requested ID and explicitly report a successful native outcome. Failed and interrupted turns
 have separate results. Older completion events without an outcome remain unknown. Idle state or another completed turn is insufficient. Results include
 `completed`, `exited`, `approval_required`, `failed`, `lost`, `ended_before_turn`,
-`interrupted`, `history_unavailable`, and `timeout`. A wait polls at one-second intervals. Missing older
+`interrupted`, `history_unavailable`, `cancelled`, and `timeout`. A wait polls at one-second intervals. Missing older
 history cannot prove success. A retained completion event remains proof even if later output
 is uncertain. Read the JSON `outcome`; a successfully reported timeout is not a shell error.
 Transport, sign-in, and malformed-request failures exit with an error.
 
 Event and wait timeouts are 1–3,600 seconds. The defaults are ten and 300 seconds. The timeout
 includes connection recovery. Read and activity commands have a 30-second deadline.
-Cancellation or timeout closes client observation and preserves native execution. Temporary
+Ctrl+C or SIGTERM emits `cancelled` during a wait. Cancellation or timeout closes
+client observation and preserves native execution. If cancellation occurs before a
+prompt receipt arrives, submission remains uncertain. Do not repeat the prompt. Temporary
 connection loss can repeat reads only. Recovery never repeats a mutation or restores control.

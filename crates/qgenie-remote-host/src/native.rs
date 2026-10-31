@@ -22,6 +22,8 @@ mod replay;
 pub use replay::NativeAttachment;
 mod changes;
 mod inventory;
+#[cfg(test)]
+mod tests;
 pub use changes::NativeChanges;
 
 #[derive(Clone)]
@@ -29,6 +31,7 @@ pub struct NativeClient {
     directory: PathBuf,
     scope: RemoteScope,
     work: Arc<Semaphore>,
+    control_work: Arc<Semaphore>,
     change_work: Arc<Semaphore>,
     recording_work: Arc<Semaphore>,
     replay_work: Arc<Semaphore>,
@@ -157,6 +160,7 @@ impl NativeClient {
             directory,
             scope,
             work: Arc::new(Semaphore::new(4)),
+            control_work: Arc::new(Semaphore::new(2)),
             change_work: Arc::new(Semaphore::new(1)),
             recording_work: Arc::new(Semaphore::new(1)),
             replay_work: Arc::new(Semaphore::new(2)),
@@ -178,6 +182,7 @@ impl NativeClient {
                 &["native-authority-v1"],
                 &[
                     "native-agent-v1",
+                    "native-prompt-receipts-v1",
                     "native-approvals-v1",
                     "native-changes-v1",
                 ],
@@ -689,7 +694,7 @@ impl NativeClient {
         controller: bool,
     ) -> Result<DispatchFrame, Error> {
         let start = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Start(_)));
-        let agent = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Start(qgenie_remote_proto::wire::Launch{kind:qgenie_remote_proto::wire::LaunchKind::Agent{..},..})|Message::Input{input:qgenie_remote_proto::wire::SessionInput::Prompt(_)|qgenie_remote_proto::wire::SessionInput::Steer(_),..}));
+        let agent = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Start(qgenie_remote_proto::wire::Launch{kind:qgenie_remote_proto::wire::LaunchKind::Agent{..},..})|Message::Input{input:qgenie_remote_proto::wire::SessionInput::Prompt(_)|qgenie_remote_proto::wire::SessionInput::PromptReceipt(_)|qgenie_remote_proto::wire::SessionInput::Steer(_),..}));
         let agent = agent || matches!(request, DispatchFrame::AgentInventory { .. });
         let approval = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::ApprovalList|Message::ApprovalCommitted(_)));
         let effect = matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::Input{..}|Message::Resize{..}|Message::Interrupt{..}|Message::Terminate{..}));
@@ -723,7 +728,21 @@ impl NativeClient {
         } else {
             None
         };
-        let _permit = self.permit()?;
+        // Observation and recording cannot consume the two native action slots.
+        // Admission stays bounded and does not wait or extend the original grant.
+        let _permit = if controller
+            || effect
+            || matches!(&request, DispatchFrame::Remote { message, .. } if matches!(message.message, Message::ApprovalCommitted(_)))
+        {
+            self.control_work.clone().try_acquire_owned().map_err(|_| {
+                Error::Rejected(RemoteError::rejected(
+                    ErrorCode::Overloaded,
+                    "native control IPC work capacity exceeded",
+                ))
+            })?
+        } else {
+            self.permit()?
+        };
         tokio::time::timeout(Duration::from_secs(3), async {
             let mut stream = connect(&self.directory.join("dispatch.sock"))
                 .await
@@ -756,6 +775,7 @@ impl NativeClient {
             };
             let mut required = required.to_vec();
             if matches!(&request,DispatchFrame::Remote{message,..} if matches!(message.message,Message::SessionListPage{..}|Message::SessionGet{..})) {required.push("native-pages-v1");}
+            if matches!(&request, DispatchFrame::Remote {message,..} if matches!(message.message, Message::Input { input: qgenie_remote_proto::wire::SessionInput::PromptReceipt(_), .. })) { required.push("native-prompt-receipts-v1"); }
             if agent {
                 required.push("native-agent-v1");
             }
