@@ -1,5 +1,7 @@
 //! Local and remote session clients. Connection retries never resend mutations.
 mod activity;
+mod work_inbox;
+pub use work_inbox::{WorkAcknowledgements, WorkCursor, WorkItem, WorkPage};
 mod credentials;
 mod recovery;
 pub use activity::{Activity, ApprovalSummary, WaitOutcome, WaitTarget};

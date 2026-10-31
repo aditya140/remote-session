@@ -389,11 +389,11 @@ impl App {
             ),
         }
         let hint = if self.mode == Mode::Machines {
-            "↑/↓ select · / filter · Enter sessions · a approvals · F2 rename · F3 labels · F6 revoke · c create · k keys · r reconnect · q quit"
+            "↑/↓ select · / filter · Enter sessions · w work inbox · a approvals · F2 rename · F3 labels · F6 revoke · c create · k keys · r reconnect · q quit"
         } else if self.mode == Mode::History {
             "↑/↓ scroll · n next page · Esc streams · r reconnect · q quit"
         } else {
-            "↑/↓ select · / filter · Enter history · a approvals · v live · c create · u resume history · k keys · b live/history · n next · Home first · Esc back · r reconnect · q quit"
+            "↑/↓ select · / filter · Enter history · w work inbox · a approvals · v live · c create · u resume history · k keys · b live/history · n next · Home first · Esc back · r reconnect · q quit"
         };
         let filter = if self.mode == Mode::Machines {
             &self.machine_filter
@@ -428,7 +428,7 @@ fn cancels_read(code: KeyCode) -> bool {
             | KeyCode::Esc
             | KeyCode::Home
             | KeyCode::F(2 | 3 | 6)
-            | KeyCode::Char('/' | 'a' | 'b' | 'h' | 'r' | 'n' | 'v' | 'c' | 'k' | 'u')
+            | KeyCode::Char('/' | 'a' | 'b' | 'h' | 'r' | 'n' | 'v' | 'c' | 'k' | 'u' | 'w')
     )
 }
 async fn session_page(
@@ -590,6 +590,7 @@ async fn run_remote_inner(
         visible_sessions: Vec::new(),
     };
     app.refilter();
+    let mut acknowledged = qgenie_remote_client::WorkAcknowledgements::default();
     let mut terminal = TerminalGuard::enter()?;
     let signals = SignalGuard::start()?;
     let mut jobs: JoinSet<Result<Update, RemoteError>> = JoinSet::new();
@@ -623,6 +624,21 @@ async fn run_remote_inner(
                         KeyCode::Char('!') if app.mode==Mode::Sessions=>{app.attention_only = !app.attention_only;app.refilter();},
                         KeyCode::Char('/') if jobs.is_empty() && matches!(app.mode,Mode::Machines|Mode::Sessions)=>{app.filter_backup=Some(app.filter().clone());},
                         KeyCode::Char('a') if jobs.is_empty()=>{if let Some(client)=live.as_mut(){match crate::remote_approvals::run(&mut terminal,&signals.requested,client).await {Ok(message)=>app.message=message,Err(error)=>app.message=error.to_string()}app.approvals.changed();}},
+                        KeyCode::Char('w') if jobs.is_empty()=>{
+                            let result=crate::remote_dialog::drain(live.as_mut(),crate::remote_work::run(&mut terminal,&signals.requested,&api,&credentials,&mut acknowledged)).await;
+                            match result {
+                                Ok(Some(crate::remote_work::Selection::Session(item)))=>{
+                                    if !app.machines.iter().any(|m|m.id==item.machine.id){app.machines.push(item.machine.clone());}
+                                    app.machine=app.machines.iter().position(|m|m.id==item.machine.id).unwrap();
+                                    app.machine_filter.clear();app.session_filter.clear();app.attention_only=false;
+                                    app.active_only=false;app.session_after=None;app.session_next=None;
+                                    app.sessions=vec![item.session];app.selected=0;app.mode=Mode::Sessions;app.refilter();
+                                    app.message="Work entry selected. v opens the live view; Enter opens protected history; Home reloads this machine.".into();
+                                },
+                                Ok(Some(crate::remote_work::Selection::Approvals))=>{if let Some(client)=live.as_mut(){match crate::remote_approvals::run(&mut terminal,&signals.requested,client).await{Ok(message)=>app.message=message,Err(error)=>app.message=error.to_string()}app.approvals.changed();}},
+                                Ok(None)=>{},Err(error)=>app.message=error.to_string(),
+                            }
+                        },
                         KeyCode::F(2|3|6) if jobs.is_empty() && app.mode==Mode::Machines=>{
                             if let Some(machine)=app.selected_machine().cloned() {
                                 let action=match key.code {KeyCode::F(2)=>crate::remote_machine::Action::Rename,KeyCode::F(3)=>crate::remote_machine::Action::Label,_=>crate::remote_machine::Action::Revoke};

@@ -1405,3 +1405,5 @@ fn session_fixture_without_metadata(machine: MachineId, id: SessionId) -> serde_
     value.as_object_mut().unwrap().remove("metadata");
     value
 }
+
+mod work_inbox;
