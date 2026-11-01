@@ -8,6 +8,16 @@ option and switch between Admin console and My workspace. Select navigation item
 filter inventory, search visible rows, or open an action dialog. No action contacts
 a service. This design extends the PRD's later browser and admin UI scope.
 
+## Revision 3: device and execution visibility
+
+The [device and telemetry design](device-agent-telemetry.md) extends this proposal
+with per-user device and server inventory, connection timestamps, per-session
+harness/model observations, aggregate telemetry, explainable activity signals,
+and a confirmed owner stop flow. It defines current data sources and missing
+instrumentation. The current prototype includes these views in all three styles.
+The user workspace uses this inventory as its main view and keeps approvals
+separate. Production routes and execution remain proposed.
+
 ## Recommendation and visual options
 
 | Option | Admin experience | User experience | Tradeoff |

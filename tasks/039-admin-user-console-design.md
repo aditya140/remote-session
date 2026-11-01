@@ -60,3 +60,45 @@ Direction switching and all admin navigation views also passed. No script errors
 occurred. A mobile Atlas navigation overflow was corrected before final capture.
 The review package and images now contain revision 2. The API and authority
 proposal retains its design-only scope.
+
+## Revision 3 plan: user, device, and execution visibility
+
+1. Inspect current machine presence, session identity, and agent inventory fields.
+2. Add admin user inventory and a user-to-device-to-session drill-down.
+3. Separate connected devices, enrolled servers, current process state, turn state,
+   model identity, harness identity, and observation freshness.
+4. Add aggregate telemetry and explainable unusual-activity examples with evidence.
+5. Add owner device/session views and an explicit confirmed session stop flow.
+6. Document source gaps, API additions, metric definitions, and authorization.
+7. Check the prototype on desktop and mobile, including stop and offline cases.
+
+These steps extend the design prototype. Production API and runtime behavior
+remain proposed until implementation. Prototype actions cannot stop a real agent.
+
+### Revision 3 delivered and checked
+
+The prototype now has admin Users and Telemetry & signals views. A user row opens
+its device inventory and agent sessions. Device detail shows harness version,
+reported model or unknown, native process state, task state, connection history
+fields, and last-seen freshness. Server counts are an explicit device subset.
+The owner workspace shows only its own fixture resources and targeted stop controls.
+
+The [device and telemetry proposal](../docs/design/device-agent-telemetry.md)
+defines the additional APIs, missing collection fields, count semantics, model
+provenance, aggregate coverage, explainable activity rules, and owner stop authority.
+Installed harnesses are not counted as running agents. Stale sessions remain
+unknown and stay outside confirmed active totals. Token totals are partial and
+session-scoped. Activity signals do not automatically revoke or terminate work.
+
+Chromium checks passed six desktop and twelve narrow views. They exercised user
+and device navigation, owner-visible scope after admin navigation, missing model
+metadata, cancel, exact stop confirmation, preservation of unrelated sessions,
+unknown stop reconciliation without resend, offline controls, aggregate reporting
+coverage, signal evidence, and keyboard dialogs. No script errors or external API
+calls occurred. A fixture check first used a non-unique heading locator; it now
+selects the visible content heading. The final proof passed.
+
+New previews include admin user detail, aggregate telemetry, owner devices and
+agents, and stop confirmation. The review package includes the new API proposal.
+All runtime interactions remain simulated; no production routes or telemetry jobs
+were added, and no real native session was stopped.
