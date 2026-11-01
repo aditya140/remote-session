@@ -230,6 +230,7 @@ async fn native_spool_https_upload_lost_ack_and_epoch_reclamation() {
     let native_path = std::fs::canonicalize(state.path()).unwrap();
     let at = now();
     let session = Session {
+        requested_model: None,
         metadata: Default::default(),
         id: SessionId::new(),
         machine: binding.machine,

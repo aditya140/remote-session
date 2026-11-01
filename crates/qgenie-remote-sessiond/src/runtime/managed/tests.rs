@@ -147,6 +147,23 @@ async fn actual_managed_owner_deduplicates_records_replays_and_survives_caller_l
         .map(|join| join.join().unwrap())
         .collect::<Vec<_>>();
     let id = sessions[0].id;
+    assert_eq!(
+        sessions[0]
+            .agent
+            .as_ref()
+            .unwrap()
+            .requested_model
+            .as_deref(),
+        Some("fixture")
+    );
+    assert_eq!(
+        runtime
+            .remote_session(&scope, id)
+            .unwrap()
+            .requested_model
+            .as_deref(),
+        Some("fixture")
+    );
     assert!(
         sessions
             .iter()
@@ -448,6 +465,10 @@ async fn actual_managed_owner_deduplicates_records_replays_and_survives_caller_l
     drop(runtime);
     let recovered = Runtime::open_after_previous_owner(config).unwrap();
     let info = recovered.list().unwrap().remove(0);
+    assert_eq!(
+        info.agent.as_ref().unwrap().requested_model.as_deref(),
+        Some("fixture")
+    );
     let original_instance = info.agent.as_ref().unwrap().native_instance;
     let snapshot = recovered
         .snapshot(&lock(recovered.session(id).unwrap().as_ref()).unwrap())

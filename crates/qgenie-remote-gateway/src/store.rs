@@ -2,8 +2,8 @@ use crate::{Error, SecretDsn};
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use std::time::Duration;
-pub const SCHEMA_MIN: i32 = 17;
-pub const SCHEMA_MAX: i32 = 17;
+pub const SCHEMA_MIN: i32 = 18;
+pub const SCHEMA_MAX: i32 = 18;
 const MIGRATIONS: &[(i32, &str)] = &[
     (1, include_str!("../migrations/0001_foundation.sql")),
     (2, include_str!("../migrations/0002_identity.sql")),
@@ -34,6 +34,7 @@ const MIGRATIONS: &[(i32, &str)] = &[
     (15, include_str!("../migrations/0015_approvals.sql")),
     (16, include_str!("../migrations/0016_session_pages.sql")),
     (17, include_str!("../migrations/0017_session_metadata.sql")),
+    (18, include_str!("browser/migration.sql")),
 ];
 #[derive(Clone)]
 pub struct Store {

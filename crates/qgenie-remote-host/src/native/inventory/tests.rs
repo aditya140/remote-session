@@ -24,6 +24,7 @@ async fn active_inventory_follows_byte_limited_pages_without_merging_wire_frames
     };
     let mut sessions = (0..18)
         .map(|_| Session {
+            requested_model: None,
             metadata: Default::default(),
             id: SessionId::new(),
             machine: scope.machine,
@@ -141,6 +142,7 @@ async fn active_inventory_rejects_foreign_scope_and_nonadvancing_pages() {
         let mut ids = [SessionId::new(), SessionId::new()];
         ids.sort();
         let session = Session {
+            requested_model: None,
             metadata: Default::default(),
             id: ids[0],
             machine: scope.machine,

@@ -178,9 +178,11 @@ class Stack:
             for hostname in sorted({urllib.parse.urlsplit(self.environment.get(key, "")).hostname for key in ("HTTPS_PROXY", "HTTP_PROXY")} - {None}):
                 command += ["--add-host", hostname + ":" + socket.gethostbyname(hostname)]
             run(command + [str(ROOT)], env=self.environment)
-        if self.args.identity == "keycloak":
+        if self.args.identity == "keycloak" and self.args.build_target == "all":
             self.call("build", "keycloak")
     def up(self):
+        if self.args.identity == "keycloak" and not (self.args.state / "input/gateway/browser.json").is_file():
+            raise RuntimeError("Existing Keycloak state predates the browser console. Use a new state directory and project; do not implicitly rotate the existing realm or credentials.")
         self.call("config", "--quiet")
         identities = ["keycloak", "directory"] if self.args.identity == "keycloak" else ["fixture-identity"]
         self.call("up", "--detach", "postgres", "standby", "redis", "pgbouncer", *identities, "edge", "otel", "prometheus")

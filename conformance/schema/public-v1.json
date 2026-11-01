@@ -3577,6 +3577,13 @@
             "null"
           ]
         },
+        "requested_model": {
+          "description": "Original native launch configuration; the effective runtime model remains unknown.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "state": {
           "$ref": "#/$defs/SessionState"
         }

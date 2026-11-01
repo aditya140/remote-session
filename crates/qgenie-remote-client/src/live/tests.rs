@@ -311,6 +311,7 @@ fn response(request: &Envelope, message: Message) -> Envelope {
 }
 fn session(machine: MachineId) -> Session {
     Session {
+        requested_model: None,
         metadata: Default::default(),
         id: SessionId::new(),
         machine,

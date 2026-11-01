@@ -264,3 +264,7 @@ Tests for host service behavior require the applicable native operating system.
 
 The configuration follows the [Dev Container specification](https://containers.dev/implementors/json_reference/).
 Its Rust base comes from the [Dev Container Rust image](https://github.com/devcontainers/images/tree/main/src/rust).
+
+The [browser console guide](docs/development/browser-console.md) covers the approved
+admin and owner companion, real local sign-in, inventory, telemetry, governance,
+protected history, and confirmed session termination.

@@ -8,7 +8,10 @@ This repository contains the standalone Rust workspace, application code, migrat
 The user selected Linux development completion. See [task progress](tasks/PROGRESS.md) for executed evidence and [external release gates](docs/validation/external-release-gates.md) for unrun qualification.
 Treat commands and interfaces in the design documents as proposals until implementation and tests establish their behavior.
 
-The first release uses a Rust terminal user interface (TUI).
+The original first-release client uses a Rust terminal user interface (TUI).
+The user approved a gateway-hosted admin and owner browser companion in
+[ADR 0010](docs/adr/0010-browser-console.md). Full browser terminal interaction
+remains outside that companion scope.
 The gateway uses PostgreSQL for durable data and Redis for routing and presence.
 The host connector and session owner are separate processes.
 The session owner keeps agent and terminal processes alive when clients disconnect.

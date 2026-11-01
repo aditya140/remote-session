@@ -389,6 +389,7 @@ pub(crate) async fn routing_contract(store: Store, admin: &sqlx::PgPool, databas
     let online=receive!(&mut client,|envelope| matches!(&envelope.message,Message::MachineUpdated(machine) if machine.id==enrolled.machine && machine.online)).await;
     assert!(online.machine == Some(enrolled.machine));
     let session = Session {
+        requested_model: None,
         metadata: Default::default(),
         id: SessionId::new(),
         machine: enrolled.machine,

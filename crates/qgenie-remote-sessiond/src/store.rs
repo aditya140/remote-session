@@ -634,6 +634,7 @@ mod managed_identity_tests {
             exit_code: None,
             recording_warning: None,
             agent: Some(ManagedSessionInfo {
+                requested_model: Some("configured-model".into()),
                 native_home: None,
                 agent: "codex".into(),
                 native_instance: MessageId::new(),
@@ -720,6 +721,10 @@ mod managed_identity_tests {
         assert_eq!(recovered.spec.key, spec.key);
         assert_eq!(recovered.scope.as_ref(), Some(&scope));
         let identity = recovered.info.agent.as_ref().unwrap();
+        assert_eq!(
+            identity.requested_model.as_deref(),
+            Some("configured-model")
+        );
         assert_eq!(
             identity.native_instance,
             info.agent.unwrap().native_instance

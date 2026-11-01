@@ -36,11 +36,19 @@ def configure(args, put, private, directory_secret):
                  mapper("stable user", "oidc-usermodel-property-mapper", {"user.attribute": "id", "claim.name": "oid", "jsonType.label": "String"}),
                  mapper("subject", "oidc-usermodel-property-mapper", {"user.attribute": "id", "claim.name": "sub", "jsonType.label": "String"}),
              ]}
+    browser_client = {"clientId": "qgr-browser", "protocol": "openid-connect", "enabled": True,
+        "publicClient": True, "standardFlowEnabled": True, "directAccessGrantsEnabled": False,
+        "serviceAccountsEnabled": False, "redirectUris": [f"https://localhost:{args.edge_port}/console/auth/callback"],
+        "attributes": {"pkce.code.challenge.method": "S256"},
+        "protocolMappers": [mapper("admin role", "oidc-usermodel-realm-role-mapper",
+            {"multivalued": "true", "claim.name": "roles", "jsonType.label": "String"})],
+        "defaultClientScopes": [SCOPE], "optionalClientScopes": []}
     realm = {"realm": "qgr-local", "enabled": True, "sslRequired": "external",
              "registrationAllowed": False, "resetPasswordAllowed": False,
              "bruteForceProtected": True, "accessTokenLifespan": 900,
              "clientScopes": [scope, {"name": "https://edge:9443/.default", "protocol": "openid-connect"}],
-             "clients": [
+             "roles": {"realm": [{"name": "Remote.Admin"}]},
+             "clients": [browser_client,
                  {"clientId": CLIENT, "protocol": "openid-connect", "enabled": True,
                   "publicClient": True, "standardFlowEnabled": True,
                   "directAccessGrantsEnabled": False, "serviceAccountsEnabled": False,
@@ -55,7 +63,7 @@ def configure(args, put, private, directory_secret):
                   "defaultClientScopes": ["roles"], "optionalClientScopes": ["https://edge:9443/.default"]},
              ],
              "users": [{"id": oid, "username": name, "enabled": True, "emailVerified": True,
-                        "realmRoles": ["offline_access"],
+                        "realmRoles": ["offline_access"] + (["Remote.Admin"] if name == "alice" else []),
                         "firstName": name.capitalize(), "lastName": "Local", "email": name + "@localhost.invalid",
                         "credentials": [{"type": "password", "value": credentials[name], "temporary": False}]}
                        for name, oid in USERS.items()] + [
@@ -71,6 +79,12 @@ def configure(args, put, private, directory_secret):
     put("gateway", "directory.json", {"tenant": TENANT, "client_id": DIRECTORY_CLIENT,
         "credential_file": "/run/qgr/graph-secret", "token_url": "https://edge:9443" + REALM + "/protocol/openid-connect/token",
         "graph_base": "https://edge:9443/v1.0", "ca_bundle": "/run/qgr/ca.pem"})
+    private(args.state / "input/gateway/browser-key", secrets.token_bytes(32))
+    put("gateway", "browser.json", {"public_origin": f"https://localhost:{args.edge_port}",
+        "authorization_endpoint": issuer + "/protocol/openid-connect/auth",
+        "token_endpoint": "https://edge:9443" + REALM + "/protocol/openid-connect/token",
+        "client_id": "qgr-browser", "scope": "openid " + SCOPE,
+        "encryption_key_file": "/run/qgr/browser-key", "ca_bundle": "/run/qgr/ca.pem"})
     private(args.state / "users.json", json.dumps(credentials, indent=2) + "\n")
     private(args.state / "oauth.json", json.dumps({"client_id": CLIENT, "remote_scope": SCOPE,
         "authorization_endpoint": issuer + "/protocol/openid-connect/auth",

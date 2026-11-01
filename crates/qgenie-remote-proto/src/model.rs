@@ -74,6 +74,9 @@ wire! {
     #[serde(rename_all = "snake_case")]
     pub enum SessionState { Accepted, Launching, Running, Idle, Exited, Failed, Lost, OutcomeUnknown }
     pub struct ManagedSessionInfo {
+        /// Trusted launch configuration only; not proof of the effective runtime model.
+        #[serde(default, skip_serializing_if="Option::is_none", deserialize_with="deserialize_requested_model")]
+        pub requested_model: Option<String>,
         pub agent: String,
         pub native_instance: MessageId,
         pub native_thread: Option<String>,
@@ -180,9 +183,34 @@ impl RemoteError {
     }
 }
 
+pub(crate) fn valid_requested_model(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value.bytes().all(|b| {
+            b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'/' | b':' | b'@')
+        })
+}
+pub(crate) fn deserialize_requested_model<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    use serde::Deserialize;
+    let value = Option::<String>::deserialize(deserializer)?;
+    if value
+        .as_deref()
+        .is_some_and(|value| !valid_requested_model(value))
+    {
+        return Err(serde::de::Error::custom("invalid requested model metadata"));
+    }
+    Ok(value)
+}
+
 impl ManagedSessionInfo {
     pub fn validate(&self) -> Result<(), RemoteError> {
-        if self.agent.is_empty()
+        if self
+            .requested_model
+            .as_deref()
+            .is_some_and(|value| !valid_requested_model(value))
+            || self.agent.is_empty()
             || self.agent.len() > 64
             || !self
                 .agent

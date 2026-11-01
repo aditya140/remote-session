@@ -7,11 +7,24 @@ use std::{
     task::{Context, Poll},
 };
 /// One codec adaptation; queueing, limits, heartbeat, and task ownership stay in transport.
-pub(super) struct Socket(pub WebSocket, pub std::sync::Arc<super::authority::Gate>);
+pub(super) struct Socket(
+    pub WebSocket,
+    pub std::sync::Arc<super::authority::Gate>,
+    pub Option<std::sync::Arc<super::authority::Gate>>,
+);
+impl Socket {
+    fn authorized(&self) -> Result<(), crate::Error> {
+        self.1.assert()?;
+        if let Some(browser) = &self.2 {
+            browser.assert()?;
+        }
+        Ok(())
+    }
+}
 impl Stream for Socket {
     type Item = Result<SocketMessage, Error>;
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.1.assert().is_err() {
+        if self.authorized().is_err() {
             return Poll::Ready(Some(Err(Error::Protocol(ErrorCode::AccessStale))));
         }
         Pin::new(&mut self.0).poll_next(cx).map(|item| {
@@ -26,7 +39,7 @@ impl Stream for Socket {
 impl Sink<SocketMessage> for Socket {
     type Error = Error;
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        if self.1.assert().is_err() {
+        if self.authorized().is_err() {
             return Poll::Ready(Err(Error::Protocol(ErrorCode::AccessStale)));
         }
         Pin::new(&mut self.0)
@@ -34,8 +47,7 @@ impl Sink<SocketMessage> for Socket {
             .map_err(|_| Error::Network)
     }
     fn start_send(mut self: Pin<&mut Self>, message: SocketMessage) -> Result<(), Error> {
-        self.1
-            .assert()
+        self.authorized()
             .map_err(|_| Error::Protocol(ErrorCode::AccessStale))?;
         let message = match message {
             SocketMessage::Text(text) => AxumMessage::Text(text.as_str().into()),
@@ -53,7 +65,7 @@ impl Sink<SocketMessage> for Socket {
             .map_err(|_| Error::Network)
     }
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        if self.1.assert().is_err() {
+        if self.authorized().is_err() {
             return Poll::Ready(Err(Error::Protocol(ErrorCode::AccessStale)));
         }
         Pin::new(&mut self.0)

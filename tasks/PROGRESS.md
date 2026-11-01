@@ -667,3 +667,20 @@ The standing goal remains all 28 tasks. Remaining development follows the next-a
 list above; actual Entra/macOS/service-manager evidence, representative beta hardware,
 production fault domains, backup targets and operating assignments require suitable
 environments and owners. No unrun requirement has been marked complete.
+
+
+## 2026-11-01: Approved browser companion
+
+[Task 040](040-implement-browser-console.md) is implemented and locally validated.
+The gateway serves the approved admin and owner console with actual scoped inventory,
+telemetry, governance, protected history, and confirmed native termination. Shared
+OIDC/PKCE browser sessions use schema 18 and preserve native execution authority.
+
+The final four-gateway Keycloak proof passed ten checks in 18.615 seconds. Logout
+closed an existing browser WSS in 2.083 seconds and preserved native work. The full
+native and recording proof passed all five phases in 166.387 seconds. Workspace,
+PostgreSQL, frontend, schema, lint, and law checks passed. Read the committed
+[validation record](../docs/validation/browser-console-2026-11-01.json) and
+[setup guide](../docs/development/browser-console.md) for evidence and unavailable sources.
+The isolated console uses port 8543. The original local deployment was preserved.
+External release gates and hosted CI remain separate from this local qualification.

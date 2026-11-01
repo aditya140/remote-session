@@ -19,6 +19,7 @@ ed25519-dalek.workspace = true
 jsonwebtoken.workspace = true
 libc.workspace = true
 rand.workspace = true
+ring.workspace = true
 reqwest.workspace = true
 redis.workspace = true
 serde.workspace = true

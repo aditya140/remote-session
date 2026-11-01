@@ -341,6 +341,7 @@ impl Runtime {
                 .is_none()
                 .then(|| "Local preview replay only; no enrolled recording".into()),
             agent: Some(ManagedSessionInfo {
+                requested_model: profile.provider.requested_model().map(str::to_owned),
                 native_home,
                 agent,
                 native_instance: MessageId::new(),

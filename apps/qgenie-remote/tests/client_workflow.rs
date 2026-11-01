@@ -73,6 +73,7 @@ impl Peer {
         Self {
             output: None,
             session: Session {
+                requested_model: None,
                 metadata: Default::default(),
                 id: SessionId::new(),
                 machine,

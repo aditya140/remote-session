@@ -120,6 +120,7 @@ pub(crate) async fn database_contract(store: Store, admin: &sqlx::PgPool, migrat
         .unwrap();
     let created = timestamp(OffsetDateTime::now_utc() - time::Duration::seconds(10)).unwrap();
     let session = Session {
+        requested_model: None,
         metadata: Default::default(),
         id: SessionId::new(),
         machine: actor.machine,

@@ -30,7 +30,11 @@ pub(crate) async fn client_upgrade(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Result<Response, Error> {
-    let actor = gateway.authenticate_client(&headers).await?;
+    let mut actor = gateway.authenticate_client(&headers).await?;
+    let browser = crate::browser::connection_session(&gateway, &headers, actor.user).await?;
+    if let Some(session) = &browser {
+        actor.expires_at = actor.expires_at.min(session.expires_at);
+    }
     let hub = gateway
         .routing
         .as_ref()
@@ -43,7 +47,7 @@ pub(crate) async fn client_upgrade(
         .try_acquire_owned()
         .map_err(|_| Error::Overloaded)?;
     Ok(configure(ws).on_upgrade(move |socket| async move {
-        if let Err(error) = serve_client(hub, socket, actor, permit).await {
+        if let Err(error) = serve_client(hub, socket, actor, permit, browser).await {
             tracing::debug!(?error, "client connection closed");
         }
     }))
@@ -224,6 +228,7 @@ async fn serve_client(
     socket: WebSocket,
     actor: Principal,
     _permit: OwnedSemaphorePermit,
+    browser: Option<crate::browser::ConnectionSession>,
 ) -> Result<(), Error> {
     if *hub.stop.borrow() {
         return Err(Error::Draining);
@@ -231,12 +236,27 @@ async fn serve_client(
     let expires = Arc::new(AtomicU64::new(actor.expires_at));
     let watched = super::authority::Actor::User(actor.user);
     let gate = super::authority::Watch::admit(&hub, &watched, &expires).await?;
+    let browser_bound = browser.is_some();
+    let browser_gate = if let Some(binding) = &browser {
+        let proof_started = super::authority::elapsed()?;
+        tokio::time::timeout(Duration::from_secs(2), binding.current())
+            .await
+            .map_err(|_| Error::Unavailable)??;
+        let browser_gate = Arc::new(super::authority::Gate::new(binding.expires_at)?);
+        browser_gate.renew(proof_started, Some(proof_started + Duration::from_secs(4)))?;
+        Some(browser_gate)
+    } else {
+        None
+    };
     let mut connection = Connection::adopt(
-        Socket(socket, gate.clone()),
+        Socket(socket, gate.clone(), browser_gate.clone()),
         hub.limits(),
         Some(hub.observations.hook()),
     )
     .map_err(|_| Error::Invalid)?;
+    let _browser_watch = browser
+        .zip(browser_gate)
+        .map(|(binding, gate)| BrowserWatch::start(binding, gate, connection.cancellation()));
     let (stop, mut cancelled) = watch::channel(false);
     let _authority = super::authority::Watch::start(
         hub.clone(),
@@ -331,6 +351,7 @@ async fn serve_client(
                 if expires.load(Ordering::Acquire).saturating_mul(1000)<=now_ms()? {break Err(Error::Unauthenticated);}
                 let re=if let Frame::Text(envelope)=&received.frame {Some(envelope.id)}else{None};
                 let result=if let Frame::Text(envelope)=&received.frame && let Message::Reauthenticate {token}=&envelope.message {
+                    if browser_bound {break Err(Error::Forbidden);}
                     let mut headers=HeaderMap::new();headers.insert(axum::http::header::AUTHORIZATION,format!("Bearer {}",token.as_str()).parse().map_err(|_| Error::Unauthenticated)?);
                     let fresh=hub.gateway.authenticate_client(&headers).await?;
                     if fresh.user!=actor.user {break Err(Error::Forbidden);}
@@ -360,7 +381,7 @@ async fn serve_host(
     let watched = super::authority::Actor::Host(actor.clone(), generation_cell.clone());
     let gate = super::authority::Watch::admit(&hub, &watched, &expires).await?;
     let mut connection = Connection::adopt(
-        Socket(socket, gate.clone()),
+        Socket(socket, gate.clone(), None),
         hub.limits(),
         Some(hub.observations.hook()),
     )
@@ -505,4 +526,40 @@ fn refreshed(
         .try_send(Priority::Control, Frame::Text(Box::new(envelope)))
         .map_err(|_| Error::Overloaded)?;
     Ok(())
+}
+
+// A second independent gate prevents queued browser I/O from outliving the
+// browser session, even if a task is suspended while another node logs it out.
+struct BrowserWatch(tokio::task::JoinHandle<()>);
+impl Drop for BrowserWatch {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+impl BrowserWatch {
+    fn start(
+        binding: crate::browser::ConnectionSession,
+        gate: Arc<super::authority::Gate>,
+        driver: qgenie_remote_transport::ws::ConnectionCancellation,
+    ) -> Self {
+        Self(tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(2));
+            loop {
+                interval.tick().await;
+                let checked = async {
+                    let started = super::authority::elapsed()?;
+                    tokio::time::timeout(Duration::from_secs(2), binding.current())
+                        .await
+                        .map_err(|_| Error::Unavailable)??;
+                    gate.renew(started, Some(started + Duration::from_secs(4)))
+                }
+                .await;
+                if checked.is_err() {
+                    gate.deny();
+                    driver.cancel();
+                    break;
+                }
+            }
+        }))
+    }
 }

@@ -114,6 +114,12 @@ jobs:
       if: matrix.suite == 'workspace'
     - run: cargo test --workspace --locked --no-fail-fast
       if: matrix.suite == 'workspace'
+    - name: Console browser contracts
+      if: matrix.suite == 'workspace' && runner.os == 'Linux'
+      run: |
+        python3 -m venv "$RUNNER_TEMP/qgr-console-tests"
+        "$RUNNER_TEMP/qgr-console-tests/bin/pip" install --disable-pip-version-check -r apps/qgenie-console/tests/requirements.txt
+        "$RUNNER_TEMP/qgr-console-tests/bin/python" apps/qgenie-console/tests/browser_contract.py --chromium /usr/bin/google-chrome
     - run: cargo xtask boundaries
       if: matrix.suite == 'workspace'
     - run: cargo xtask schema --check

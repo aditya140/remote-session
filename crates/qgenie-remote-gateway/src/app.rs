@@ -43,6 +43,7 @@ impl Authenticator for RejectAuthentication {
 #[derive(Clone)]
 pub struct Gateway {
     pub(crate) store: Store,
+    pub(crate) browser: Option<Arc<crate::BrowserService>>,
     pub(crate) audit: Option<Store>,
     pub(crate) auth: Arc<dyn Authenticator>,
     pub(crate) identity: Option<Arc<IdentityService>>,
@@ -62,6 +63,7 @@ impl Gateway {
         };
         Ok(Self {
             store,
+            browser: None,
             audit,
             auth,
             identity: None,
@@ -71,6 +73,13 @@ impl Gateway {
             revocation_observations: Arc::new(crate::revocation::Propagation::default()),
             draining: Arc::new(AtomicBool::new(false)),
         })
+    }
+    pub fn enable_browser(mut self, config: crate::BrowserConfig) -> Result<Self, Error> {
+        if self.browser.is_some() || self.routing.is_some() || self.identity.is_none() {
+            return Err(Error::Configuration);
+        }
+        self.browser = Some(Arc::new(crate::BrowserService::new(config)?));
+        Ok(self)
     }
     pub async fn enable_routing(mut self, config: crate::RoutingConfig) -> Result<Self, Error> {
         if self.routing.is_some() {
@@ -193,6 +202,10 @@ impl Gateway {
     pub fn router(&self) -> Router {
         Router::new()
             .merge(crate::transcripts::api::routes())
+            .merge(crate::browser::routes())
+            .merge(crate::console::routes())
+            .merge(crate::console_assets::routes())
+            .merge(crate::console_history::routes())
             .route("/v1/connect/client", get(crate::routing::client_upgrade))
             .route("/v1/connect/host", get(crate::routing::host_upgrade))
             .route("/v1/admin/audit", get(read_audit))
@@ -233,6 +246,10 @@ impl Gateway {
                 "/v1/machine-tokens",
                 axum::routing::post(crate::identity::api::token),
             )
+            .layer(axum::middleware::from_fn_with_state(
+                self.clone(),
+                crate::browser::middleware,
+            ))
             .layer(axum::extract::DefaultBodyLimit::max(64 * 1024))
             .layer(
                 tower::ServiceBuilder::new()

@@ -1,7 +1,8 @@
 # Local application development
 
 Use this setup to run the application with real local user sign-in. The application
-has a terminal interface. Keycloak supplies the browser login and account console.
+has a terminal interface and an [admin and owner browser companion](browser-console.md).
+Keycloak supplies local user sign-in.
 
 The devcontainer supplies build tools, PostgreSQL, and Redis. It does not start the
 application. Run the procedure below in a Linux shell with access to a local Docker
@@ -27,7 +28,10 @@ source /workspace/.remote-session-tools/env.sh
 
 ## Start the application
 
-Run these commands from the repository root:
+Run these commands from the repository root. If an existing Keycloak state directory
+predates browser support, follow the separate-project procedure in the
+[browser console guide](browser-console.md). The tool rejects implicit realm or
+credential changes.
 
 ```sh
 python3 tools/dev.py up

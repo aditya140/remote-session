@@ -13,5 +13,6 @@ These records define the implementation baseline for [task 002](../../tasks/002-
 | [0007](0007-standalone-preview.md) | Standalone TUI and new composition root | User-selected direction; removes the external CLI prerequisite. |
 | [0008](0008-development-compose-networks.md) | Private development namespaces and generated secrets | Implemented and exercised in the four-gateway deployment. |
 | [0009](0009-revocation-completion.md) | Conservative propagation completion from original authority expiry | Linux implementation; real-process qualification in task 019. |
+| [0010](0010-browser-console.md) | Gateway-hosted admin and owner browser companion | User-approved scope; implementation and evidence in task 040. |
 
 Use the [operation matrix](../contracts/operation-matrix.md) to implement authorization. Use the [failure walkthroughs](../contracts/failure-walkthroughs.md) to build conformance and fault tests.

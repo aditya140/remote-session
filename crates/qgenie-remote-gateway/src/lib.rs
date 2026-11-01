@@ -1,5 +1,10 @@
 //! Gateway authority and HTTP composition. No native execution or local IPC.
 mod app;
+pub mod browser;
+mod console;
+mod console_assets;
+mod console_history;
+pub use browser::{BrowserConfig, BrowserService};
 mod approvals;
 mod audit;
 pub use approvals::{ApprovalChoice, ApprovalDelivery, ApprovalProjection};

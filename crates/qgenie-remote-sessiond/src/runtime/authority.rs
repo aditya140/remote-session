@@ -598,6 +598,10 @@ impl Runtime {
             session_capabilities(&state, self.can_resume_history())
         };
         let session = wire::Session {
+            requested_model: info
+                .agent
+                .as_ref()
+                .and_then(|agent| agent.requested_model.clone()),
             metadata: Default::default(),
             id: info.id,
             machine: info.machine,

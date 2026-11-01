@@ -131,6 +131,6 @@ pub(super) async fn check(
     .await
     .map_err(|_| Error::Unavailable)?
 }
-fn elapsed() -> Result<Duration, Error> {
+pub(super) fn elapsed() -> Result<Duration, Error> {
     qgenie_remote_transport::elapsed::now().map_err(|_| Error::Unavailable)
 }

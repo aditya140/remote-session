@@ -141,6 +141,10 @@ impl Runtime {
         self.recording_warning(&mut state);
         let info = &state.info;
         Ok(wire::Session {
+            requested_model: info
+                .agent
+                .as_ref()
+                .and_then(|agent| agent.requested_model.clone()),
             metadata: Default::default(),
             id: info.id,
             machine: info.machine,

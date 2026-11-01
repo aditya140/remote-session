@@ -239,7 +239,7 @@ flowchart TB
 | Module | Responsibility |
 | --- | --- |
 | Edge/conn manager | Accepts WSS on `/v1/connect/host` and `/v1/connect/client`, ping/pong, limits on frame size and rate, per-connection bounded send queues (drops/marks slow observers instead of blocking the session). |
-| AuthN | Clients: Entra JWT (audience `qgenie-remote`) on the WS upgrade (`Authorization` header for TUI/desktop; short-lived connect ticket from REST for browsers). Hosts: machine token issued after an Ed25519 challenge. Re-checks on token expiry and checks durable gateway revocation state on new connections. Existing connections use push invalidation plus bounded authoritative reconciliation (§8); token expiry is not the revocation fallback. |
+| AuthN | Clients: Entra JWT (audience `qgenie-remote`) on the WS upgrade (`Authorization` header for TUI/desktop; opaque same-origin session cookie for the browser companion under ADR 0010). Hosts: machine token issued after an Ed25519 challenge. Re-checks on token expiry and checks durable gateway revocation state on new connections. Existing connections use push invalidation plus bounded authoritative reconciliation (§8); token expiry is not the revocation fallback. |
 | AuthZ | Policy engine per message: is this user the owner (or, in v2, a sharee with a role) of this machine/session? Does this operation require the control lease? Approval answers require the owning user and host policy, but not a control lease. Is the org feature enabled? Gateway revocation state is cached for at most 5 s and invalidated through Redis pub/sub; stale authority cannot permit continued remote access (§8). |
 | Router | Publishes client→host frames to `host:{machine_id}` and host→client frames to `sess:{session_id}` / `conn:{conn_id}` (Redis `SPUBLISH`). Subscribes (`SSUBSCRIBE`) only for connections attached to this node. Fan-out to observers happens at the subscribing nodes. |
 | Session/approval state | Writes metadata, durable control generations, and approval records to Postgres. One conditional transaction commits an approval winner, audit event, and outbox obligation. Native application has a separate acknowledged or uncertain outcome under ADR 0002. |
@@ -1171,3 +1171,12 @@ conformance/                   # protocol test vectors run against host, client,
 2. Production storage: can the Postgres primary and standby servers get ≥ 8 TB data volumes (§9.7), or should retention be revisited after measuring real volume during dev?
 3. Off-server backup target for Postgres (NFS, another server, tape)?
 4. Which Entra directory/change-event integration detects disabled users and supports the 15-minute total revocation bound, including verification failures?
+
+## Browser companion implementation
+
+[ADR 0010](docs/adr/0010-browser-console.md) extends the original TUI scope with a
+gateway-hosted browser companion. Shared encrypted browser sessions use PostgreSQL.
+Cookie-authenticated actions require origin and CSRF checks. Owner termination
+uses the existing WSS authority. Admin metadata visibility grants no native control.
+The [browser console guide](docs/development/browser-console.md) describes deployment
+and the implemented boundaries.

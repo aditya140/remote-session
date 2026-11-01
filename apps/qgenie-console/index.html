@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>QGenie Remote</title>
+    <link rel="stylesheet" href="/console/assets/base.css" />
+    <link rel="stylesheet" href="/console/assets/shell.css" />
+    <link rel="stylesheet" href="/console/assets/admin-visual.css" />
+    <link rel="stylesheet" href="/console/assets/telemetry-visual.css" />
+    <link rel="stylesheet" href="/console/assets/user-visual.css" />
+    <link rel="stylesheet" href="/console/assets/app.css" />
+    <script defer src="/console/assets/app.js"></script>
+    <script defer src="/console/assets/wire.js"></script>
+    <script defer src="/console/assets/views.js"></script>
+    <script defer src="/console/assets/boot.js"></script>
+  </head>
+  <body data-theme="workspace">
+    <div class="app" id="app">
+      <aside>
+        <a class="brand" href="/console/"><span>q</span>qgenie</a>
+        <div class="workspace-picker">
+          <span class="square">Q</span
+          ><span>Remote workspace<small id="scope">Connecting…</small></span>
+        </div>
+        <div>
+          <div class="eyebrow" style="padding: 0 12px 12px">Workspace</div>
+          <nav class="nav" id="nav" aria-label="Main navigation"></nav>
+        </div>
+        <div class="sidefoot">
+          <span class="avatar" id="initials">Q</span
+          ><b id="actor">Not signed in</b>
+          <p id="role"></p>
+          <button id="logout" class="hide">Sign out</button>
+        </div>
+      </aside>
+      <main>
+        <div class="topbar">
+          <b id="crumb">QGenie Remote</b>
+          <div class="topbar-actions">
+            <label class="search-label"
+              ><span class="sr-only">Filter visible items</span
+              ><input
+                id="search"
+                type="search"
+                placeholder="Filter this view…"
+                autocomplete="off" /></label
+            ><button id="refresh" title="Refresh current data">Refresh</button>
+          </div>
+        </div>
+        <div class="content" id="content" aria-live="polite">
+          <div class="card pad">
+            <h1>Connecting to your workspace…</h1>
+            <p>Checking your sign-in and current access.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+    <dialog id="stop-dialog">
+      <form id="stop-form">
+        <div class="eyebrow">Native session termination</div>
+        <h1>Stop this session?</h1>
+        <p id="stop-target"></p>
+        <p>
+          This ends the selected native session and may discard work. Other
+          sessions and device access continue.
+        </p>
+        <label for="stop-confirmation">Type STOP to confirm</label
+        ><input
+          id="stop-confirmation"
+          required
+          pattern="STOP"
+          autocomplete="off"
+        /><label id="external-label" class="hide"
+          ><input type="checkbox" id="external-confirmation" /> I confirm
+          termination of this externally started session.</label
+        >
+        <p id="stop-error" role="alert"></p>
+        <div class="actions">
+          <button type="button" id="stop-cancel">Cancel</button
+          ><button type="submit" id="stop-submit" class="primary">
+            Stop session
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="evidence-dialog">
+      <h1 id="evidence-title">Activity evidence</h1>
+      <div id="evidence-body"></div>
+      <div class="actions"><button id="evidence-close">Close</button></div>
+    </dialog>
+    <div class="toast hide" role="status" id="toast"></div>
+  </body>
+</html>

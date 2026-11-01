@@ -73,6 +73,16 @@ impl Provider {
             allow_loopback: false,
         }
     }
+    /// Bounded display metadata. This does not disclose endpoint or credential fields
+    /// and does not establish which model the provider ultimately serves.
+    pub fn requested_model(&self) -> Option<&str> {
+        (!self.model.is_empty()
+            && self.model.len() <= 128
+            && self.model.bytes().all(|b| {
+                b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'/' | b':' | b'@')
+            }))
+        .then_some(self.model.as_str())
+    }
     pub fn allow_loopback_fixture(mut self, allow: bool) -> Self {
         self.allow_loopback = allow;
         self
@@ -750,4 +760,28 @@ fn bind_owner_death(command: &mut Command, enabled: bool) {
     }
     #[cfg(not(target_os = "linux"))]
     let _ = (command, enabled);
+}
+
+#[cfg(test)]
+mod requested_model_metadata_tests {
+    use super::Provider;
+    #[test]
+    fn configured_model_metadata_does_not_expose_connection_secrets() {
+        let provider = Provider::new(
+            "https://private-endpoint.example/v1".into(),
+            "vendor/model-v2:alias".into(),
+            "secret-credential".into(),
+        );
+        assert_eq!(provider.requested_model(), Some("vendor/model-v2:alias"));
+        let serialized = serde_json::to_string(&provider.requested_model()).unwrap();
+        assert!(!serialized.contains("private-endpoint"));
+        assert!(!serialized.contains("secret-credential"));
+        for model in ["".to_string(), "x".repeat(129), "unsafe\nvalue".to_string()] {
+            assert!(
+                Provider::new("https://example.test".into(), model, "key".into())
+                    .requested_model()
+                    .is_none()
+            );
+        }
+    }
 }

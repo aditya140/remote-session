@@ -43,3 +43,12 @@ services:
       init-secrets: {condition: service_completed_successfully}
       keycloak: {condition: service_started}
       directory: {condition: service_started}
+
+  gateway-1:
+    environment: {QGR_BROWSER_CONFIG_FILE: /run/qgr/browser.json}
+  gateway-2:
+    environment: {QGR_BROWSER_CONFIG_FILE: /run/qgr/browser.json}
+  gateway-3:
+    environment: {QGR_BROWSER_CONFIG_FILE: /run/qgr/browser.json}
+  gateway-4:
+    environment: {QGR_BROWSER_CONFIG_FILE: /run/qgr/browser.json}

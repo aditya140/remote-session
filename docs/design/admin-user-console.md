@@ -1,5 +1,9 @@
 # Admin and user console proposal
 
+Implementation: See [the browser console guide](../development/browser-console.md)
+for current behavior, local setup, and verification. This document retains the
+approved design proposals. It does not establish that every proposal is available.
+
 Status: design review. No new production endpoint or browser authentication path
 has been implemented. The prototype uses synthetic data and local simulation.
 

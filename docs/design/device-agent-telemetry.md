@@ -1,5 +1,9 @@
 # Device, agent, and telemetry console design
 
+Implementation: See [the browser console guide](../development/browser-console.md)
+for current behavior, local setup, and verification. This document retains the
+approved design proposals. It does not establish that every proposal is available.
+
 Status: revision 3 design. The prototype uses synthetic metadata. Production
 collection, APIs, browser session control, and anomaly rules are not implemented
 by this design change.

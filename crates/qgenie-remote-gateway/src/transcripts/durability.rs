@@ -273,6 +273,7 @@ async fn actual_synchronous_receipts_survive_primary_volume_loss() {
         .unwrap();
     let created = timestamp();
     let session = Session {
+        requested_model: None,
         metadata: Default::default(),
         id: SessionId::new(),
         machine: actor.machine,
@@ -329,6 +330,7 @@ async fn actual_synchronous_receipts_survive_primary_volume_loss() {
         &admin_token,
         first.clone(),
         &receipt,
+        &admin,
     )
     .await;
     assert_eq!(http_receipt.backend_epoch, "sync-proof-1");

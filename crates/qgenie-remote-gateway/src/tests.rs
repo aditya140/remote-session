@@ -230,6 +230,8 @@ async fn postgres_migrations_atomic_audit_roles_auth_and_readiness() {
     let gateway = Gateway::connect(&config, Arc::new(TestAuth(actor)))
         .await
         .unwrap();
+    crate::browser::tests::database_contract(&gateway).await;
+    crate::console::tests::database_contract(&gateway, &admin).await;
     let response = gateway
         .router()
         .oneshot(

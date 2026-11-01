@@ -222,6 +222,9 @@ types! {
     #[serde(rename_all="snake_case")]
     pub enum Origin { Managed,External }
     pub struct Session {
+        /// Original native launch configuration; the effective runtime model remains unknown.
+        #[serde(default,skip_serializing_if="Option::is_none",deserialize_with="crate::model::deserialize_requested_model")]
+        pub requested_model: Option<String>,
         pub id: SessionId,pub machine: MachineId,pub owner: UserId,pub kind: LaunchKind,
         #[serde(default,skip_serializing_if="SessionMetadata::is_empty")]
         pub metadata: SessionMetadata,

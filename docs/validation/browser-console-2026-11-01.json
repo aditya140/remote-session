@@ -1,0 +1,109 @@
+{
+  "format": "qgr-browser-console-validation-v1",
+  "date_utc": "2026-11-01",
+  "status": "passed",
+  "scope": "Linux development qualification; not production release qualification",
+  "workspace": {
+    "tests_passed": 254,
+    "tests_ignored": 19,
+    "clippy": "passed",
+    "managed_codex_all_targets_clippy": "passed",
+    "format": "passed",
+    "boundaries": "passed",
+    "public_rest_recording_schema_freshness": "passed",
+    "python_tool_tests_passed": 14
+  },
+  "gateway_postgres": {
+    "tests_passed": 36,
+    "tests_failed": 0,
+    "durability_test": "run separately in composed proof"
+  },
+  "frontend_contract": {
+    "status": "passed",
+    "playwright": "1.62.0",
+    "browser": "trusted local Chromium",
+    "sources": "intercepted HTTP and WebSocket contracts",
+    "coverage": [
+      "role navigation",
+      "configured versus effective model",
+      "metadata and recording text safety",
+      "exact stop target",
+      "64-bit generations",
+      "cancel without mutation",
+      "unknown outcome without resend after reload",
+      "recording gaps",
+      "admin reason draft survives timed refresh",
+      "desktop tablet mobile"
+    ]
+  },
+  "laws": {
+    "status": "passed",
+    "laws": 115,
+    "mutations_rejected": 32,
+    "rust_comparisons": 22712
+  },
+  "browser_deployment": {
+    "status": "passed",
+    "checks": [
+      "anonymous owner and admin API access denied",
+      "all four isolated gateways run the selected built image",
+      "real Keycloak browser PKCE, separate users, and platform-admin role enforcement",
+      "cookie protection, CSRF, cross-origin mutation and WebSocket denial, and no upstream token exposure",
+      "same encrypted browser session survives requests forced across different gateways",
+      "real owner/native inventory, admin user UI drill-down, and owner isolation",
+      "owner device-list includes the native connector activation timestamp",
+      "actual browser WSS stop, cancelled confirmation, and unrelated native session survival",
+      "real API-backed admin telemetry and explicit unavailable usage",
+      "browser logout removes API authority, closes existing WSS, and preserves native work"
+    ],
+    "gateway_images": {
+      "gateway-1": "sha256:47c61eda35e17a5b7b89d15050b396568c65d6c55fc4c09166ce025d811b8a97",
+      "gateway-2": "sha256:47c61eda35e17a5b7b89d15050b396568c65d6c55fc4c09166ce025d811b8a97",
+      "gateway-3": "sha256:47c61eda35e17a5b7b89d15050b396568c65d6c55fc4c09166ce025d811b8a97",
+      "gateway-4": "sha256:47c61eda35e17a5b7b89d15050b396568c65d6c55fc4c09166ce025d811b8a97"
+    },
+    "browser_ws_logout_close_ms": 2083,
+    "elapsed_ms": 18615,
+    "unrun": [
+      "corporate Entra",
+      "production fault domains",
+      "macOS",
+      "real model telemetry"
+    ]
+  },
+  "native_composed": {
+    "status": "passed",
+    "environment": {
+      "system": "Linux",
+      "arch": "x86_64"
+    },
+    "mode": "composed",
+    "phases": {
+      "synchronous_pair": "passed",
+      "public_session_pipeline": "passed",
+      "managed_codex": "passed",
+      "managed_start_boundaries": "passed",
+      "primary_volume_loss": "passed"
+    },
+    "release_gates": {
+      "real_entra": "not_run",
+      "macos_services": "not_run",
+      "linux_user_manager": "not_run",
+      "beta_scale": "not_run",
+      "production_fault_domains": "not_run"
+    },
+    "elapsed_ms": 166387,
+    "managed_codex_pin": "0.159.2",
+    "docker_version": "28.4.0",
+    "postgres_version": "17.11"
+  },
+  "hosted_ci": "not verified from this environment",
+  "unavailable_sources": [
+    "effective runtime model identity",
+    "normalized token usage",
+    "scheduled rule evaluation",
+    "adaptive anomaly baselines",
+    "organization policy editing",
+    "full browser terminal interaction"
+  ]
+}

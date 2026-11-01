@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 mod jobs;
 use qgenie_remote_gateway::{
-    Config, DirectoryConfig, Gateway, JwtConfig, RecordingDatabase, RecordingRole,
+    BrowserConfig, Config, DirectoryConfig, Gateway, JwtConfig, RecordingDatabase, RecordingRole,
     RejectAuthentication, RoutingConfig, SecretDsn, Store,
 };
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
@@ -50,6 +50,12 @@ struct ServeArgs {
     identity_config_file: Option<PathBuf>,
     #[arg(long, requires = "identity_config_file")]
     directory_config_file: Option<PathBuf>,
+    #[arg(
+        long,
+        env = "QGR_BROWSER_CONFIG_FILE",
+        requires = "identity_config_file"
+    )]
+    browser_config_file: Option<PathBuf>,
     #[arg(long, requires = "directory_config_file")]
     recording_lifecycle_database_url_file: Option<PathBuf>,
     #[arg(long, requires_all=["directory_config_file","recording_owner_database_url_file","recording_admin_database_url_file","recording_redaction_file"])]
@@ -130,6 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 node_id,
                 identity_config_file,
                 directory_config_file,
+                browser_config_file,
                 recording_lifecycle_database_url_file,
                 recording_ingest_database_url_file,
                 recording_owner_database_url_file,
@@ -197,6 +204,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         )?,
                     )
                     .await?;
+            }
+            if let Some(path) = browser_config_file {
+                gateway = gateway.enable_browser(BrowserConfig::from_file(&path)?)?;
             }
             if let Some(path) = redis_url_file {
                 gateway = gateway

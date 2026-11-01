@@ -294,3 +294,48 @@ fn session_metadata_is_bounded_and_rejects_unknown_fields() {
     assert_eq!(metadata.labels.len(), 15);
     assert!(serde_json::from_str::<SessionMetadata>(r#"{"role":"administrator"}"#).is_err());
 }
+
+#[test]
+fn configured_model_metadata_is_optional_bounded_and_distinct_from_effective_model() {
+    use wire::*;
+    let state = Session {
+        requested_model: Some("vendor/model-v2".into()),
+        metadata: Default::default(),
+        id: SessionId::new(),
+        machine: MachineId::new(),
+        owner: UserId::new(),
+        kind: LaunchKind::Agent {
+            agent: "codex".into(),
+            prompt: None,
+            native_resume_id: None,
+        },
+        cwd: "/work".into(),
+        origin: Origin::Managed,
+        state: SessionState::Running,
+        created_at: Timestamp::from_unix_millis(1).unwrap(),
+        ended_at: None,
+        head: Counter(0),
+        capabilities: Default::default(),
+        recording_warning: None,
+    };
+    let mut json = serde_json::to_value(&state).unwrap();
+    assert_eq!(json["requested_model"], "vendor/model-v2");
+    assert!(json.get("effective_model").is_none());
+    assert!(json.get("credential").is_none());
+    json.as_object_mut().unwrap().remove("requested_model");
+    let legacy: Session = serde_json::from_value(json.clone()).unwrap();
+    assert!(legacy.requested_model.is_none());
+    assert!(
+        serde_json::to_value(legacy)
+            .unwrap()
+            .get("requested_model")
+            .is_none()
+    );
+    for invalid in ["".to_string(), "x".repeat(129), "line\nbreak".to_string()] {
+        json["requested_model"] = invalid.into();
+        assert!(serde_json::from_value::<Session>(json.clone()).is_err());
+    }
+    let legacy_native = serde_json::json!({"agent":"codex","native_instance":MessageId::new(),"native_thread":null});
+    let native: ManagedSessionInfo = serde_json::from_value(legacy_native).unwrap();
+    assert!(native.requested_model.is_none());
+}

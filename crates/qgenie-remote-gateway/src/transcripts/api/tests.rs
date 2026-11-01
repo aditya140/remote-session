@@ -30,7 +30,12 @@ async fn post(
     if status.is_success() {
         assert_eq!(response.headers()["cache-control"], "private, no-store");
     }
-    let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+    let max_bytes = if path.starts_with("/v1/console/") {
+        5 * 1024 * 1024
+    } else {
+        1024 * 1024
+    };
+    let bytes = axum::body::to_bytes(response.into_body(), max_bytes)
         .await
         .unwrap();
     (
@@ -48,6 +53,7 @@ pub(crate) async fn production_recording_routes(
     admin: &str,
     batch: qgenie_remote_proto::wire::RecordingBatch,
     receipt: &qgenie_remote_proto::wire::CommitReceipt,
+    audit_pool: &sqlx::PgPool,
 ) -> qgenie_remote_proto::rest::RecordingAuthority {
     use qgenie_remote_proto::{rest::*, wire::*, *};
     let body = serde_json::to_vec(&batch).unwrap();
@@ -202,6 +208,117 @@ pub(crate) async fn production_recording_routes(
         .0,
         StatusCode::OK
     );
+    // Browser decoding must preserve the exact protected owner/admin authority.
+    let browser_owner = format!("/v1/console/sessions/{}/history", batch.session);
+    let browser_admin = format!("/v1/console/admin/sessions/{}/history", batch.session);
+    // The synchronous fixture supplies its existing inspection connection.
+    // Protected recording pools append audits but cannot read the audit table.
+    let audit = audit_pool;
+    let before: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM qgr.audit_events WHERE action='transcript_read' AND session=$1",
+    )
+    .bind(batch.session.to_string())
+    .fetch_one(audit)
+    .await
+    .unwrap();
+    for (token, endpoint, query_body, expected) in [
+        (
+            None,
+            &browser_owner,
+            serde_json::to_vec(&admin_query.history).unwrap(),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            Some(machine),
+            &browser_owner,
+            serde_json::to_vec(&admin_query.history).unwrap(),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            Some(foreign.as_str()),
+            &browser_owner,
+            serde_json::to_vec(&admin_query.history).unwrap(),
+            StatusCode::FORBIDDEN,
+        ),
+        (
+            Some(owner),
+            &browser_admin,
+            serde_json::to_vec(&admin_query).unwrap(),
+            StatusCode::FORBIDDEN,
+        ),
+        (
+            Some(admin),
+            &browser_admin,
+            serde_json::to_vec(&AdminHistoryQuery {
+                reason: String::new(),
+                ..admin_query.clone()
+            })
+            .unwrap(),
+            StatusCode::BAD_REQUEST,
+        ),
+    ] {
+        assert_eq!(post(gateway, token, endpoint, query_body).await.0, expected);
+    }
+    for (token, endpoint, query_body) in [
+        (
+            owner,
+            &browser_owner,
+            serde_json::to_vec(&admin_query.history).unwrap(),
+        ),
+        (
+            admin,
+            &browser_admin,
+            serde_json::to_vec(&admin_query).unwrap(),
+        ),
+    ] {
+        let (status, decoded) = post(gateway, Some(token), endpoint, query_body).await;
+        assert_eq!(status, StatusCode::OK);
+        let committed: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM qgr.audit_events WHERE action='transcript_read' AND session=$1",
+        )
+        .bind(batch.session.to_string())
+        .fetch_one(audit)
+        .await
+        .unwrap();
+        let expected = before + i64::from(endpoint == &browser_admin);
+        assert_eq!(
+            committed, expected,
+            "owner self-reads and privileged admin reads must retain separate audit semantics"
+        );
+        assert_eq!(decoded["session"], batch.session.to_string());
+        assert_eq!(decoded["stream_epoch"], batch.stream_epoch.to_string());
+        let items = decoded["items"].as_array().unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["kind"], "content");
+        let records = items[0]["records"].as_array().unwrap();
+        assert!(!records.is_empty());
+        for record in records {
+            let record: RecordingRecord = serde_json::from_value(record.clone()).unwrap();
+            record.validate(&batch.stream).unwrap();
+            let RecordedContent::Output { data, .. } = record.content else {
+                panic!("wrong browser history stream")
+            };
+            assert!(
+                !STANDARD
+                    .decode(data)
+                    .unwrap()
+                    .windows(14)
+                    .any(|v| v == b"fixture-secret")
+            );
+        }
+    }
+    let after: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM qgr.audit_events WHERE action='transcript_read' AND session=$1",
+    )
+    .bind(batch.session.to_string())
+    .fetch_one(audit)
+    .await
+    .unwrap();
+    assert_eq!(
+        after,
+        before + 1,
+        "only the successful admin read appends a privileged transcript-read audit"
+    );
     let mut invalid = admin_query;
     invalid.reason.clear();
     assert_eq!(
@@ -241,6 +358,21 @@ pub(crate) async fn production_recording_routes(
             .1,
         first
     );
+    let (status, decoded_gap) = post(
+        gateway,
+        Some(owner),
+        &browser_owner,
+        serde_json::to_vec(&HistoryQuery {
+            stream_epoch: gap.stream_epoch,
+            after: None,
+            limit: 4,
+        })
+        .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(decoded_gap["items"][0]["kind"], "gap");
+    assert_eq!(decoded_gap["items"][0]["gap"]["id"], gap.id.to_string());
     let challenge = ChallengeId::new();
     let streams_path = format!("/v1/sessions/{}/history/streams", batch.session);
     let query = HistoryStreamsQuery {

@@ -44,6 +44,7 @@ url = "2.5"
 rcgen = "0.13"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "json"] }
 redis = { version = "1.7", default-features = false, features = ["tokio-rustls-comp", "script"] }
+ring = "0.17.14"
 rand = "0.9"
 tempfile = "3.23"
 tower = { version = "0.5", features = ["util", "limit", "timeout", "load-shed"] }

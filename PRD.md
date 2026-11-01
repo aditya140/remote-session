@@ -9,7 +9,7 @@
 
 ## 1. Summary
 
-QGenie Remote lets a developer see all of their machines (laptops, lab servers, build hosts) in one place and work on any of them from the corporate network or through a corporate VPN. From the QGenie TUI, they can start or resume coding-agent sessions (Codex, Claude Code, Pi) and terminal sessions on those machines. Only the gateway must be reachable; users do not need SSH, direct access to machine addresses, or open inbound ports on hosts. **The first release is TUI-only.** Desktop app integration follows after the MVP.
+QGenie Remote lets a developer see all of their machines (laptops, lab servers, build hosts) in one place and work on any of them from the corporate network or through a corporate VPN. From the QGenie TUI, they can start or resume coding-agent sessions (Codex, Claude Code, Pi) and terminal sessions on those machines. Only the gateway must be reachable; users do not need SSH, direct access to machine addresses, or open inbound ports on hosts. **The original first-release client is the TUI.** The user-approved browser companion adds admin governance and inventory, owner history, and confirmed session termination. See [ADR 0010](docs/adr/0010-browser-console.md). Full browser terminal interaction remains later scope. Desktop app integration follows after the MVP.
 
 Each machine runs `qgenie remote`, which is part of the QGenie CLI that is already distributed. It signs in with QGenie OAuth, registers the machine, and keeps one outbound WSS connection to the QGenie Remote Gateway. Clients connect to the same gateway. The gateway authenticates both sides, authorizes every action, and routes traffic between them.
 
@@ -36,7 +36,8 @@ Each machine runs `qgenie remote`, which is part of the QGenie CLI that is alrea
 ### Non-goals (v1)
 
 - Sharing machines with other users or teams (designed for, shipped in v2).
-- Browser/web client (designed for, shipped later).
+- Full browser terminal client (designed for later delivery). The approved admin
+  and owner companion is current scope under ADR 0010.
 - Public-internet access to the gateway without the corporate network or a corporate VPN.
 - End-to-end encryption that hides content from the gateway. QGenie is the trusted operator; see the architecture doc, decision D5.
 - Remote desktop, GUI forwarding, general file sync, or port forwarding.

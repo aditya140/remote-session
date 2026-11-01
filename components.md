@@ -241,3 +241,10 @@ No crate is independently "done" just because its files exist. Each vertical sli
 | Production recording volume and operating ownership | Operations + telemetry | One measured model for traffic, duty cycle, compression, rounded retention, holds, WAL, replicas, and backups; named on-call/backup owners |
 
 These decisions may refine internal modules. They do not require turning every concern into another crate or abandoning the shared Rust workspace.
+
+## Browser companion
+
+`apps/qgenie-console` contains local HTML, CSS, and JavaScript assets. The existing
+gateway embeds and serves them at `/console/`. It adds no Rust crate, separate
+web server, Node runtime, or native authority. Gateway browser and console modules
+own browser identity and metadata read models. See [ADR 0010](docs/adr/0010-browser-console.md).
