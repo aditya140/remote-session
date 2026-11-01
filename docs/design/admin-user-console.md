@@ -308,3 +308,35 @@ production authorization, accessibility conformance, scale, or deployed API supp
 - [Current REST DTOs](../../crates/qgenie-remote-proto/src/rest.rs).
 - [Audited reads](../../crates/qgenie-remote-gateway/src/audit.rs).
 - [Work inbox](../integration/work-inbox.md).
+
+## Revision 4: expressive visual system
+
+The user requested more icons, plots, visualization, and color, and explicitly
+requested parallel agent work. Three agents designed isolated admin, telemetry,
+and owner-workspace modules. The shared shell integrates them under one navigation
+and permission model.
+
+The admin module adds colored icon metrics, a labeled native-session and agent-turn
+plot, a native-state coverage ring, owner cards, and device coverage tracks. The
+user detail view adds device cards and a model-reporting ring. The telemetry module
+adds start-event buckets, host and model coverage rings, owner execution bars,
+partial usage reporting, and evidence cards. The owner workspace adds recognizable
+device icons, workload bars, connection and model coverage rings, usage context,
+and session cards with explicit stop controls.
+
+Blue identifies primary navigation and devices. Teal marks confirmed activity.
+Amber marks incomplete observations and review needs. Pink distinguishes agent
+attention and usage context. Color always accompanies text or a labeled chart
+legend. Unknown state stays visible. No color establishes an authorization right.
+
+Plots identify their sample scope, units, coverage, and observation window.
+Synthetic history is labeled as a design example. Hover details expose the exact
+sample values in activity plots. Owner bars and device cards lead to existing
+metadata views. No chart automatically revokes access, approves work, or stops a
+session.
+
+Local files under `design/admin-console/variants` hold the three view modules.
+`visual-shell.css` holds the shared shell. `visual-integration.js` connects them
+to the current prototype data and interactions. The review package includes these
+files so it can run without external libraries or services. The production API
+proposal remains separate from this visual design work.

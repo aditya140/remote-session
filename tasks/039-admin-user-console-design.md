@@ -102,3 +102,42 @@ New previews include admin user detail, aggregate telemetry, owner devices and
 agents, and stop confirmation. The review package includes the new API proposal.
 All runtime interactions remain simulated; no production routes or telemetry jobs
 were added, and no real native session was stopped.
+
+## Revision 4 plan: parallel visual design
+
+The user requested several agents to improve the interface with more icons,
+plots, visualizations, and color.
+
+1. Assign isolated admin, telemetry, and owner-workspace modules to three agents.
+2. Improve the shared navigation, icon system, and color hierarchy.
+3. Integrate the modules without changing authorization or stop semantics.
+4. Inspect real browser screenshots and verify chart labels and fixture counts.
+5. Check navigation, responsive layouts, and confirmed/unknown stop behavior.
+6. Update the design package and present the revised screens.
+
+### Revision 4 delivered and checked
+
+Three agents delivered isolated admin, telemetry, and owner-workspace modules.
+The main agent integrated the modules and a stronger shared color/icon system.
+Charts include session and turn activity, native state coverage, owner connection
+tracks, start-event buckets, model coverage, per-owner execution bars, and owner
+device workload. Recognizable device, harness, shield, stop, and navigation icons
+replace generic marks. Color is paired with status text and chart legends.
+
+The integrated Chromium suite passed six desktop and twelve mobile views. It
+checks user/device navigation, scope after persona changes, missing model fields,
+confirmation and cancel, preservation of unrelated sessions, lost-reply outcome
+checks without resend, offline controls, reporting coverage, evidence dialogs,
+and keyboard navigation. No script errors or external API calls occurred.
+Additional checks verified twelve activity point tooltips, twelve event-bucket
+tooltips, and preservation of the independent approval card in the user inbox.
+The agents also checked their isolated modules across all three visual themes.
+
+The package now includes local CSS and JavaScript view files. Extract the full
+package to retain the assets. No backend route, native control behavior, telemetry
+collector, or authorization policy changed. All actions remain simulated.
+
+The final integration also passed eighteen tablet/theme layout checks at 768 and
+1024 pixels, a zero-active-session telemetry check, and an admin view for a user
+with no confirmed running work. The package includes all local view assets and
+an extraction guide. The API proposal and production integration scope are unchanged.
